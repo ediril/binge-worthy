@@ -3,7 +3,7 @@
 $current_page = isset($current_page) ? $current_page : 'home';
 ?>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container mx-3">
+    <div class="container-fluid mx-1 px-4">
         <a class="navbar-brand" href="index.php">Binge-Worthy</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>

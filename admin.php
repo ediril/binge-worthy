@@ -2,6 +2,62 @@
 require_once 'common.php';
 require_once 'database.php';
 
+// IP restriction - only allow specific IPs to access admin panel
+function get_client_ip() {
+    // Check for various IP headers in order of preference
+    $ip_headers = [
+        'HTTP_X_FORWARDED_FOR',
+        'HTTP_X_REAL_IP',
+        'HTTP_CLIENT_IP',
+        'REMOTE_ADDR'
+    ];
+    
+    foreach ($ip_headers as $header) {
+        if (!empty($_SERVER[$header])) {
+            $ip = $_SERVER[$header];
+            // Handle comma-separated IPs (X-Forwarded-For can contain multiple IPs)
+            if (strpos($ip, ',') !== false) {
+                $ip = trim(explode(',', $ip)[0]);
+            }
+            // Validate IP format
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                return $ip;
+            }
+        }
+    }
+    
+    // Fallback to REMOTE_ADDR even if it's a private IP
+    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+}
+
+// Define allowed IPs (replace with actual IP addresses)
+$allowed_ips = [
+    '192.168.1.100',  // Placeholder IP - replace with actual allowed IP
+    '127.0.0.1',      // Localhost for development
+    '::1'             // IPv6 localhost
+];
+
+$client_ip = get_client_ip();
+
+// Check if client IP is in allowed list
+if (!in_array($client_ip, $allowed_ips)) {
+    // Return 404 error to hide the existence of the admin panel
+    http_response_code(404);
+    echo '<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 Not Found</title>
+</head>
+<body>
+    <h1>404 Not Found</h1>
+    <p>The requested resource was not found on this server.</p>
+</body>
+</html>';
+    exit;
+}
+
 $db = get_database();
 
 // Handle form submissions

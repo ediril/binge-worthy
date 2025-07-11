@@ -48,7 +48,6 @@ if ($selected_category_id) {
         
         <!-- Categories Buttons -->
         <div class="categories-header">
-            <h2 class="categories-page-title">Browse by Categories</h2>
             <div class="categories-buttons">
                 <?php foreach ($categories as $category): ?>
                     <a href="categories.php?category=<?php echo $category['id']; ?>" 
@@ -67,9 +66,7 @@ if ($selected_category_id) {
 
         <!-- Videos Content -->
         <div class="category-content">
-            <?php if ($selected_category_name): ?>
-                <h3 class="category-title"><?php echo htmlspecialchars($selected_category_name); ?> Videos</h3>
-                
+            <?php if ($selected_category_name): ?>                
                 <?php if (empty($videos)): ?>
                     <div class="no-videos-message">
                         <div class="no-videos-icon">🎬</div>

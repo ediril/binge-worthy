@@ -1,0 +1,32 @@
+RewriteEngine On
+
+# Force HTTPS redirect
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Redirect www to non-www
+RewriteCond %{HTTP_HOST} ^www\.bingeworthyshows\.tv$ [NC]
+RewriteRule ^(.*)$ https://bingeworthyshows.tv/$1 [L,R=301]
+
+# Only allow founderfodder.com (non-www)
+RewriteCond %{HTTP_HOST} !^bingeworthyshows\.tv$ [NC]
+RewriteRule ^ - [R=404,L]
+
+# If the requested file or directory exists, serve it directly
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Otherwise, route everything to index.php
+RewriteRule ^ index.php [L,QSA]
+
+# Allow direct access to static files
+<FilesMatch "\.(css|js|jpg|jpeg|png|gif|ico)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+
+# PHP settings
+<IfModule mod_php.c>
+    php_flag display_errors On
+    php_value error_reporting E_ALL
+</IfModule>
