@@ -1,4 +1,55 @@
 <?php
+/**
+ * Universal routing - works with both PHP built-in server and Apache
+ */
+
+// Check if we're running under PHP's built-in server
+if (php_sapi_name() === 'cli-server') {
+    $request_uri = $_SERVER['REQUEST_URI'];
+    $path = parse_url($request_uri, PHP_URL_PATH);
+    $path = ltrim($path, '/');
+    
+    // Handle static files
+    if (preg_match('/\.(css|js|jpg|jpeg|png|gif|ico)$/', $path)) {
+        return false; // Let the built-in server handle static files
+    }
+    
+    // Handle clean URLs for built-in server
+    if (!empty($path) && $path !== 'index.php') {
+        if (file_exists($path . '.php')) {
+            // If corresponding PHP file exists, include it and exit
+            require $path . '.php';
+            exit;
+        } else {
+            // 404 - file not found
+            http_response_code(404);
+            echo '<!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>404 - Page Not Found</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            </head>
+            <body>
+                <div class="container mt-5">
+                    <div class="row justify-content-center">
+                        <div class="col-md-6 text-center">
+                            <h1>404</h1>
+                            <h2>Page Not Found</h2>
+                            <p>The page you are looking for does not exist.</p>
+                            <a href="/" class="btn btn-primary">Go Home</a>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>';
+            exit;
+        }
+    }
+}
+
+// Regular homepage logic (for Apache or when accessing root)
 require_once 'common.php';
 require_once 'database.php';
 
@@ -11,13 +62,7 @@ $suggested_videos = get_suggested_videos($db);
 
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Binge-Worthy - Educational Content Platform</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="static/styles.css">
-</head>
+<?php $page_title = 'Binge-Worthy - Educational Content Platform'; include 'templates/head.php'; ?>
 <body>
     <?php $current_page = 'home'; include 'templates/navbar.php'; ?>
 
@@ -41,7 +86,9 @@ $suggested_videos = get_suggested_videos($db);
                             <div class="video-info">
                                 <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
                                 <p class="video-channel"><?php echo htmlspecialchars($video['channel_name']); ?></p>
-                                <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
+                                <?php if ($video['category'] !== 'Not Categorized'): ?>
+                                    <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
+                                <?php endif; ?>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -59,7 +106,7 @@ $suggested_videos = get_suggested_videos($db);
                     <?php foreach ($new_channels as $channel): ?>
                         <div class="video-card">
                             <div class="video-thumbnail">
-                                <a href="channel.php?id=<?php echo $channel['id']; ?>">
+                                <a href="/channel?id=<?php echo $channel['id']; ?>">
                                     <?php if (!empty($channel['thumbnail_url'])): ?>
                                         <img src="<?php echo htmlspecialchars($channel['thumbnail_url']); ?>" 
                                              alt="<?php echo htmlspecialchars($channel['name']); ?> Channel">
@@ -99,7 +146,9 @@ $suggested_videos = get_suggested_videos($db);
                             <div class="video-info">
                                 <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
                                 <p class="video-channel"><?php echo htmlspecialchars($video['channel_name']); ?></p>
-                                <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
+                                <?php if ($video['category'] !== 'Not Categorized'): ?>
+                                    <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
+                                <?php endif; ?>
                             </div>
                         </div>
                     <?php endforeach; ?>

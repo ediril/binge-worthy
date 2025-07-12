@@ -712,4 +712,144 @@ body {
     .footer-divider {
         margin: 1.5rem 0 1rem 0;
     }
+}
+
+/* About Page Styles */
+.about-content {
+    padding: 2rem 0;
+}
+
+.about-content h1 {
+    color: #e50914;
+    font-weight: bold;
+    margin-bottom: 2rem;
+}
+
+.about-content .hero-section {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    padding: 3rem 2rem;
+    border-radius: 12px;
+    margin-bottom: 3rem;
+}
+
+.about-content .hero-section h2 {
+    color: #d0d0d0;
+    font-weight: 300;
+}
+
+.about-content .lead {
+    font-size: 1.2rem;
+    line-height: 1.6;
+    color: #ffffff;
+    margin-bottom: 2rem;
+}
+
+.about-content h3 {
+    color: #e50914;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+}
+
+.about-content p {
+    color: #d0d0d0;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.feature-card {
+    background: #2d2d2d;
+    padding: 1.5rem;
+    border-radius: 8px;
+    height: 100%;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(229, 9, 20, 0.2);
+}
+
+.feature-card h4 {
+    color: #ffffff;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.feature-card p {
+    color: #d0d0d0;
+    margin-bottom: 0;
+    line-height: 1.5;
+}
+
+.about-content .btn-primary {
+    background-color: #e50914;
+    border-color: #e50914;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.about-content .btn-primary:hover {
+    background-color: #b20710;
+    border-color: #b20710;
+    transform: translateY(-2px);
+}
+
+.about-content .btn-outline-primary {
+    border-color: #e50914;
+    color: #e50914;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.about-content .btn-outline-primary:hover {
+    background-color: #e50914;
+    border-color: #e50914;
+    color: #ffffff;
+    transform: translateY(-2px);
+}
+
+.about-content a {
+    color: #e50914;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.about-content a:hover {
+    color: #b20710;
+}
+
+@media (max-width: 768px) {
+    .about-content {
+        padding: 1rem 0;
+    }
+    
+    .about-content h1 {
+        font-size: 2rem;
+    }
+    
+    .about-content .hero-section {
+        padding: 2rem 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .about-content .lead {
+        font-size: 1.1rem;
+    }
+    
+    .feature-card {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .about-content .btn-lg {
+        padding: 0.5rem 1.5rem;
+        font-size: 1rem;
+        display: block;
+        width: 100%;
+        margin-bottom: 1rem;
+    }
 } 

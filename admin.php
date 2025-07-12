@@ -97,10 +97,41 @@ if ($_POST) {
                             if ($existing_name->fetch()) {
                                 $error = "A channel with the name '{$channel_metadata['name']}' already exists in the database.";
                             } else {
-                                if (add_channel($db, $channel_metadata['name'], $channel_metadata['description'], $channel_metadata['youtube_url'], $channel_metadata['thumbnail_url'])) {
-                                    $message = "Channel '{$channel_metadata['name']}' added successfully!";
+                                // Handle category selection for channel
+                                $category_id = null;
+                                
+                                if (isset($_POST['category_choice']) && $_POST['category_choice'] === 'existing' && !empty($_POST['existing_category'])) {
+                                    // Use existing category
+                                    $category_id = intval($_POST['existing_category']);
+                                } else if (isset($_POST['category_choice']) && $_POST['category_choice'] === 'new' && !empty($_POST['new_category'])) {
+                                    // Create new category
+                                    $new_category_name = trim($_POST['new_category']);
+                                    $new_category_description = trim($_POST['new_category_description'] ?? '');
+                                    
+                                    // Check if category already exists
+                                    $existing_category = $db->prepare("SELECT id FROM categories WHERE name = ? AND is_active = 1");
+                                    $existing_category->execute([$new_category_name]);
+                                    
+                                    if ($existing_category->fetch()) {
+                                        $error = "Category '{$new_category_name}' already exists.";
+                                    } else {
+                                        if (add_category($db, $new_category_name, $new_category_description)) {
+                                            $category_id = $db->lastInsertId();
+                                        } else {
+                                            $error = "Failed to create new category.";
+                                        }
+                                    }
                                 } else {
-                                    $error = "Failed to add channel to database.";
+                                    // Category selection is required
+                                    $error = "Please select a category or create a new one.";
+                                }
+                                
+                                if ($category_id && !$error) {
+                                    if (add_channel($db, $channel_metadata['name'], $channel_metadata['description'], $channel_metadata['youtube_url'], $category_id, $channel_metadata['thumbnail_url'])) {
+                                        $message = "Channel '{$channel_metadata['name']}' added successfully!";
+                                    } else {
+                                        $error = "Failed to add channel to database.";
+                                    }
                                 }
                             }
                         } else {
@@ -126,14 +157,14 @@ if ($_POST) {
                         $video_metadata = fetch_youtube_video_metadata($video_url);
                         
                         if ($video_metadata) {
+                            // Use "Not Categorized" for channels created from videos
+                            $category_id = get_category_id_by_name($db, 'Not Categorized');
+                            
                             // Get or create channel for this video
-                            $channel_id = get_or_create_channel_from_video($db, $video_metadata);
+                            $channel_id = get_or_create_channel_from_video($db, $video_metadata, $category_id);
                             
                             if ($channel_id) {
-                                // Auto-categorize the video
-                                $category_id = auto_categorize_video($db, $video_metadata['title'], $video_metadata['channel_name']);
-                                
-                                if (add_video($db, $channel_id, $video_metadata['title'], $video_metadata['description'], $video_url, $video_metadata['thumbnail_url'], $category_id)) {
+                                if (add_video($db, $channel_id, $video_metadata['title'], $video_metadata['description'], $video_url, $video_metadata['thumbnail_url'])) {
                                     $message = "Video '{$video_metadata['title']}' added successfully!";
                                 } else {
                                     $error = "Failed to add video to database.";
@@ -152,14 +183,25 @@ if ($_POST) {
 }
 
 // Get all channels for display
-$all_channels = get_all_channels($db);
+$all_channels = $db->prepare("
+    SELECT c.*, cat.name as category_name 
+    FROM channels c 
+    JOIN categories cat ON c.category_id = cat.id
+    WHERE c.is_active = 1 
+    ORDER BY c.name
+");
+$all_channels->execute();
+$all_channels = $all_channels->fetchAll(PDO::FETCH_ASSOC);
+
+// Get all categories for dropdown (excluding "Not Categorized")
+$all_categories = get_display_categories($db);
 
 // Get all videos to display in admin
 $all_videos = $db->prepare("
     SELECT v.*, c.name as channel_name, cat.name as category 
     FROM videos v 
     JOIN channels c ON v.channel_id = c.id 
-    JOIN categories cat ON v.category_id = cat.id
+    JOIN categories cat ON c.category_id = cat.id
     WHERE v.is_active = 1 
     ORDER BY v.created_at DESC
 ");
@@ -169,14 +211,11 @@ $all_videos = $all_videos->fetchAll(PDO::FETCH_ASSOC);
 
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Binge-Worthy</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="static/styles.css">
-</head>
+<?php 
+$page_title = 'Admin - Binge-Worthy';
+$additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'];
+include 'templates/head.php'; 
+?>
 <body>
     <?php $current_page = 'admin'; include 'templates/navbar.php'; ?>
 
@@ -205,21 +244,75 @@ $all_videos = $all_videos->fetchAll(PDO::FETCH_ASSOC);
                     </div>
                     <div class="card-body">
                         <p class="text-light mb-3" id="input-description">
-                            Enter a YouTube channel URL, channel name, handle, or video URL/ID. We'll automatically fetch the information.
+                            Enter a YouTube channel URL, channel name, or handle. We'll automatically fetch the channel information.
                         </p>
                         <form method="POST" id="add-content-form">
                             <div class="row">
                                 <div class="col-md-3 mb-3">
-                                    <label for="content-type" class="form-label">Content Type</label>
-                                    <select class="form-select" id="content-type" name="content_type" required>
-                                        <option value="channel">Channel</option>
-                                        <option value="video">Video</option>
-                                    </select>
+                                    <label class="form-label">Content Type</label>
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-light dropdown-toggle w-100" type="button" id="content-type-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <span id="content-type-text">Channel</span>
+                                        </button>
+                                        <ul class="dropdown-menu w-100" aria-labelledby="content-type-dropdown">
+                                            <li><a class="dropdown-item" href="#" data-value="channel">Channel</a></li>
+                                            <li><a class="dropdown-item" href="#" data-value="video">Video</a></li>
+                                        </ul>
+                                        <input type="hidden" id="content-type" name="content_type" value="channel" required>
+                                    </div>
                                 </div>
                                 <div class="col-md-9 mb-3">
                                     <label for="content-input" class="form-label">YouTube URL or ID</label>
                                     <input type="text" class="form-control" id="content-input" name="content_input" required 
-                                           placeholder="@username, channelname, video URL, or video ID">
+                                           placeholder="@username, channelname, or full URL">
+                                </div>
+                            </div>
+                            
+                            <!-- Category Selection (only for channels) -->
+                            <div id="category-section" style="display: none;">
+                                <div class="mb-3">
+                                    <label class="form-label">Category</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="category_choice" id="existing-category-choice" value="existing" checked>
+                                        <label class="form-check-label" for="existing-category-choice">
+                                            Use existing category
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="category_choice" id="new-category-choice" value="new">
+                                        <label class="form-check-label" for="new-category-choice">
+                                            Create new category
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <!-- Existing Category Selection -->
+                                <div id="existing-category-section" class="mb-3">
+                                    <label for="existing-category" class="form-label">Select Category</label>
+                                    <select class="form-select" id="existing-category" name="existing_category">
+                                        <option value="">-- Select a category --</option>
+                                        <?php foreach ($all_categories as $category): ?>
+                                            <option value="<?php echo $category['id']; ?>">
+                                                <?php echo htmlspecialchars($category['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                
+                                <!-- New Category Creation -->
+                                <div id="new-category-section" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="new-category" class="form-label">Category Name</label>
+                                            <input type="text" class="form-control" id="new-category" name="new_category" 
+                                                   placeholder="e.g., Education, Entertainment">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="new-category-description" class="form-label">Description (optional)</label>
+                                            <input type="text" class="form-control" id="new-category-description" name="new_category_description" 
+                                                   placeholder="Brief description of the category">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -248,6 +341,7 @@ $all_videos = $all_videos->fetchAll(PDO::FETCH_ASSOC);
                                         <tr>
                                             <th class="text-light">Name</th>
                                             <th class="text-light">Description</th>
+                                            <th class="text-light">Category</th>
                                             <th class="text-light">YouTube URL</th>
                                             <th class="text-light">Created</th>
                                         </tr>
@@ -257,6 +351,9 @@ $all_videos = $all_videos->fetchAll(PDO::FETCH_ASSOC);
                                             <tr>
                                                 <td class="text-light"><?php echo htmlspecialchars($channel['name']); ?></td>
                                                 <td class="text-light"><?php echo htmlspecialchars($channel['description']); ?></td>
+                                                <td>
+                                                    <span class="badge bg-light text-dark"><?php echo htmlspecialchars($channel['category_name']); ?></span>
+                                                </td>
                                                 <td>
                                                     <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" target="_blank" class="btn btn-sm btn-outline-light">
                                                         <i class="fas fa-external-link-alt"></i> View Channel
@@ -328,21 +425,85 @@ $all_videos = $all_videos->fetchAll(PDO::FETCH_ASSOC);
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="static/script.js"></script>
     <script>
-        // Update UI based on content type selection
-        document.getElementById('content-type').addEventListener('change', function() {
-            const contentType = this.value;
+        // Handle dropdown content type selection
+        document.querySelectorAll('#content-type-dropdown + .dropdown-menu .dropdown-item').forEach(function(item) {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const value = this.getAttribute('data-value');
+                const text = this.textContent;
+                
+                // Update button text and hidden input
+                document.getElementById('content-type-text').textContent = text;
+                document.getElementById('content-type').value = value;
+                
+                // Update UI based on selection
+                updateUIForContentType(value);
+            });
+        });
+        
+        // Function to update UI based on content type
+        function updateUIForContentType(contentType) {
             const description = document.getElementById('input-description');
             const input = document.getElementById('content-input');
             const submitText = document.getElementById('submit-text');
+            const categorySection = document.getElementById('category-section');
             
             if (contentType === 'channel') {
                 description.textContent = 'Enter a YouTube channel URL, channel name, or handle. We\'ll automatically fetch the channel information.';
                 input.placeholder = '@username, channelname, or full URL';
                 submitText.textContent = 'Add Channel';
+                categorySection.style.display = 'block';
             } else if (contentType === 'video') {
                 description.textContent = 'Enter a YouTube video URL or video ID. We\'ll automatically fetch the video information and create the channel if needed.';
                 input.placeholder = 'dQw4w9WgXcQ or full URL';
                 submitText.textContent = 'Add Video';
+                categorySection.style.display = 'none';
+            }
+        }
+        
+        // Initialize UI on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateUIForContentType('channel'); // Default to channel
+        });
+        
+        // Handle category choice radio buttons
+        document.querySelectorAll('input[name="category_choice"]').forEach(function(radio) {
+            radio.addEventListener('change', function() {
+                const existingSection = document.getElementById('existing-category-section');
+                const newSection = document.getElementById('new-category-section');
+                
+                if (this.value === 'existing') {
+                    existingSection.style.display = 'block';
+                    newSection.style.display = 'none';
+                } else if (this.value === 'new') {
+                    existingSection.style.display = 'none';
+                    newSection.style.display = 'block';
+                }
+            });
+        });
+        
+        // Form validation
+        document.getElementById('add-content-form').addEventListener('submit', function(e) {
+            const contentType = document.getElementById('content-type').value;
+            
+            if (contentType === 'channel') {
+                const categoryChoice = document.querySelector('input[name="category_choice"]:checked').value;
+                
+                if (categoryChoice === 'existing') {
+                    const existingCategory = document.getElementById('existing-category').value;
+                    if (!existingCategory) {
+                        e.preventDefault();
+                        alert('Please select a category or choose to create a new one.');
+                        return;
+                    }
+                } else if (categoryChoice === 'new') {
+                    const newCategory = document.getElementById('new-category').value.trim();
+                    if (!newCategory) {
+                        e.preventDefault();
+                        alert('Please enter a name for the new category.');
+                        return;
+                    }
+                }
             }
         });
     </script>

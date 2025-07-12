@@ -12,11 +12,18 @@ RewriteRule ^(.*)$ https://bingeworthyshows.tv/$1 [L,R=301]
 RewriteCond %{HTTP_HOST} !^bingeworthyshows\.tv$ [NC]
 RewriteRule ^ - [R=404,L]
 
-# If the requested file or directory exists, serve it directly
+# Redirect old .php URLs to clean URLs
+RewriteCond %{THE_REQUEST} \s/+([^?\s]*?)\.php[\s?] [NC]
+RewriteRule ^ /%1? [R=301,L]
+
+# Clean URL rules for existing pages
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(about|admin|categories|channel)/?$ $1.php [L,QSA]
 
-# Otherwise, route everything to index.php
+# Default fallback to index.php (for 404 or other handling)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [L,QSA]
 
 # Allow direct access to static files

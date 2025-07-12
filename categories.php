@@ -5,8 +5,8 @@ require_once 'database.php';
 // Get database connection
 $db = get_database();
 
-// Get all categories
-$categories = get_all_categories($db);
+// Get all categories excluding "Not Categorized"
+$categories = get_display_categories($db);
 
 // Get selected category from URL parameter
 $selected_category_id = isset($_GET['category']) ? intval($_GET['category']) : null;
@@ -33,13 +33,7 @@ if ($selected_category_id) {
 
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Categories - Binge-Worthy</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="static/styles.css">
-</head>
+<?php $page_title = 'Categories - Binge-Worthy'; include 'templates/head.php'; ?>
 <body>
     <?php $current_page = 'categories'; include 'templates/navbar.php'; ?>
 
@@ -89,7 +83,9 @@ if ($selected_category_id) {
                                             <?php echo htmlspecialchars($video['channel_name']); ?>
                                         </a>
                                     </p>
-                                    <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
+                                    <?php if ($video['category'] !== 'Not Categorized'): ?>
+                                        <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
+                                    <?php endif; ?>
                                     <small class="video-date text-muted">
                                         Added <?php echo date('M j, Y', strtotime($video['created_at'])); ?>
                                     </small>

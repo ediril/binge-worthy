@@ -37,8 +37,10 @@ function create_tables($db) {
             description TEXT,
             youtube_url TEXT NOT NULL UNIQUE,
             thumbnail_url TEXT,
+            category_id INTEGER NOT NULL,
             is_active INTEGER DEFAULT 1,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (category_id) REFERENCES categories (id)
         )
     ");
     
@@ -51,13 +53,11 @@ function create_tables($db) {
             description TEXT,
             video_url TEXT NOT NULL UNIQUE,
             thumbnail_url TEXT,
-            category_id INTEGER NOT NULL,
             is_active INTEGER DEFAULT 1,
             is_featured INTEGER DEFAULT 0,
             view_count INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (channel_id) REFERENCES channels (id),
-            FOREIGN KEY (category_id) REFERENCES categories (id)
+            FOREIGN KEY (channel_id) REFERENCES channels (id)
         )
     ");
     
@@ -67,16 +67,17 @@ function create_tables($db) {
         ('Tech', 'Technology, programming, and software development'),
         ('Business', 'Business, entrepreneurship, and marketing'),
         ('Science', 'Science, research, and educational content'),
-        ('Education', 'Educational and tutorial content'),
-        ('Other', 'Miscellaneous content')
+        ('DIY', ''),
+        ('AI', 'Artificial Intelligence'),
+        ('Not Categorized', 'Channels that have not been categorized yet')
     ");
     
     // Create indexes for better performance
     $db->exec("CREATE INDEX IF NOT EXISTS idx_videos_channel_id ON videos(channel_id)");
-    $db->exec("CREATE INDEX IF NOT EXISTS idx_videos_category_id ON videos(category_id)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_videos_created_at ON videos(created_at)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_videos_is_active ON videos(is_active)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_videos_is_featured ON videos(is_featured)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_channels_category_id ON channels(category_id)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name)");
 }
 

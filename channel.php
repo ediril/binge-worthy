@@ -26,13 +26,7 @@ $videos = get_videos_by_channel($db, $channel_id);
 
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($channel['name']); ?> - Binge-Worthy</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="static/styles.css">
-</head>
+<?php $page_title = htmlspecialchars($channel['name']) . ' - Binge-Worthy'; include 'templates/head.php'; ?>
 <body>
     <?php $current_page = 'channel'; include 'templates/navbar.php'; ?>
 
@@ -91,7 +85,9 @@ $videos = get_videos_by_channel($db, $channel_id);
                             <div class="video-info">
                                 <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
                                 <p class="video-channel"><?php echo htmlspecialchars($video['channel_name']); ?></p>
-                                <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
+                                <?php if ($video['category'] !== 'Not Categorized'): ?>
+                                    <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
+                                <?php endif; ?>
                                 <small class="video-date text-muted">
                                     Added <?php echo date('M j, Y', strtotime($video['created_at'])); ?>
                                 </small>
