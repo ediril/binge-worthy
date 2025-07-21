@@ -1,5 +1,8 @@
 RewriteEngine On
 
+# Skip rewriting for static files (CSS, JS, images)
+RewriteRule ^static/ - [L]
+
 # Force HTTPS redirect
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
@@ -8,8 +11,9 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 RewriteCond %{HTTP_HOST} ^www\.bingeworthyshows\.tv$ [NC]
 RewriteRule ^(.*)$ https://bingeworthyshows.tv/$1 [L,R=301]
 
-# Only allow founderfodder.com (non-www)
+# Only allow bingeworthyshows.tv for PHP pages (not static assets)
 RewriteCond %{HTTP_HOST} !^bingeworthyshows\.tv$ [NC]
+RewriteCond %{REQUEST_URI} !^/static/
 RewriteRule ^ - [R=404,L]
 
 # Redirect old .php URLs to clean URLs
