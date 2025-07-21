@@ -29,13 +29,16 @@ if ($selected_category_id) {
         }
     }
 }
+
+$page_title = 'Categories - Binge-Worthy';
+$current_page = 'categories';
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
-<?php $page_title = 'Categories - Binge-Worthy'; include 'templates/head.php'; ?>
+<?php include 'templates/partials/head.php'; ?>
 <body>
-    <?php $current_page = 'categories'; include 'templates/navbar.php'; ?>
+    <?php include 'templates/partials/navbar.php'; ?>
 
     <div class="container-fluid">
         <br>
@@ -44,7 +47,7 @@ if ($selected_category_id) {
         <div class="categories-header">
             <div class="categories-buttons">
                 <?php foreach ($categories as $category): ?>
-                    <a href="categories.php?category=<?php echo $category['id']; ?>" 
+                    <a href="/categories?category=<?php echo $category['id']; ?>" 
                        class="category-button <?php echo ($category['id'] == $selected_category_id) ? 'active' : ''; ?>">
                         <span class="category-name"><?php echo htmlspecialchars($category['name']); ?></span>
                         <span class="category-count">
@@ -79,7 +82,7 @@ if ($selected_category_id) {
                                 <div class="video-info">
                                     <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
                                     <p class="video-channel">
-                                        <a href="channel.php?id=<?php echo $video['channel_id']; ?>" class="channel-link">
+                                        <a href="/channel?id=<?php echo $video['channel_id']; ?>" class="channel-link">
                                             <?php echo htmlspecialchars($video['channel_name']); ?>
                                         </a>
                                     </p>
@@ -103,7 +106,7 @@ if ($selected_category_id) {
         </div>
     </div>
 
-    <?php include 'templates/footer.php'; ?>
+    <?php include 'templates/partials/footer.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="static/script.js"></script>

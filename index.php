@@ -3,9 +3,12 @@
  * Universal routing - works with both PHP built-in server and Apache
  */
 
+ require_once __DIR__ . '/banalytiq/banalytiq.php';
+
 // Function to show 404 error page
 function show_404_page() {
     http_response_code(404);
+    record_visit(); // Record the 404 visit
     echo '<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -31,166 +34,85 @@ function show_404_page() {
     exit;
 }
 
-// Check if we're running under PHP's built-in server
-if (php_sapi_name() === 'cli-server') {
-    $request_uri = $_SERVER['REQUEST_URI'];
-    $path = parse_url($request_uri, PHP_URL_PATH);
-    $path = ltrim($path, '/');
-    
-    // Handle static files
-    if (preg_match('/\.(css|js|jpg|jpeg|png|gif|ico)$/', $path)) {
-        return false; // Let the built-in server handle static files
-    }
-    
-    // Handle clean URLs for built-in server
-    if (!empty($path) && $path !== 'index.php') {
-        if (file_exists($path . '.php')) {
-            // If corresponding PHP file exists, include it and exit
-            require $path . '.php';
-            exit;
-        } else {
-            // 404 - file not found
-            show_404_page();
-        }
-    }
+// Get the current path
+$request_uri = $_SERVER['REQUEST_URI'];
+$path = parse_url($request_uri, PHP_URL_PATH);
+$path = ltrim($path, '/');
+
+// Handle static files for PHP built-in server
+if (php_sapi_name() === 'cli-server' && preg_match('/\.(css|js|jpg|jpeg|png|gif|ico)$/', $path)) {
+    return false; // Let the built-in server handle static files
+}
+
+// Define valid pages and their corresponding files
+$valid_pages = [
+    '' => 'home',
+    'index.php' => 'home',
+    'about' => 'about',
+    'about.php' => 'about',
+    'admin' => 'admin',
+    'admin.php' => 'admin',
+    'categories' => 'categories',
+    'categories.php' => 'categories',
+    'channel' => 'channel',
+    'channel.php' => 'channel'
+];
+
+// Determine which page to load
+$page_to_load = 'home'; // default
+if (array_key_exists($path, $valid_pages)) {
+    $page_to_load = $valid_pages[$path];
 } else {
-    // Running under Apache/web server - check if this is a fallback request
-    $request_uri = $_SERVER['REQUEST_URI'];
-    $path = parse_url($request_uri, PHP_URL_PATH);
-    $path = ltrim($path, '/');
+    // Check if it's a path with parameters (like categories?category=1 or channel?id=1)
+    $path_parts = explode('?', $path);
+    $base_path = $path_parts[0];
     
-    // Define valid pages (excluding index)
-    $valid_pages = ['about', 'admin', 'categories', 'channel'];
-    
-    // If path is not empty and not index.php, check if it's a valid page
-    if (!empty($path) && $path !== 'index.php') {
-        // Check if it's a valid page
-        $is_valid_page = false;
-        foreach ($valid_pages as $valid_page) {
-            if (preg_match("/^{$valid_page}(\/.*)?$/", $path)) {
-                $is_valid_page = true;
-                break;
-            }
-        }
-        
-        // If it's not a valid page, show 404
-        if (!$is_valid_page) {
-            show_404_page();
-        }
+    if (array_key_exists($base_path, $valid_pages)) {
+        $page_to_load = $valid_pages[$base_path];
+    } else {
+        show_404_page();
     }
 }
 
-// Regular homepage logic (for Apache or when accessing root)
-require_once 'common.php';
-require_once 'database.php';
+// Record the visit after routing decisions are made
+record_visit();
 
-// Get featured videos for homepage
-$db = get_database();
-$new_videos = get_new_videos($db);
-$new_channels = get_new_channels($db);
-$suggested_videos = get_suggested_videos($db);
-?>
+// Load the appropriate page
+switch ($page_to_load) {
+    case 'home':
+        // Homepage logic
+        require_once 'common.php';
+        require_once 'database.php';
 
-<!DOCTYPE html>
-<html lang="en">
-<?php $page_title = 'Binge-Worthy - Educational Content Platform'; include 'templates/head.php'; ?>
-<body>
-    <?php $current_page = 'home'; include 'templates/navbar.php'; ?>
-
-    <div class="container-fluid">
-        <br>
-
-        <!-- New Videos Section -->
-        <section class="video-section">
-            <h2 class="section-title">New Videos</h2>
-            <div class="video-row">
-                <?php if (empty($new_videos)): ?>
-                    <p class="text-muted">No new videos available.</p>
-                <?php else: ?>
-                    <?php foreach ($new_videos as $video): ?>
-                        <div class="video-card">
-                            <div class="video-thumbnail">
-                                <img src="<?php echo htmlspecialchars($video['thumbnail_url']); ?>" 
-                                     alt="<?php echo htmlspecialchars($video['title']); ?>"
-                                     onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>')">
-                            </div>
-                            <div class="video-info">
-                                <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
-                                <p class="video-channel"><?php echo htmlspecialchars($video['channel_name']); ?></p>
-                                <?php if ($video['category'] !== 'Not Categorized'): ?>
-                                    <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-        </section>
-
-        <!-- New Channels Section -->
-        <section class="video-section">
-            <h2 class="section-title">New Channels</h2>
-            <div class="video-row">
-                <?php if (empty($new_channels)): ?>
-                    <p class="text-muted">No new channels available.</p>
-                <?php else: ?>
-                    <?php foreach ($new_channels as $channel): ?>
-                        <div class="video-card">
-                            <div class="video-thumbnail">
-                                <a href="/channel?id=<?php echo $channel['id']; ?>">
-                                    <?php if (!empty($channel['thumbnail_url'])): ?>
-                                        <img src="<?php echo htmlspecialchars($channel['thumbnail_url']); ?>" 
-                                             alt="<?php echo htmlspecialchars($channel['name']); ?> Channel">
-                                    <?php else: ?>
-                                        <div class="thumbnail-placeholder channel-placeholder">
-                                            <span class="placeholder-icon">📺</span>
-                                            <span class="placeholder-text">Channel</span>
-                                        </div>
-                                    <?php endif; ?>
-                                </a>
-                            </div>
-                            <div class="video-info">
-                                <h3 class="video-title"><?php echo htmlspecialchars($channel['name']); ?></h3>
-                                <p class="video-channel"><?php echo $channel['video_count']; ?> videos</p>
-                                <p class="video-category">Channel</p>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-        </section>
-
-        <!-- Suggested Videos Section -->
-        <section class="video-section">
-            <h2 class="section-title">Suggested Videos</h2>
-            <div class="video-row">
-                <?php if (empty($suggested_videos)): ?>
-                    <p class="text-muted">No suggested videos available.</p>
-                <?php else: ?>
-                    <?php foreach ($suggested_videos as $video): ?>
-                        <div class="video-card">
-                            <div class="video-thumbnail">
-                                <img src="<?php echo htmlspecialchars($video['thumbnail_url']); ?>" 
-                                     alt="<?php echo htmlspecialchars($video['title']); ?>"
-                                     onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>')">
-                            </div>
-                            <div class="video-info">
-                                <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
-                                <p class="video-channel"><?php echo htmlspecialchars($video['channel_name']); ?></p>
-                                <?php if ($video['category'] !== 'Not Categorized'): ?>
-                                    <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-        </section>
-    </div>
-
-    <?php include 'templates/footer.php'; ?>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="static/script.js"></script>
-</body>
-</html> 
+        // Get featured videos for homepage
+        $db = get_database();
+        $new_videos = get_new_videos($db);
+        $new_channels = get_new_channels($db);
+        $suggested_videos = get_suggested_videos($db);
+        
+        $page_title = 'BingeWorthy - Edutainment Videos';
+        $current_page = 'home';
+        include 'templates/home.php';
+        break;
+        
+    case 'about':
+        $page_title = 'About - BingeWorthy';
+        $current_page = 'about';
+        include 'templates/about.php';
+        break;
+        
+    case 'admin':
+        include 'templates/admin.php';
+        break;
+        
+    case 'categories':
+        include 'templates/categories.php';
+        break;
+        
+    case 'channel':
+        include 'templates/channel.php';
+        break;
+        
+    default:
+        show_404_page();
+} 

@@ -184,17 +184,17 @@ $all_videos = $db->prepare("
 ");
 $all_videos->execute();
 $all_videos = $all_videos->fetchAll(PDO::FETCH_ASSOC);
+
+$page_title = 'Admin - Binge-Worthy';
+$current_page = 'admin';
+$additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'];
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
-<?php 
-$page_title = 'Admin - Binge-Worthy';
-$additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'];
-include 'templates/head.php'; 
-?>
+<?php include 'templates/partials/head.php'; ?>
 <body>
-    <?php $current_page = 'admin'; include 'templates/navbar.php'; ?>
+    <?php include 'templates/partials/navbar.php'; ?>
 
     <div class="container mt-4">
         <h1>Admin Panel</h1>
@@ -397,7 +397,7 @@ include 'templates/head.php';
         </div>
     </div>
 
-    <?php include 'templates/footer.php'; ?>
+    <?php include 'templates/partials/footer.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="static/script.js"></script>

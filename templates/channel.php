@@ -6,7 +6,7 @@ require_once 'database.php';
 $channel_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
 if ($channel_id <= 0) {
-    header('Location: index.php');
+    header('Location: /');
     exit;
 }
 
@@ -16,19 +16,22 @@ $db = get_database();
 // Get channel information
 $channel = get_channel_by_id($db, $channel_id);
 if (!$channel) {
-    header('Location: index.php');
+    header('Location: /');
     exit;
 }
 
 // Get videos for this channel
 $videos = get_videos_by_channel($db, $channel_id);
+
+$page_title = htmlspecialchars($channel['name']) . ' - Binge-Worthy';
+$current_page = 'channel';
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
-<?php $page_title = htmlspecialchars($channel['name']) . ' - Binge-Worthy'; include 'templates/head.php'; ?>
+<?php include 'templates/partials/head.php'; ?>
 <body>
-    <?php $current_page = 'channel'; include 'templates/navbar.php'; ?>
+    <?php include 'templates/partials/navbar.php'; ?>
 
     <div class="container-fluid">
         <br>
@@ -99,7 +102,7 @@ $videos = get_videos_by_channel($db, $channel_id);
         </section>
     </div>
 
-    <?php include 'templates/footer.php'; ?>
+    <?php include 'templates/partials/footer.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="static/script.js"></script>
