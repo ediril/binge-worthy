@@ -58,7 +58,7 @@
 
                         <div class="text-center mt-5">
                             <a href="categories.php" class="btn btn-primary btn-lg me-3">Browse Categories</a>
-                            <a href="index.php" class="btn btn-outline-primary btn-lg">Back to Home</a>
+                            <a href="/" class="btn btn-outline-primary btn-lg">Back to Home</a>
                         </div>
                     </div>
                 </div>

@@ -14,5 +14,5 @@ if (!isset($page_title)) {
             <link rel="stylesheet" href="<?php echo htmlspecialchars($css_url); ?>">
         <?php endforeach; ?>
     <?php endif; ?>
-    <link rel="stylesheet" href="static/styles.css?v=<?php echo filemtime('static/styles.css'); ?>">
+    <link rel="stylesheet" href="./static/styles.css?v=<?php echo time(); ?>">
 </head> 

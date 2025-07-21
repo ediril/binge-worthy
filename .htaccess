@@ -1,8 +1,5 @@
 RewriteEngine On
 
-# Skip rewriting for static files (CSS, JS, images)
-RewriteRule ^static/ - [L]
-
 # Force HTTPS redirect
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
@@ -23,7 +20,7 @@ RewriteRule ^ /%1? [R=301,L]
 # Clean URL rules for existing pages
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(about|admin|categories|channel)/?$ $1.php [L,QSA]
+RewriteRule ^(index|about|admin|categories|channel)/?$ $1.php [L,QSA]
 
 # Default fallback to index.php (for 404 or other handling)
 RewriteCond %{REQUEST_FILENAME} !-f
