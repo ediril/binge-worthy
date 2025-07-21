@@ -2,45 +2,12 @@
 require_once 'common.php';
 require_once 'database.php';
 
-// IP restriction - only allow specific IPs to access admin panel
-function get_client_ip() {
-    // Check for various IP headers in order of preference
-    $ip_headers = [
-        'HTTP_X_FORWARDED_FOR',
-        'HTTP_X_REAL_IP',
-        'HTTP_CLIENT_IP',
-        'REMOTE_ADDR'
-    ];
-    
-    foreach ($ip_headers as $header) {
-        if (!empty($_SERVER[$header])) {
-            $ip = $_SERVER[$header];
-            // Handle comma-separated IPs (X-Forwarded-For can contain multiple IPs)
-            if (strpos($ip, ',') !== false) {
-                $ip = trim(explode(',', $ip)[0]);
-            }
-            // Validate IP format
-            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-                return $ip;
-            }
-        }
-    }
-    
-    // Fallback to REMOTE_ADDR even if it's a private IP
-    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-}
+// Localhost-only restriction - only allow access when running on localhost
+$is_localhost = in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1', 'localhost:8080', '127.0.0.1:8080']) || 
+               (isset($_SERVER['HTTP_HOST']) && preg_match('/^localhost:\d+$/', $_SERVER['HTTP_HOST']));
 
-// Define allowed IPs (replace with actual IP addresses)
-$allowed_ips = [
-    '192.168.1.100',  // Placeholder IP - replace with actual allowed IP
-    '127.0.0.1',      // Localhost for development
-    '::1'             // IPv6 localhost
-];
-
-$client_ip = get_client_ip();
-
-// Check if client IP is in allowed list
-if (!in_array($client_ip, $allowed_ips)) {
+// Check if running on localhost
+if (!$is_localhost) {
     // Return 404 error to hide the existence of the admin panel
     http_response_code(404);
     echo '<!DOCTYPE html>
@@ -48,11 +15,21 @@ if (!in_array($client_ip, $allowed_ips)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 Not Found</title>
+    <title>404 - Page Not Found</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="static/styles.css?v=' . filemtime('static/styles.css') . '">
 </head>
 <body>
-    <h1>404 Not Found</h1>
-    <p>The requested resource was not found on this server.</p>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6 text-center">
+                <h1 style="font-size: 4rem; color: #e50914;">404</h1>
+                <h2>Page Not Found</h2>
+                <p>The page you are looking for does not exist.</p>
+                <a href="/" class="btn btn-primary">Go Home</a>
+            </div>
+        </div>
+    </div>
 </body>
 </html>';
     exit;

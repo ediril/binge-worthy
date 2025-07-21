@@ -3,6 +3,34 @@
  * Universal routing - works with both PHP built-in server and Apache
  */
 
+// Function to show 404 error page
+function show_404_page() {
+    http_response_code(404);
+    echo '<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>404 - Page Not Found</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="static/styles.css?v=' . filemtime('static/styles.css') . '">
+    </head>
+    <body>
+        <div class="container mt-5">
+            <div class="row justify-content-center">
+                <div class="col-md-6 text-center">
+                    <h1 style="font-size: 4rem; color: #e50914;">404</h1>
+                    <h2>Page Not Found</h2>
+                    <p>The page you are looking for does not exist.</p>
+                    <a href="/" class="btn btn-primary">Go Home</a>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>';
+    exit;
+}
+
 // Check if we're running under PHP's built-in server
 if (php_sapi_name() === 'cli-server') {
     $request_uri = $_SERVER['REQUEST_URI'];
@@ -22,29 +50,32 @@ if (php_sapi_name() === 'cli-server') {
             exit;
         } else {
             // 404 - file not found
-            http_response_code(404);
-            echo '<!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>404 - Page Not Found</title>
-                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-            </head>
-            <body>
-                <div class="container mt-5">
-                    <div class="row justify-content-center">
-                        <div class="col-md-6 text-center">
-                            <h1>404</h1>
-                            <h2>Page Not Found</h2>
-                            <p>The page you are looking for does not exist.</p>
-                            <a href="/" class="btn btn-primary">Go Home</a>
-                        </div>
-                    </div>
-                </div>
-            </body>
-            </html>';
-            exit;
+            show_404_page();
+        }
+    }
+} else {
+    // Running under Apache/web server - check if this is a fallback request
+    $request_uri = $_SERVER['REQUEST_URI'];
+    $path = parse_url($request_uri, PHP_URL_PATH);
+    $path = ltrim($path, '/');
+    
+    // Define valid pages (excluding index)
+    $valid_pages = ['about', 'admin', 'categories', 'channel'];
+    
+    // If path is not empty and not index.php, check if it's a valid page
+    if (!empty($path) && $path !== 'index.php') {
+        // Check if it's a valid page
+        $is_valid_page = false;
+        foreach ($valid_pages as $valid_page) {
+            if (preg_match("/^{$valid_page}(\/.*)?$/", $path)) {
+                $is_valid_page = true;
+                break;
+            }
+        }
+        
+        // If it's not a valid page, show 404
+        if (!$is_valid_page) {
+            show_404_page();
         }
     }
 }

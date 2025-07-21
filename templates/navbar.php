@@ -15,9 +15,16 @@ $current_page = isset($current_page) ? $current_page : 'home';
                 </li>
             </ul>
             <ul class="navbar-nav ms-auto">
-                <li class="nav-item">
-                    <a href="admin.php" class="btn btn-outline-light btn-sm">Admin</a>
-                </li>
+                <?php 
+                // Only show admin button on localhost
+                $is_localhost = in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1', 'localhost:8080', '127.0.0.1:8080']) || 
+                               (isset($_SERVER['HTTP_HOST']) && preg_match('/^localhost:\d+$/', $_SERVER['HTTP_HOST']));
+                if ($is_localhost): 
+                ?>
+                    <li class="nav-item">
+                        <a href="admin.php" class="btn btn-outline-light btn-sm">Admin</a>
+                    </li>
+                <?php endif; ?>
             </ul>
         </div>
     </div>
