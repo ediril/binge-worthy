@@ -92,7 +92,7 @@ switch ($page_to_load) {
         
         $page_title = 'BingeWorthy - Edutainment Videos';
         $current_page = 'home';
-        include 'templates/home.php';
+        include 'templates/index.php';
         break;
         
     case 'about':
