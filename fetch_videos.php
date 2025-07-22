@@ -217,23 +217,17 @@ function fetch_channel_videos_rss($channel_url, $limit = 10) {
         return null;
     }
     
-    echo "  Debug: Initial channel ID from URL: {$channel_id}\n";
-    
     // For RSS feeds, we need the actual channel ID (UC format)
     // If we got a username/handle, try to get the real channel ID from the page
     if (!preg_match('/^UC[a-zA-Z0-9_-]{22}$/', $channel_id)) {
         $real_channel_id = get_real_channel_id_from_page($channel_url);
         if ($real_channel_id) {
-            echo "  Debug: Found real channel ID from page: {$real_channel_id}\n";
             $channel_id = $real_channel_id;
-        } else {
-            echo "  Debug: Could not find real channel ID from page\n";
         }
     }
     
     // YouTube RSS feed URL
     $rss_url = "https://www.youtube.com/feeds/videos.xml?channel_id=" . $channel_id;
-    echo "  Debug: RSS URL: {$rss_url}\n";
     
     $context = stream_context_create([
         'http' => [

@@ -141,7 +141,7 @@ if ($_POST) {
                             $channel_id = get_or_create_channel_from_video($db, $video_metadata, $category_id);
                             
                             if ($channel_id) {
-                                if (add_video($db, $channel_id, $video_metadata['title'], $video_metadata['description'], $video_url, $video_metadata['thumbnail_url'])) {
+                                if (add_video($db, $channel_id, $video_metadata['title'], $video_metadata['description'], $video_url, $video_metadata['thumbnail_url'], 1)) {
                                     $message = "Video '{$video_metadata['title']}' added successfully!";
                                 } else {
                                     $error = "Failed to add video to database.";
