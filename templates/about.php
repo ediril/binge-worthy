@@ -1,3 +1,23 @@
+<?php
+require_once 'common.php';
+require_once 'database.php';
+
+// Get database connection
+$db = get_database();
+
+// Get counts
+$channel_count_stmt = $db->prepare("SELECT COUNT(*) as count FROM channels");
+$channel_count_stmt->execute();
+$channel_count = $channel_count_stmt->fetch()['count'];
+
+$video_count_stmt = $db->prepare("SELECT COUNT(*) as count FROM videos");
+$video_count_stmt->execute();
+$video_count = $video_count_stmt->fetch()['count'];
+
+$page_title = 'About - Binge-Worthy';
+$current_page = 'about';
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <?php include 'templates/partials/head.php'; ?>
@@ -21,6 +41,22 @@
                             videos you will love watching or simply leave running in the background while you get your work done.
                         </p>
                                                 
+                        <h3 class="mt-4 mb-3">Our Collection</h3>
+                        <div class="row text-center mb-4">
+                            <div class="col-md-6">
+                                <div class="stat-card p-3 mb-3">
+                                    <h2 class="text-primary mb-2"><?php echo number_format($channel_count); ?></h2>
+                                    <p class="mb-0">Curated Channels</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="stat-card p-3 mb-3">
+                                    <h2 class="text-primary mb-2"><?php echo number_format($video_count); ?></h2>
+                                    <p class="mb-0">Binge-Worthy Videos</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <h3 class="mt-4 mb-3">Get Started</h3>
                         <p>
                             Browse our <a href="/categories" class="text-decoration-none">categories</a> to discover videos in your areas of interest, or check out our <a href="/" class="text-decoration-none">homepage</a> for the latest additions and suggested content.
