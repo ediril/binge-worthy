@@ -40,12 +40,12 @@ $current_page = 'categories';
 <body>
     <?php include 'templates/partials/navbar.php'; ?>
 
-    <div class="container-fluid">
+    <div class="container-fluid p-0">
         <br>
         
         <!-- Categories Buttons -->
-        <div class="categories-header">
-            <div class="categories-buttons">
+        <div class="categories-header px-4 mb-4">
+            <div class="categories-buttons d-flex flex-wrap gap-3 justify-content-center mb-4">
                 <?php foreach ($categories as $category): ?>
                     <a href="/categories?category=<?php echo $category['id']; ?>" 
                        class="category-button <?php echo ($category['id'] == $selected_category_id) ? 'active' : ''; ?>">
@@ -62,13 +62,13 @@ $current_page = 'categories';
         </div>
 
         <!-- Videos Content -->
-        <div class="category-content">
+        <div class="category-content px-4">
             <?php if ($selected_category_name): ?>                
                 <?php if (empty($videos)): ?>
-                    <div class="no-videos-message">
+                    <div class="no-videos-message text-center py-5 px-4 my-4">
                         <div class="no-videos-icon">🎬</div>
-                        <h4>No videos yet</h4>
-                        <p>There are no videos in this category yet. Check back later!</p>
+                        <h4 class="mt-3 mb-2">No videos yet</h4>
+                        <p class="mb-0">There are no videos in this category yet. Check back later!</p>
                     </div>
                 <?php else: ?>
                     <div class="videos-grid">

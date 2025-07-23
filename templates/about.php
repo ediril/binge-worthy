@@ -44,13 +44,13 @@ $current_page = 'about';
                         <h3 class="mt-4 mb-3">Our Collection</h3>
                         <div class="row text-center mb-4">
                             <div class="col-md-6">
-                                <div class="stat-card p-3 mb-3">
+                                <div class="stat-card p-4 mb-3 h-100">
                                     <h2 class="text-primary mb-2"><?php echo number_format($channel_count); ?></h2>
                                     <p class="mb-0">Curated Channels</p>
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="stat-card p-3 mb-3">
+                                <div class="stat-card p-4 mb-3 h-100">
                                     <h2 class="text-primary mb-2"><?php echo number_format($video_count); ?></h2>
                                     <p class="mb-0">Binge-Worthy Videos</p>
                                 </div>

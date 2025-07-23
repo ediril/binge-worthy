@@ -4,13 +4,13 @@
 <body>
     <?php include 'templates/partials/navbar.php'; ?>
 
-    <div class="container-fluid">
+    <div class="container-fluid p-0">
         <br>
 
         <!-- Suggested Videos Section -->
-        <section class="video-section">
-            <h2 class="section-title">Suggested Videos</h2>
-            <div class="video-row">
+        <section class="video-section mb-4 px-4">
+            <h2 class="section-title mb-3">Suggested Videos</h2>
+            <div class="video-row d-flex pb-3">
                 <?php if (empty($suggested_videos)): ?>
                     <p class="text-muted">No suggested videos available.</p>
                 <?php else: ?>
@@ -21,9 +21,9 @@
                                      alt="<?php echo htmlspecialchars($video['title']); ?>"
                                      onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>')">
                             </div>
-                            <div class="video-info">
-                                <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
-                                <p class="video-channel"><?php echo htmlspecialchars($video['channel_name']); ?></p>
+                            <div class="video-info p-3">
+                                <h3 class="video-title mb-2"><?php echo htmlspecialchars($video['title']); ?></h3>
+                                <p class="video-channel mb-2"><?php echo htmlspecialchars($video['channel_name']); ?></p>
                                 <?php if ($video['category'] && $video['category'] !== 'Not Categorized'): ?>
                                     <div class="video-categories mb-2">
                                         <?php
@@ -46,9 +46,9 @@
         </section>
 
         <!-- New Channels Section -->
-        <section class="video-section">
-            <h2 class="section-title">New Channels</h2>
-            <div class="video-row">
+        <section class="video-section mb-4 px-4">
+            <h2 class="section-title mb-3">New Channels</h2>
+            <div class="video-row d-flex pb-3">
                 <?php if (!empty($new_channels)): ?>
                     <?php foreach ($new_channels as $channel): ?>
                         <div class="video-card">
@@ -58,17 +58,17 @@
                                         <img src="<?php echo htmlspecialchars($channel['thumbnail_url']); ?>" 
                                              alt="<?php echo htmlspecialchars($channel['name']); ?> Channel">
                                     <?php else: ?>
-                                        <div class="thumbnail-placeholder channel-placeholder">
+                                        <div class="thumbnail-placeholder channel-placeholder d-flex flex-column justify-content-center align-items-center">
                                             <span class="placeholder-icon">📺</span>
                                             <span class="placeholder-text">Channel</span>
                                         </div>
                                     <?php endif; ?>
                                 </a>
                             </div>
-                            <div class="video-info">
-                                <h3 class="video-title"><?php echo htmlspecialchars($channel['name']); ?></h3>
-                                <p class="video-channel"><?php echo $channel['video_count']; ?> videos</p>
-                                <p class="video-category">Channel</p>
+                            <div class="video-info p-3">
+                                <h3 class="video-title mb-2"><?php echo htmlspecialchars($channel['name']); ?></h3>
+                                <p class="video-channel mb-2"><?php echo $channel['video_count']; ?> videos</p>
+                                <p class="video-category mb-0">Channel</p>
                             </div>
                         </div>
                     <?php endforeach; ?>

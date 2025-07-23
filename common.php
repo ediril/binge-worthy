@@ -567,7 +567,7 @@ function get_videos_by_channel($db, $channel_id, $limit = null) {
         LEFT JOIN categories cat ON cc.category_id = cat.id
         WHERE v.channel_id = ?
         GROUP BY v.id
-        ORDER BY v.published_at DESC
+        ORDER BY v.created_at DESC
     ";
     
     if ($limit) {

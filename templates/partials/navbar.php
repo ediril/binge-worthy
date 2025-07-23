@@ -22,8 +22,8 @@ $current_page = isset($current_page) ? $current_page : 'home';
                                (isset($_SERVER['HTTP_HOST']) && preg_match('/^localhost:\d+$/', $_SERVER['HTTP_HOST']));
                 if ($is_localhost): 
                 ?>
-                    <li class="nav-item">
-                        <a href="admin.php" class="btn btn-outline-light btn-sm" style="margin-top: 0; margin-bottom: 0; padding-top: 0.5rem; padding-bottom: 0.5rem;">Admin</a>
+                    <li class="nav-item ms-2">
+                        <a href="admin.php" class="btn btn-outline-light btn-sm mt-1 mb-0 py-1">Admin</a>
                     </li>
                 <?php endif; ?>
             </ul>
