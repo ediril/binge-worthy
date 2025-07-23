@@ -77,23 +77,25 @@ $current_page = 'channel';
                     <p>This channel doesn't have any videos in our database yet.</p>
                 </div>
             <?php else: ?>
-                <div class="video-row">
+                <div class="row">
                     <?php foreach ($videos as $video): ?>
-                        <div class="video-card">
-                            <div class="video-thumbnail">
-                                <img src="<?php echo htmlspecialchars($video['thumbnail_url']); ?>" 
-                                     alt="<?php echo htmlspecialchars($video['title']); ?>"
-                                     onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>')">
-                            </div>
-                            <div class="video-info">
-                                <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
-                                <p class="video-channel"><?php echo htmlspecialchars($video['channel_name']); ?></p>
-                                <?php if ($video['category'] !== 'Not Categorized'): ?>
-                                    <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
-                                <?php endif; ?>
-                                <small class="video-date text-muted">
-                                    Added <?php echo date('M j, Y', strtotime($video['created_at'])); ?>
-                                </small>
+                        <div class="col-lg-3 col-md-4 col-sm-6 col-12 mb-4">
+                            <div class="video-card h-100">
+                                <div class="video-thumbnail">
+                                    <img src="<?php echo htmlspecialchars($video['thumbnail_url']); ?>" 
+                                         alt="<?php echo htmlspecialchars($video['title']); ?>"
+                                         onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>')">
+                                </div>
+                                <div class="video-info">
+                                    <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
+                                    <p class="video-channel"><?php echo htmlspecialchars($video['channel_name']); ?></p>
+                                    <?php if ($video['category'] !== 'Not Categorized'): ?>
+                                        <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
+                                    <?php endif; ?>
+                                    <small class="video-date text-muted">
+                                        Added <?php echo date('M j, Y', strtotime($video['created_at'])); ?>
+                                    </small>
+                                </div>
                             </div>
                         </div>
                     <?php endforeach; ?>
