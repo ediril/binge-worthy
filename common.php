@@ -3,7 +3,7 @@
 /**
  * Get new videos from the database (last 7 days)
  */
-function get_new_videos($db, $limit = 12) {
+function get_new_videos($db, $limit) {
     $stmt = $db->prepare("
         SELECT v.*, c.name as channel_name, cat.name as category 
         FROM videos v 
@@ -20,7 +20,7 @@ function get_new_videos($db, $limit = 12) {
 /**
  * Get new channels from the database (last 7 days)
  */
-function get_new_channels($db, $limit = 12) {
+function get_new_channels($db) {
     $stmt = $db->prepare("
         SELECT c.*, COUNT(v.id) as video_count
         FROM channels c 
@@ -28,16 +28,15 @@ function get_new_channels($db, $limit = 12) {
         WHERE c.is_active = 1 AND c.created_at >= datetime('now', '-7 days')
         GROUP BY c.id
         ORDER BY c.created_at DESC 
-        LIMIT ?
     ");
-    $stmt->execute([$limit]);
+    $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 /**
  * Get suggested videos from the database
  */
-function get_suggested_videos($db, $limit = 5) {
+function get_suggested_videos($db, $limit) {
     $stmt = $db->prepare("
         SELECT v.*, c.name as channel_name, cat.name as category 
         FROM videos v 

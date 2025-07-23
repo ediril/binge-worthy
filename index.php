@@ -86,9 +86,9 @@ switch ($page_to_load) {
 
         // Get featured videos for homepage
         $db = get_database();
-        $new_videos = get_new_videos($db);
+        $new_videos = get_new_videos($db, 10);
         $new_channels = get_new_channels($db);
-        $suggested_videos = get_suggested_videos($db);
+        $suggested_videos = get_suggested_videos($db, 10);
         
         $page_title = 'BingeWorthy - Edutainment Videos';
         $current_page = 'home';
