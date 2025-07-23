@@ -5,7 +5,7 @@
  * This script fetches videos from existing YouTube channels in the database
  * and adds them as new videos. It only runs from the command line.
  * 
- * Usage: php fetch_videos.php [--chan-id=ID] [--limit=N] [--dry-run]
+ * Usage: php fetch_videos.php [--chan-id=ID] [--limit=N] [--backfill] [--dry-run]
  */
 
 // CLI-only protection - return 404 if accessed via web server
@@ -34,7 +34,7 @@ $options = [
     'chan-id' => null,
     'limit' => 15,
     'dry-run' => false,
-    'web' => false,
+    'backfill' => false,
     'help' => false
 ];
 
@@ -45,8 +45,8 @@ foreach ($argv as $arg) {
         $options['limit'] = (int)substr($arg, 8);
     } elseif ($arg === '--dry-run') {
         $options['dry-run'] = true;
-    } elseif ($arg === '--web') {
-        $options['web'] = true;
+    } elseif ($arg === '--backfill') {
+        $options['backfill'] = true;
     } elseif ($arg === '--help' || $arg === '-h') {
         $options['help'] = true;
     }
@@ -59,23 +59,32 @@ if ($options['help']) {
     echo "Options:\n";
     echo "  --chan-id=ID       Fetch videos for specific channel ID only\n";
     echo "  --limit=N          Maximum number of videos to fetch per channel (default: 15)\n";
-    echo "  --web              Use web scraping instead of RSS feed (slower, less reliable)\n";
+    echo "  --backfill         Use web scraping to fetch older videos (requires --chan-id)\n";
+    echo "                     Automatically finds earliest video and fetches older ones\n";
     echo "  --dry-run          Show what would be added without actually adding videos\n";
     echo "  --help, -h         Show this help message\n\n";
     echo "Examples:\n";
-    echo "  php fetch_videos.php                    # Fetch up to 15 recent videos from all channels (RSS)\n";
-    echo "  php fetch_videos.php --limit=5          # Fetch up to 5 recent videos from all channels\n";
-    echo "  php fetch_videos.php --chan-id=3        # Fetch videos only from channel ID 3\n";
-    echo "  php fetch_videos.php --web --limit=15   # Use web scraping instead of RSS\n";
-    echo "  php fetch_videos.php --dry-run          # Preview what would be fetched\n";
+    echo "  php fetch_videos.php                        # Fetch up to 15 recent videos from all channels (RSS)\n";
+    echo "  php fetch_videos.php --limit=5              # Fetch up to 5 recent videos from all channels\n";
+    echo "  php fetch_videos.php --chan-id=3            # Fetch videos only from channel ID 3\n";
+    echo "  php fetch_videos.php --backfill --chan-id=3 # Backfill older videos for channel ID 3\n";
+    echo "  php fetch_videos.php --backfill --chan-id=3 --limit=10  # Backfill up to 10 older videos\n";
+    echo "  php fetch_videos.php --dry-run              # Preview what would be fetched\n";
     exit(0);
+}
+
+// Validate --backfill requires --chan-id
+if ($options['backfill'] && ($options['chan-id'] === null || $options['chan-id'] <= 0)) {
+    echo "ERROR: --backfill option requires --chan-id to be specified.\n";
+    echo "Usage: php fetch_videos.php --backfill --chan-id=ID [--limit=N]\n";
+    exit(1);
 }
 
 echo "Starting video fetch process...\n";
 if ($options['dry-run']) {
     echo "DRY RUN MODE - No videos will be added to database\n";
 }
-echo "Method: " . ($options['web'] ? 'Web scraping' : 'RSS feed') . "\n";
+echo "Method: " . ($options['backfill'] ? 'Web scraping (backfill)' : 'RSS feed') . "\n";
 echo "Limit: {$options['limit']} videos per channel\n";
 if ($options['chan-id'] !== null && $options['chan-id'] > 0) {
     echo "Targeting channel ID: {$options['chan-id']}\n";
@@ -87,7 +96,7 @@ try {
     
     // Get channels to process
     if ($options['chan-id'] !== null && $options['chan-id'] > 0) {
-        $stmt = $db->prepare("SELECT * FROM channels WHERE id = ? AND is_active = 1");
+        $stmt = $db->prepare("SELECT * FROM channels WHERE id = ?");
         $stmt->execute([$options['chan-id']]);
         $channels = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
@@ -96,7 +105,7 @@ try {
             exit(1);
         }
     } else {
-        $stmt = $db->prepare("SELECT * FROM channels WHERE is_active = 1 ORDER BY name");
+        $stmt = $db->prepare("SELECT * FROM channels ORDER BY name");
         $stmt->execute();
         $channels = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -115,7 +124,11 @@ try {
     foreach ($channels as $channel) {
         echo "Processing: {$channel['name']} (ID: {$channel['id']})\n";
         
-        $videos = fetch_channel_videos($channel['youtube_url'], $options['limit'], !$options['web']);
+        if ($options['backfill']) {
+            echo "  Backfill mode: Fetching additional videos beyond latest ones\n";
+        }
+        
+        $videos = fetch_channel_videos($channel['youtube_url'], $options['limit'], !$options['backfill']);
         
         if ($videos === null) {
             echo "  ERROR: Could not fetch videos for this channel\n";
@@ -133,36 +146,105 @@ try {
         $added_count = 0;
         $skipped_count = 0;
         
-        foreach ($videos as $video) {
-            // Check if video already exists
-            $stmt = $db->prepare("SELECT id FROM videos WHERE video_url = ? AND is_active = 1");
-            $stmt->execute([$video['url']]);
+        // For backfill mode, we need to fetch more videos until we reach the limit
+        if ($options['backfill']) {
+            $max_fetch_attempts = 5; // Maximum number of fetch attempts
+            $fetch_multiplier = 2; // Start by fetching 2x the limit
             
-            if ($stmt->fetch()) {
-                $skipped_count++;
-                continue;
-            }
-            
-            if ($options['dry-run']) {
-                echo "  [DRY RUN] {$video['title']} {$video['url']}\n";
-                $added_count++;
-            } else {
-                // Add video to database
-                $success = add_video(
-                    $db,
-                    $channel['id'],
-                    $video['title'],
-                    $video['description'],
-                    $video['url'],
-                    $video['thumbnail']
-                );
+            for ($attempt = 1; $attempt <= $max_fetch_attempts && $added_count < $options['limit']; $attempt++) {
+                $fetch_limit = $options['limit'] * $fetch_multiplier;
+                echo "  Backfill attempt {$attempt}: Fetching up to {$fetch_limit} videos...\n";
                 
-                if ($success) {
-                    echo "  ✓ Added: {$video['title']}\n";
+                $more_videos = fetch_channel_videos($channel['youtube_url'], $fetch_limit, false);
+                
+                if (!$more_videos || empty($more_videos)) {
+                    echo "  No more videos available\n";
+                    break;
+                }
+                
+                $videos_found_this_round = 0;
+                foreach ($more_videos as $video) {
+                    if ($added_count >= $options['limit']) {
+                        break;
+                    }
+                    
+                    // Check if video already exists
+                    $stmt = $db->prepare("SELECT id FROM videos WHERE video_url = ?");
+                    $stmt->execute([$video['url']]);
+                    
+                    if ($stmt->fetch()) {
+                        $skipped_count++;
+                        continue;
+                    }
+                    
+                    $videos_found_this_round++;
+                    
+                    if ($options['dry-run']) {
+                        echo "  [DRY RUN] {$video['title']} {$video['url']}\n";
+                        $added_count++;
+                    } else {
+                        // Add video to database
+                        $success = add_video(
+                            $db,
+                            $channel['id'],
+                            $video['title'],
+                            $video['description'],
+                            $video['url'],
+                            $video['thumbnail'],
+                            0 // is_featured
+                        );
+                        
+                        if ($success) {
+                            echo "  ✓ Added: {$video['title']}\n";
+                            $added_count++;
+                        } else {
+                            echo "  ✗ Failed to add: {$video['title']}\n";
+                            $total_errors++;
+                        }
+                    }
+                }
+                
+                if ($videos_found_this_round == 0) {
+                    echo "  No new videos found in this batch\n";
+                    $fetch_multiplier++; // Try fetching even more videos next time
+                } else {
+                    break; // Found new videos, we're done
+                }
+            }
+        } else {
+            // Normal mode - process the videos we already fetched
+            foreach ($videos as $video) {
+                // Check if video already exists
+                $stmt = $db->prepare("SELECT id FROM videos WHERE video_url = ?");
+                $stmt->execute([$video['url']]);
+                
+                if ($stmt->fetch()) {
+                    $skipped_count++;
+                    continue;
+                }
+                
+                if ($options['dry-run']) {
+                    echo "  [DRY RUN] {$video['title']} {$video['url']}\n";
                     $added_count++;
                 } else {
-                    echo "  ✗ Failed to add: {$video['title']}\n";
-                    $total_errors++;
+                    // Add video to database
+                    $success = add_video(
+                        $db,
+                        $channel['id'],
+                        $video['title'],
+                        $video['description'],
+                        $video['url'],
+                        $video['thumbnail'],
+                        0 // is_featured
+                    );
+                    
+                    if ($success) {
+                        echo "  ✓ Added: {$video['title']}\n";
+                        $added_count++;
+                    } else {
+                        echo "  ✗ Failed to add: {$video['title']}\n";
+                        $total_errors++;
+                    }
                 }
             }
         }
@@ -202,7 +284,7 @@ function fetch_channel_videos($channel_url, $limit, $use_rss = false) {
         return fetch_channel_videos_rss($channel_url, $limit);
     }
     
-    // Fallback to web scraping
+    // Use web scraping for backfill
     return fetch_channel_videos_scraping($channel_url, $limit);
 }
 
@@ -340,39 +422,109 @@ function fetch_channel_videos_scraping($channel_url, $limit = 10) {
     
     $videos = [];
     
-    // Extract video data from the HTML
-    // This is a basic implementation - YouTube's structure may change
-    preg_match_all('/"videoId":"([^"]+)"/', $html, $video_ids);
+    // Extract video data from the HTML - look for video containers with metadata
+    // Use a more specific pattern to extract video IDs that correspond correctly to titles
+    preg_match_all('/"videoId":"([^"]+)","thumbnail"/', $html, $video_ids_specific);
     preg_match_all('/"title":{"runs":\[{"text":"([^"]+)"}/', $html, $titles);
     
-    if (empty($video_ids[1]) || empty($titles[1])) {
-        // Fallback: try a different pattern
-        preg_match_all('/watch\?v=([a-zA-Z0-9_-]{11})/', $html, $video_ids);
-        preg_match_all('/<meta property="og:title" content="([^"]*)"/', $html, $titles);
+    $matches = [];
+    if (!empty($video_ids_specific[1]) && !empty($titles[1])) {
+        $count = min(count($video_ids_specific[1]), count($titles[1]));
+        for ($i = 0; $i < $count; $i++) {
+            $matches[] = [
+                '',
+                $video_ids_specific[1][$i],
+                $titles[1][$i],
+                '2 years ago' // Default date since we're not using dates anymore
+            ];
+        }
+    } else {
+        // Fallback to the old method if specific pattern fails
+        preg_match_all('/"videoId":"([^"]+)"/', $html, $video_ids);
+        
+        if (!empty($video_ids[1]) && !empty($titles[1])) {
+            $count = min(count($video_ids[1]), count($titles[1]));
+            for ($i = 0; $i < $count; $i++) {
+                $matches[] = [
+                    '',
+                    $video_ids[1][$i],
+                    $titles[1][$i],
+                    ''
+                ];
+            }
+        }
     }
     
-    $count = min(count($video_ids[1]), count($titles[1]), $limit);
+    $processed_count = 0;
     
-    for ($i = 0; $i < $count; $i++) {
-        $video_id = $video_ids[1][$i];
-        $title = html_entity_decode($titles[1][$i], ENT_QUOTES | ENT_HTML5);
+    foreach ($matches as $match) {
+        if ($processed_count >= $limit) {
+            break;
+        }
         
-        // Skip shorts and livestreams for now
+        $video_id = $match[1];
+        $title = html_entity_decode($match[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $published_text = isset($match[3]) ? $match[3] : '';
+        
+        // Skip shorts and livestreams
         if (strlen($title) < 10 || str_contains(strtolower($title), '#shorts')) {
             continue;
         }
         
-        $video_url = "https://youtube.com/watch?v=" . $video_id;
+        // No date filtering needed - we'll fetch videos in order and let the main loop handle duplicates
+        
+        $video_url = "https://youtube.com/watch?v={$video_id}";
         $thumbnail_url = generate_youtube_thumbnail($video_url);
         
         $videos[] = [
             'title' => $title,
             'description' => '',
             'url' => $video_url,
-            'thumbnail' => $thumbnail_url
+            'thumbnail' => $thumbnail_url,
+            'published' => $published_text
         ];
+        
+        $processed_count++;
     }
     
-    return array_slice($videos, 0, $limit);
+    return $videos;
 }
-?>
+
+/**
+ * Parse YouTube's relative date format to timestamp
+ */
+function parse_youtube_date($date_text) {
+    // YouTube uses formats like "2 weeks ago", "1 month ago", "1 year ago", etc.
+    $date_text = strtolower(trim($date_text));
+    
+    // Handle "ago" format
+    if (str_contains($date_text, 'ago')) {
+        $date_text = str_replace(' ago', '', $date_text);
+        
+        // Parse number and unit
+        preg_match('/(\d+)\s*(second|minute|hour|day|week|month|year)s?/', $date_text, $matches);
+        
+        if (empty($matches)) {
+            return null;
+        }
+        
+        $number = (int)$matches[1];
+        $unit = $matches[2];
+        
+        $interval_map = [
+            'second' => 'seconds',
+            'minute' => 'minutes', 
+            'hour' => 'hours',
+            'day' => 'days',
+            'week' => 'weeks',
+            'month' => 'months',
+            'year' => 'years'
+        ];
+        
+        $interval = $interval_map[$unit] ?? $unit;
+        return strtotime("-{$number} {$interval}");
+    }
+    
+    // Try to parse as regular date
+    return strtotime($date_text);
+}
