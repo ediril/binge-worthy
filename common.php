@@ -29,7 +29,7 @@ function get_new_channels($db) {
         LEFT JOIN videos v ON c.id = v.channel_id
         WHERE c.created_at >= datetime('now', '-7 days')
         GROUP BY c.id
-        ORDER BY c.created_at DESC 
+        ORDER BY RANDOM() 
     ");
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
