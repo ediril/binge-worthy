@@ -54,6 +54,8 @@ $valid_pages = [
     'admin.php' => 'admin',
     'categories' => 'categories',
     'categories.php' => 'categories',
+    'channels' => 'channels',
+    'channels.php' => 'channels',
     'channel' => 'channel',
     'channel.php' => 'channel'
 ];
@@ -107,6 +109,10 @@ switch ($page_to_load) {
         
     case 'categories':
         include 'templates/categories.php';
+        break;
+        
+    case 'channels':
+        include 'templates/channels.php';
         break;
         
     case 'channel':

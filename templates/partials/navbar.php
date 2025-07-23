@@ -13,6 +13,9 @@ $current_page = isset($current_page) ? $current_page : 'home';
                 <li class="nav-item">
                     <a class="nav-link <?php echo ($current_page == 'categories') ? 'active' : ''; ?>" href="categories.php">Categories</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo ($current_page == 'channels') ? 'active' : ''; ?>" href="channels.php">Channels</a>
+                </li>
             </ul>
             <ul class="navbar-nav ms-auto">
                 <?php 
