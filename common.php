@@ -594,7 +594,7 @@ function get_videos_by_category($db, $category_id, $limit = null) {
         LEFT JOIN categories cat ON cc.category_id = cat.id
         WHERE cc.category_id = ?
         GROUP BY v.id
-        ORDER BY v.published_at DESC
+        ORDER BY v.created_at DESC
     ";
     
     if ($limit) {
