@@ -62,26 +62,33 @@ if ($_POST) {
             $category_ids = array_map('intval', $_POST['edit_existing_categories']);
         }
         
-        // Handle new category creation
+        // Handle new category creation (supports comma-separated names)
         if (!empty($_POST['edit_new_category'])) {
-            $new_category_name = trim($_POST['edit_new_category']);
+            $new_category_input = trim($_POST['edit_new_category']);
             $new_category_description = trim($_POST['edit_new_category_description'] ?? '');
             
-            // Check if category already exists
-            $existing_category = $db->prepare("SELECT id FROM categories WHERE name = ? AND is_active = 1");
-            $existing_category->execute([$new_category_name]);
-            $existing_cat = $existing_category->fetch();
+            // Split by comma and process each category name
+            $category_names = array_map('trim', explode(',', $new_category_input));
+            $category_names = array_filter($category_names, fn($name) => !empty($name));
             
-            if ($existing_cat) {
-                // Add existing category to selection if not already selected
-                if (!in_array($existing_cat['id'], $category_ids)) {
-                    $category_ids[] = $existing_cat['id'];
-                }
-            } else {
-                if (add_category($db, $new_category_name, $new_category_description)) {
-                    $category_ids[] = $db->lastInsertId();
+            foreach ($category_names as $new_category_name) {
+                // Check if category already exists
+                $existing_category = $db->prepare("SELECT id FROM categories WHERE name = ? AND is_active = 1");
+                $existing_category->execute([$new_category_name]);
+                $existing_cat = $existing_category->fetch();
+                
+                if ($existing_cat) {
+                    // Add existing category to selection if not already selected
+                    if (!in_array($existing_cat['id'], $category_ids)) {
+                        $category_ids[] = $existing_cat['id'];
+                    }
                 } else {
-                    $error = "Failed to create new category.";
+                    if (add_category($db, $new_category_name, $new_category_description)) {
+                        $category_ids[] = $db->lastInsertId();
+                    } else {
+                        $error = "Failed to create new category: " . htmlspecialchars($new_category_name);
+                        break;
+                    }
                 }
             }
         }
@@ -140,26 +147,33 @@ if ($_POST) {
                                     $category_ids = array_map('intval', $_POST['existing_categories']);
                                 }
                                 
-                                // Handle new category creation
+                                // Handle new category creation (supports comma-separated names)
                                 if (!empty($_POST['new_category'])) {
-                                    $new_category_name = trim($_POST['new_category']);
+                                    $new_category_input = trim($_POST['new_category']);
                                     $new_category_description = trim($_POST['new_category_description'] ?? '');
                                     
-                                    // Check if category already exists
-                                    $existing_category = $db->prepare("SELECT id FROM categories WHERE name = ? AND is_active = 1");
-                                    $existing_category->execute([$new_category_name]);
-                                    $existing_cat = $existing_category->fetch();
+                                    // Split by comma and process each category name
+                                    $category_names = array_map('trim', explode(',', $new_category_input));
+                                    $category_names = array_filter($category_names, fn($name) => !empty($name));
                                     
-                                    if ($existing_cat) {
-                                        // Add existing category to selection if not already selected
-                                        if (!in_array($existing_cat['id'], $category_ids)) {
-                                            $category_ids[] = $existing_cat['id'];
-                                        }
-                                    } else {
-                                        if (add_category($db, $new_category_name, $new_category_description)) {
-                                            $category_ids[] = $db->lastInsertId();
+                                    foreach ($category_names as $new_category_name) {
+                                        // Check if category already exists
+                                        $existing_category = $db->prepare("SELECT id FROM categories WHERE name = ? AND is_active = 1");
+                                        $existing_category->execute([$new_category_name]);
+                                        $existing_cat = $existing_category->fetch();
+                                        
+                                        if ($existing_cat) {
+                                            // Add existing category to selection if not already selected
+                                            if (!in_array($existing_cat['id'], $category_ids)) {
+                                                $category_ids[] = $existing_cat['id'];
+                                            }
                                         } else {
-                                            $error = "Failed to create new category.";
+                                            if (add_category($db, $new_category_name, $new_category_description)) {
+                                                $category_ids[] = $db->lastInsertId();
+                                            } else {
+                                                $error = "Failed to create new category: " . htmlspecialchars($new_category_name);
+                                                break;
+                                            }
                                         }
                                     }
                                 }
@@ -234,7 +248,7 @@ $all_channels = $db->prepare("
     LEFT JOIN categories cat ON cc.category_id = cat.id AND cat.is_active = 1
     WHERE c.is_active = 1 
     GROUP BY c.id
-    ORDER BY c.name
+    ORDER BY c.created_at DESC
 ");
 $all_channels->execute();
 $all_channels = $all_channels->fetchAll(PDO::FETCH_ASSOC);
@@ -340,12 +354,12 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                     
                                     <!-- New Category Creation -->
                                     <div class="border-top pt-3">
-                                        <h6>Or create a new category:</h6>
+                                        <h6>Or create new categories:</h6>
                                         <div class="row">
                                             <div class="col-md-6 mb-3">
-                                                <label for="new-category" class="form-label">Category Name</label>
+                                                <label for="new-category" class="form-label">Category Names</label>
                                                 <input type="text" class="form-control" id="new-category" name="new_category" 
-                                                       placeholder="e.g., Education, Entertainment">
+                                                       placeholder="e.g., Education, Entertainment, Science (comma-separated)">
                                             </div>
                                             <div class="col-md-6 mb-3">
                                                 <label for="new-category-description" class="form-label">Description (optional)</label>
@@ -409,12 +423,14 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                                     <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" target="_blank" class="btn btn-sm btn-outline-light me-2">
-                                                        <i class="fas fa-external-link-alt"></i> View
+                                                    <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" target="_blank" class="btn btn-sm btn-outline-light me-2"
+                                                       title="View channel on YouTube" data-bs-toggle="tooltip" data-bs-placement="top">
+                                                        <i class="fas fa-external-link-alt"></i>
                                                     </a>
                                                     <button type="button" class="btn btn-sm btn-outline-warning" 
-                                                            onclick="openEditModal(<?php echo $channel['id']; ?>, '<?php echo htmlspecialchars($channel['name'], ENT_QUOTES); ?>')">
-                                                        <i class="fas fa-edit"></i> Edit Categories
+                                                            onclick="openEditModal(<?php echo $channel['id']; ?>, '<?php echo htmlspecialchars($channel['name'], ENT_QUOTES); ?>')"
+                                                            title="Edit channel categories" data-bs-toggle="tooltip" data-bs-placement="top">
+                                                        <i class="fas fa-edit"></i>
                                                     </button>
                                                 </td>
                                                 <td class="text-light"><?php echo date('Y-m-d', strtotime($channel['created_at'])); ?></td>
@@ -519,12 +535,12 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                         
                         <!-- New Category Creation -->
                         <div class="border-top pt-3">
-                            <h6>Or create a new category:</h6>
+                            <h6>Or create new categories:</h6>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label for="edit-new-category" class="form-label">Category Name</label>
+                                    <label for="edit-new-category" class="form-label">Category Names</label>
                                     <input type="text" class="form-control" id="edit-new-category" name="edit_new_category" 
-                                           placeholder="e.g., Education, Entertainment">
+                                           placeholder="e.g., Education, Entertainment, Science (comma-separated)">
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label for="edit-new-category-description" class="form-label">Description (optional)</label>
@@ -587,6 +603,12 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
         // Initialize UI on page load
         document.addEventListener('DOMContentLoaded', function() {
             updateUIForContentType('channel'); // Default to channel
+            
+            // Initialize Bootstrap tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
         });
         
         // No longer needed - categories are always visible in the new interface
@@ -605,10 +627,16 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                     return;
                 }
                 
-                if (newCategory && newCategory.length < 2) {
-                    e.preventDefault();
-                    alert('Category name must be at least 2 characters long.');
-                    return;
+                if (newCategory) {
+                    // Check if any category name is too short when split by comma
+                    const categoryNames = newCategory.split(',').map(name => name.trim()).filter(name => name.length > 0);
+                    const hasShortName = categoryNames.some(name => name.length < 2);
+                    
+                    if (hasShortName) {
+                        e.preventDefault();
+                        alert('Each category name must be at least 2 characters long.');
+                        return;
+                    }
                 }
             }
         });
