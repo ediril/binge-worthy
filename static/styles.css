@@ -1,4 +1,4 @@
-/* Custom styles for Binge-Worthy */
+/* Custom styles for Binge-Worthy - Refactored with Bootstrap 5.3 */
 
 /* Override Bootstrap text-muted for better contrast on dark background */
 .text-muted {
@@ -12,10 +12,6 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-.container-fluid {
-    padding: 0;
-}
-
 /* Navigation */
 .navbar-brand {
     font-weight: bold;
@@ -25,7 +21,6 @@ body {
 
 .navbar-nav .nav-link {
     color: #ffffff !important;
-    margin-right: 1rem;
 }
 
 .navbar-nav .nav-link:hover {
@@ -35,48 +30,33 @@ body {
 /* Hero section */
 .hero-section {
     background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-    padding: 4rem 0;
-    text-align: center;
-    margin-bottom: 3rem;
 }
 
 .hero-content {
     max-width: 600px;
-    margin: 0 auto;
-    padding: 0 2rem;
 }
 
 .hero-title {
     font-size: 3rem;
     font-weight: bold;
-    margin-bottom: 1rem;
     color: #e50914;
 }
 
 .hero-subtitle {
     font-size: 1.2rem;
     color: #d0d0d0;
-    margin-bottom: 2rem;
 }
 
 /* Video sections */
-.video-section {
-    margin-bottom: 1.5rem;
-    padding: 0 2rem;
-}
-
 .section-title {
     font-size: 1.5rem;
     font-weight: bold;
-    margin-bottom: 0.5rem;
     color: #ffffff;
 }
 
 .video-row {
-    display: flex;
     gap: 1rem;
     overflow-x: auto;
-    padding-bottom: 1rem;
 }
 
 .video-row::-webkit-scrollbar {
@@ -131,9 +111,6 @@ body {
     width: 100%;
     height: 180px;
     background: linear-gradient(135deg, #404040 0%, #2d2d2d 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     border-radius: 4px;
     color: #888;
     font-size: 2rem;
@@ -148,8 +125,6 @@ body {
 /* Channel placeholder styling */
 .channel-placeholder {
     background: linear-gradient(135deg, #e50914 0%, #b20710 100%);
-    flex-direction: column;
-    gap: 0.5rem;
     color: #ffffff;
 }
 
@@ -170,14 +145,9 @@ body {
     transform: scale(1.1);
 }
 
-.video-info {
-    padding: 1rem;
-}
-
 .video-title {
     font-size: 1rem;
     font-weight: 600;
-    margin-bottom: 0.5rem;
     color: #ffffff;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -188,7 +158,6 @@ body {
 .video-channel {
     font-size: 0.9rem;
     color: #d0d0d0;
-    margin-bottom: 0.3rem;
 }
 
 .video-category {
@@ -267,9 +236,6 @@ body {
     width: 100%;
     height: 180px;
     background: linear-gradient(135deg, #e50914 0%, #b20710 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     cursor: pointer;
     transition: transform 0.3s ease;
 }
@@ -284,14 +250,9 @@ body {
     opacity: 0.9;
 }
 
-.channel-info {
-    padding: 1rem;
-}
-
 .channel-title {
     font-size: 1rem;
     font-weight: 600;
-    margin-bottom: 0.5rem;
     color: #ffffff;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -312,20 +273,7 @@ body {
 .channel-description {
     font-size: 0.875rem;
     color: #d0d0d0;
-    margin-bottom: 0.75rem;
     line-height: 1.4;
-}
-
-.channel-categories {
-    margin-bottom: 0.75rem;
-}
-
-.channel-stats {
-    margin-bottom: 0.75rem;
-}
-
-.channel-actions {
-    margin-bottom: 0.5rem;
 }
 
 .channel-date {
@@ -348,7 +296,6 @@ body {
 
 .card-header h3 {
     color: #ffffff;
-    margin-bottom: 0;
 }
 
 .form-control, .form-select {
@@ -371,13 +318,11 @@ body {
 .form-label {
     color: #e0e0e0;
     font-weight: 600;
-    margin-bottom: 0.5rem;
 }
 
 .form-text {
     color: #c0c0c0;
     font-size: 0.875rem;
-    margin-top: 0.25rem;
 }
 
 /* Buttons */
@@ -417,7 +362,6 @@ body {
 
 .btn-sm {
     font-size: 0.875rem;
-    padding: 0.25rem 0.75rem;
 }
 
 /* Alerts */
@@ -458,9 +402,7 @@ body {
 /* Channel page styles */
 .channel-header {
     background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-    padding: 2rem;
     border-radius: 12px;
-    margin: 0 2rem;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
@@ -478,9 +420,6 @@ body {
     height: 120px;
     border-radius: 50%;
     background: linear-gradient(135deg, #e50914 0%, #b20710 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     border: 3px solid #e50914;
     box-shadow: 0 4px 15px rgba(229, 9, 20, 0.3);
 }
@@ -495,65 +434,34 @@ body {
     font-size: 2.5rem;
     font-weight: bold;
     color: #ffffff;
-    margin-bottom: 0.5rem;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .channel-description {
     font-size: 1.1rem;
     color: #d0d0d0;
-    margin-bottom: 1rem;
     line-height: 1.6;
-}
-
-.channel-stats {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
 }
 
 .channel-stats .badge {
     font-size: 0.9rem;
-    padding: 0.5rem 1rem;
     border-radius: 20px;
 }
 
 .video-date {
     font-size: 0.8rem;
     color: #999;
-    margin-top: 0.5rem;
-    display: block;
 }
 
 /* Categories page styles */
-.categories-header {
-    padding: 0 2rem;
-    margin-bottom: 2rem;
-}
-
 .categories-page-title {
     font-size: 2rem;
     font-weight: bold;
     color: #ffffff;
-    margin-bottom: 1.5rem;
-    text-align: center;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
-.categories-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    justify-content: center;
-    margin-bottom: 2rem;
-}
-
 .category-button {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.8rem 1.5rem;
     background: #404040;
     border-radius: 25px;
     text-decoration: none;
@@ -562,6 +470,7 @@ body {
     border: 2px solid transparent;
     font-weight: 500;
     white-space: nowrap;
+    padding: 2px 8px;
 }
 
 .category-button:hover {
@@ -593,73 +502,51 @@ body {
 
 .category-count {
     background: rgba(255, 255, 255, 0.2);
-    padding: 0.2rem 0.6rem;
     border-radius: 12px;
     font-size: 0.8rem;
     font-weight: 500;
     min-width: 1.5rem;
-    text-align: center;
 }
 
 .category-button.active .category-count {
     background: rgba(255, 255, 255, 0.3);
 }
 
-.category-content {
-    padding: 0 2rem;
-}
-
 .category-title {
     font-size: 1.5rem;
     font-weight: bold;
     color: #ffffff;
-    margin-bottom: 2rem;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-    text-align: center;
 }
 
 .videos-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1.5rem;
-    margin-bottom: 2rem;
 }
 
 .no-videos-message {
-    text-align: center;
-    padding: 4rem 2rem;
     background: #2d2d2d;
     border-radius: 12px;
-    margin: 2rem 0;
 }
 
 .no-videos-icon {
     font-size: 4rem;
-    margin-bottom: 1rem;
     opacity: 0.6;
 }
 
 .no-videos-message h4 {
     color: #ffffff;
     font-size: 1.5rem;
-    margin-bottom: 1rem;
 }
 
 .no-videos-message p {
     color: #d0d0d0;
     font-size: 1.1rem;
-    margin-bottom: 0;
-}
-
-.no-category-selected {
-    text-align: center;
-    padding: 4rem 2rem;
-    color: #d0d0d0;
 }
 
 .no-category-selected h3 {
     color: #ffffff;
-    margin-bottom: 1rem;
 }
 
 .channel-link {
@@ -683,20 +570,12 @@ body {
     color: #e50914;
     font-weight: bold;
     font-size: 1.3rem;
-    margin-bottom: 1rem;
 }
 
 .footer-text {
     color: #d0d0d0;
     font-size: 0.95rem;
     line-height: 1.6;
-    margin-bottom: 0;
-}
-
-.footer-links {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
 }
 
 .footer-link {
@@ -713,7 +592,6 @@ body {
 
 .footer-divider {
     border-color: #404040;
-    margin: 2rem 0 1rem 0;
 }
 
 /* Responsive design */
@@ -730,15 +608,6 @@ body {
         flex: 0 0 250px;
     }
     
-    .video-section {
-        padding: 0 1rem;
-    }
-    
-    .channel-header {
-        margin: 0 1rem;
-        padding: 1.5rem;
-    }
-    
     .channel-name {
         font-size: 2rem;
     }
@@ -753,36 +622,13 @@ body {
         font-size: 2.5rem;
     }
     
-    .channel-stats {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-    }
-    
-    /* Categories page mobile styles */
-    .categories-header {
-        padding: 0 1rem;
-    }
-    
     .categories-page-title {
         font-size: 1.5rem;
     }
     
-    .categories-buttons {
-        flex-direction: column;
-        align-items: center;
-        gap: 0.8rem;
-    }
-    
     .category-button {
-        padding: 0.8rem 1.2rem;
         font-size: 0.9rem;
         min-width: 200px;
-        justify-content: center;
-    }
-    
-    .category-content {
-        padding: 0 1rem;
     }
     
     .category-title {
@@ -794,47 +640,20 @@ body {
         gap: 1rem;
     }
     
-    .no-videos-message {
-        padding: 2rem 1rem;
-    }
-    
     .no-videos-icon {
         font-size: 3rem;
-    }
-    
-    /* Footer mobile styles */
-    .footer-content {
-        padding: 0 1rem;
-    }
-    
-    .footer-links {
-        flex-direction: row;
-        justify-content: center;
-        gap: 1rem;
-        margin-top: 1rem;
-    }
-    
-    .footer-divider {
-        margin: 1.5rem 0 1rem 0;
     }
 }
 
 /* About Page Styles */
-.about-content {
-    padding: 2rem 0;
-}
-
 .about-content h1 {
     color: #e50914;
     font-weight: bold;
-    margin-bottom: 2rem;
 }
 
 .about-content .hero-section {
     background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-    padding: 3rem 2rem;
     border-radius: 12px;
-    margin-bottom: 3rem;
 }
 
 .about-content .hero-section h2 {
@@ -846,24 +665,20 @@ body {
     font-size: 1.2rem;
     line-height: 1.6;
     color: #ffffff;
-    margin-bottom: 2rem;
 }
 
 .about-content h3 {
     color: #e50914;
     font-weight: 600;
-    margin-bottom: 1.5rem;
 }
 
 .about-content p {
     color: #d0d0d0;
     line-height: 1.6;
-    margin-bottom: 1rem;
 }
 
 .feature-card {
     background: #2d2d2d;
-    padding: 1.5rem;
     border-radius: 8px;
     height: 100%;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -877,14 +692,10 @@ body {
 .feature-card h4 {
     color: #ffffff;
     font-weight: 600;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
 }
 
 .feature-card p {
     color: #d0d0d0;
-    margin-bottom: 0;
     line-height: 1.5;
 }
 
@@ -892,10 +703,8 @@ body {
     background-color: #e50914;
     border-color: #e50914;
     color: #ffffff !important;
-    padding: 0.75rem 2rem;
     font-weight: 600;
     transition: all 0.3s ease;
-    /* Extra specificity to ensure white text */
     box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
 }
 
@@ -915,7 +724,6 @@ a.btn.btn-primary.btn-lg {
 .about-content .btn-outline-primary {
     border-color: #e50914;
     color: #e50914;
-    padding: 0.75rem 2rem;
     font-weight: 600;
     transition: all 0.3s ease;
 }
@@ -938,33 +746,15 @@ a.btn.btn-primary.btn-lg {
 }
 
 @media (max-width: 768px) {
-    .about-content {
-        padding: 1rem 0;
-    }
-    
     .about-content h1 {
         font-size: 2rem;
-    }
-    
-    .about-content .hero-section {
-        padding: 2rem 1rem;
-        margin-bottom: 2rem;
     }
     
     .about-content .lead {
         font-size: 1.1rem;
     }
     
-    .feature-card {
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-    
     .about-content .btn-lg {
-        padding: 0.5rem 1.5rem;
         font-size: 1rem;
-        display: block;
-        width: 100%;
-        margin-bottom: 1rem;
     }
-} 
+}
