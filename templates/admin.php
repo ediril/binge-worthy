@@ -52,8 +52,8 @@ $message = '';
 $error = '';
 
 if ($_POST) {
-    // Handle editing channel categories
-    if (isset($_POST['action']) && $_POST['action'] === 'edit_categories' && isset($_POST['channel_id'])) {
+    // Handle editing channel
+    if (isset($_POST['action']) && $_POST['action'] === 'edit_channel' && isset($_POST['channel_id'])) {
         $channel_id = intval($_POST['channel_id']);
         $category_ids = [];
         
@@ -73,7 +73,7 @@ if ($_POST) {
             
             foreach ($category_names as $new_category_name) {
                 // Check if category already exists
-                $existing_category = $db->prepare("SELECT id FROM categories WHERE name = ? AND is_active = 1");
+                $existing_category = $db->prepare("SELECT id FROM categories WHERE name = ?");
                 $existing_category->execute([$new_category_name]);
                 $existing_cat = $existing_category->fetch();
                 
@@ -99,11 +99,68 @@ if ($_POST) {
         }
         
         if (!empty($category_ids) && !$error) {
-            if (add_channel_categories($db, $channel_id, $category_ids)) {
-                $message = "Channel categories updated successfully!";
-            } else {
+            $success_messages = [];
+            
+            // Update description if provided
+            if (isset($_POST['channel_description'])) {
+                $new_description = trim($_POST['channel_description']);
+                $update_desc_stmt = $db->prepare("UPDATE channels SET description = ? WHERE id = ?");
+                if ($update_desc_stmt->execute([$new_description, $channel_id])) {
+                    $success_messages[] = "description";
+                } else {
+                    $error = "Failed to update channel description.";
+                }
+            }
+            
+            // Update categories
+            if (!$error && add_channel_categories($db, $channel_id, $category_ids)) {
+                $success_messages[] = "categories";
+            } elseif (!$error) {
                 $error = "Failed to update channel categories.";
             }
+            
+            if (!$error && !empty($success_messages)) {
+                $message = "Channel " . implode(' and ', $success_messages) . " updated successfully!";
+            }
+        }
+    }
+    // Handle channel deletion
+    else if (isset($_POST['action']) && $_POST['action'] === 'delete_channel' && isset($_POST['channel_id'])) {
+        $channel_id = intval($_POST['channel_id']);
+        
+        if ($channel_id > 0) {
+            try {
+                $db->beginTransaction();
+                
+                // First, get channel name for confirmation message
+                $channel_stmt = $db->prepare("SELECT name FROM channels WHERE id = ?");
+                $channel_stmt->execute([$channel_id]);
+                $channel = $channel_stmt->fetch();
+                
+                if ($channel) {
+                    // Delete all videos for this channel (hard delete)
+                    $delete_videos_stmt = $db->prepare("DELETE FROM videos WHERE channel_id = ?");
+                    $delete_videos_stmt->execute([$channel_id]);
+                    
+                    // Delete channel categories relationships
+                    $delete_categories_stmt = $db->prepare("DELETE FROM channel_categories WHERE channel_id = ?");
+                    $delete_categories_stmt->execute([$channel_id]);
+                    
+                    // Delete the channel (hard delete)
+                    $delete_channel_stmt = $db->prepare("DELETE FROM channels WHERE id = ?");
+                    $delete_channel_stmt->execute([$channel_id]);
+                    
+                    $db->commit();
+                    $message = "Channel '{$channel['name']}' and all its videos have been deleted successfully.";
+                } else {
+                    $error = "Channel not found or already deleted.";
+                }
+            } catch (Exception $e) {
+                $db->rollback();
+                $error = "Failed to delete channel: " . $e->getMessage();
+            }
+        } else {
+            $error = "Invalid channel ID.";
         }
     }
     // Handle adding new content
@@ -122,7 +179,7 @@ if ($_POST) {
                     $error = "Please provide a valid YouTube channel URL, channel name, or handle (e.g., @username).";
                 } else {
                     // Check if channel already exists (by URL)
-                    $existing_channel = $db->prepare("SELECT id FROM channels WHERE youtube_url = ? AND is_active = 1");
+                    $existing_channel = $db->prepare("SELECT id FROM channels WHERE youtube_url = ?");
                     $existing_channel->execute([$channel_url]);
                     
                     if ($existing_channel->fetch()) {
@@ -133,7 +190,7 @@ if ($_POST) {
                         
                         if ($channel_metadata) {
                             // Check if channel name already exists
-                            $existing_name = $db->prepare("SELECT id FROM channels WHERE name = ? AND is_active = 1");
+                            $existing_name = $db->prepare("SELECT id FROM channels WHERE name = ?");
                             $existing_name->execute([$channel_metadata['name']]);
                             
                             if ($existing_name->fetch()) {
@@ -158,7 +215,7 @@ if ($_POST) {
                                     
                                     foreach ($category_names as $new_category_name) {
                                         // Check if category already exists
-                                        $existing_category = $db->prepare("SELECT id FROM categories WHERE name = ? AND is_active = 1");
+                                        $existing_category = $db->prepare("SELECT id FROM categories WHERE name = ?");
                                         $existing_category->execute([$new_category_name]);
                                         $existing_cat = $existing_category->fetch();
                                         
@@ -205,7 +262,7 @@ if ($_POST) {
                     $error = "Please provide a valid YouTube video URL or video ID.";
                 } else {
                     // Check if video already exists
-                    $existing_video = $db->prepare("SELECT id FROM videos WHERE video_url = ? AND is_active = 1");
+                    $existing_video = $db->prepare("SELECT id FROM videos WHERE video_url = ?");
                     $existing_video->execute([$video_url]);
                     
                     if ($existing_video->fetch()) {
@@ -245,8 +302,7 @@ $all_channels = $db->prepare("
     SELECT c.*, GROUP_CONCAT(cat.name, ', ') as category_names
     FROM channels c 
     LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
-    LEFT JOIN categories cat ON cc.category_id = cat.id AND cat.is_active = 1
-    WHERE c.is_active = 1 
+    LEFT JOIN categories cat ON cc.category_id = cat.id
     GROUP BY c.id
     ORDER BY c.created_at DESC
 ");
@@ -262,8 +318,7 @@ $all_videos = $db->prepare("
     FROM videos v 
     JOIN channels c ON v.channel_id = c.id 
     LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
-    LEFT JOIN categories cat ON cc.category_id = cat.id AND cat.is_active = 1
-    WHERE v.is_active = 1 
+    LEFT JOIN categories cat ON cc.category_id = cat.id
     GROUP BY v.id
     ORDER BY v.created_at DESC
 ");
@@ -397,15 +452,20 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                             <th class="text-light">Name</th>
                                             <th class="text-light">Description</th>
                                             <th class="text-light">Category</th>
-                                            <th class="text-light">Actions</th>
                                             <th class="text-light">Created</th>
+                                            <th class="text-light">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php foreach ($all_channels as $channel): ?>
                                             <tr>
                                                 <td class="text-light"><?php echo htmlspecialchars($channel['name']); ?></td>
-                                                <td class="text-light"><?php echo htmlspecialchars($channel['description']); ?></td>
+                                                <td class="text-light">
+                                                    <?php 
+                                                    $description = htmlspecialchars($channel['description']); 
+                                                    echo strlen($description) > 200 ? substr($description, 0, 200) . '...' : $description;
+                                                    ?>
+                                                </td>
                                                 <td>
                                                     <?php if ($channel['category_names']): ?>
                                                         <?php
@@ -422,18 +482,34 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                                         <span class="badge bg-light text-dark">No categories</span>
                                                     <?php endif; ?>
                                                 </td>
-                                                <td>
-                                                    <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" target="_blank" class="btn btn-sm btn-outline-light me-2"
-                                                       title="View channel on YouTube" data-bs-toggle="tooltip" data-bs-placement="top">
-                                                        <i class="fas fa-external-link-alt"></i>
-                                                    </a>
-                                                    <button type="button" class="btn btn-sm btn-outline-warning" 
-                                                            onclick="openEditModal(<?php echo $channel['id']; ?>, '<?php echo htmlspecialchars($channel['name'], ENT_QUOTES); ?>')"
-                                                            title="Edit channel categories" data-bs-toggle="tooltip" data-bs-placement="top">
-                                                        <i class="fas fa-edit"></i>
-                                                    </button>
-                                                </td>
                                                 <td class="text-light"><?php echo date('Y-m-d', strtotime($channel['created_at'])); ?></td>
+                                                <td>
+                                                    <div class="row g-1">
+                                                        <div class="col-6">
+                                                            <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" target="_blank" class="btn btn-sm btn-outline-light w-100 d-flex justify-content-center align-items-center"
+                                                               title="View channel on YouTube" data-bs-toggle="tooltip" data-bs-placement="top">
+                                                                <i class="fas fa-external-link-alt"></i>
+                                                            </a>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <button type="button" class="btn btn-sm btn-outline-warning w-100 d-flex justify-content-center align-items-center" 
+                                                                    onclick="openEditModal(<?php echo $channel['id']; ?>, '<?php echo htmlspecialchars($channel['name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($channel['description'], ENT_QUOTES); ?>')"
+                                                                    title="Edit channel" data-bs-toggle="tooltip" data-bs-placement="top">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <button type="button" class="btn btn-sm btn-outline-danger w-100 d-flex justify-content-center align-items-center" 
+                                                                    onclick="deleteChannel(<?php echo $channel['id']; ?>, '<?php echo htmlspecialchars($channel['name'], ENT_QUOTES); ?>')"
+                                                                    title="Delete channel and all its videos" data-bs-toggle="tooltip" data-bs-placement="top">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <!-- Placeholder for future action -->
+                                                        </div>
+                                                    </div>
+                                                </td>
                                             </tr>
                                         <?php endforeach; ?>
                                     </tbody>
@@ -462,9 +538,8 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                             <th class="text-light">ID</th>
                                             <th class="text-light">Title</th>
                                             <th class="text-light">Channel</th>
-                                            <th class="text-light">Category</th>
                                             <th class="text-light">Video URL</th>
-                                            <th class="text-light">Created</th>
+                                            <th class="text-light">Added</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -474,14 +549,11 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                                 <td class="text-light"><?php echo htmlspecialchars($video['title']); ?></td>
                                                 <td class="text-light"><?php echo htmlspecialchars($video['channel_name']); ?></td>
                                                 <td>
-                                                    <span class="badge bg-light text-dark"><?php echo htmlspecialchars($video['category']); ?></span>
-                                                </td>
-                                                <td>
                                                     <a href="<?php echo htmlspecialchars($video['video_url']); ?>" target="_blank" class="btn btn-sm btn-outline-light">
                                                         <i class="fas fa-play"></i> Watch
                                                     </a>
                                                 </td>
-                                                <td class="text-light"><?php echo date('Y-m-d H:i', strtotime($video['created_at'])); ?></td>
+                                                <td class="text-light"><?php echo $video['created_at'] ? date('Y-m-d H:i', strtotime($video['created_at'])) : 'Unknown'; ?></td>
                                             </tr>
                                         <?php endforeach; ?>
                                     </tbody>
@@ -494,20 +566,27 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
         </div>
     </div>
 
-    <!-- Edit Categories Modal -->
-    <div class="modal fade" id="editCategoriesModal" tabindex="-1" aria-labelledby="editCategoriesModalLabel" aria-hidden="true">
+    <!-- Edit Channel Modal -->
+    <div class="modal fade" id="editChannelModal" tabindex="-1" aria-labelledby="editChannelModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content bg-dark text-light">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="editCategoriesModalLabel">Edit Channel Categories</h5>
+                    <h5 class="modal-title" id="editChannelModalLabel">Edit Channel</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form method="POST">
                     <div class="modal-body">
-                        <input type="hidden" name="action" value="edit_categories">
+                        <input type="hidden" name="action" value="edit_channel">
                         <input type="hidden" name="channel_id" id="edit-channel-id">
                         
                         <h6 id="edit-channel-name" class="mb-3"></h6>
+                        
+                        <!-- Channel Description -->
+                        <div class="mb-3">
+                            <label for="edit-channel-description" class="form-label">Channel Description:</label>
+                            <textarea class="form-control" id="edit-channel-description" name="channel_description" rows="3"
+                                      placeholder="Enter channel description..."></textarea>
+                        </div>
                         
                         <!-- Current Categories Display -->
                         <div class="mb-3">
@@ -552,7 +631,7 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-warning">Update Categories</button>
+                        <button type="submit" class="btn btn-warning">Update Channel</button>
                     </div>
                 </form>
             </div>
@@ -641,11 +720,14 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             }
         });
         
-        // Function to open edit categories modal
-        function openEditModal(channelId, channelName) {
+        // Function to open edit channel modal
+        function openEditModal(channelId, channelName, channelDescription) {
             // Set channel info
             document.getElementById('edit-channel-id').value = channelId;
-            document.getElementById('edit-channel-name').textContent = 'Editing categories for: ' + channelName;
+            document.getElementById('edit-channel-name').textContent = 'Editing: ' + channelName;
+            
+            // Set channel description
+            document.getElementById('edit-channel-description').value = channelDescription || '';
             
             // Clear previous selections and new category fields
             document.querySelectorAll('input[name="edit_existing_categories[]"]').forEach(checkbox => {
@@ -682,8 +764,33 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                 });
             
             // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('editCategoriesModal'));
+            const modal = new bootstrap.Modal(document.getElementById('editChannelModal'));
             modal.show();
+        }
+        
+        // Function to delete channel with confirmation
+        function deleteChannel(channelId, channelName) {
+            if (confirm(`Are you sure you want to delete the channel "${channelName}" and all its videos? This action cannot be undone.`)) {
+                // Create and submit a form for deletion
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.style.display = 'none';
+                
+                const actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.name = 'action';
+                actionInput.value = 'delete_channel';
+                
+                const channelIdInput = document.createElement('input');
+                channelIdInput.type = 'hidden';
+                channelIdInput.name = 'channel_id';
+                channelIdInput.value = channelId;
+                
+                form.appendChild(actionInput);
+                form.appendChild(channelIdInput);
+                document.body.appendChild(form);
+                form.submit();
+            }
         }
     </script>
 </body>

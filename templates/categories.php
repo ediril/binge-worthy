@@ -90,7 +90,7 @@ $current_page = 'categories';
                                         <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
                                     <?php endif; ?>
                                     <small class="video-date text-muted">
-                                        Added <?php echo date('M j, Y', strtotime($video['created_at'])); ?>
+                                        <?php echo $video['created_at'] ? 'Added ' . date('M j, Y', strtotime($video['created_at'])) : 'Date unknown'; ?>
                                     </small>
                                 </div>
                             </div>

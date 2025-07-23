@@ -73,7 +73,7 @@ $current_page = 'channels';
                                         <p class="channel-description">
                                             <?php 
                                                 $description = htmlspecialchars($channel['description']);
-                                                echo strlen($description) > 100 ? substr($description, 0, 100) . '...' : $description;
+                                                echo strlen($description) > 200 ? substr($description, 0, 200) . '...' : $description;
                                             ?>
                                         </p>
                                     <?php endif; ?>

@@ -24,7 +24,6 @@ function create_tables($db) {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
             description TEXT,
-            is_active INTEGER DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ");
@@ -37,7 +36,6 @@ function create_tables($db) {
             description TEXT,
             youtube_url TEXT NOT NULL UNIQUE,
             thumbnail_url TEXT,
-            is_active INTEGER DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ");
@@ -51,7 +49,6 @@ function create_tables($db) {
             description TEXT,
             video_url TEXT NOT NULL UNIQUE,
             thumbnail_url TEXT,
-            is_active INTEGER DEFAULT 1,
             is_featured INTEGER DEFAULT 0,
             view_count INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -89,7 +86,6 @@ function create_tables($db) {
     // Create indexes for better performance
     $db->exec("CREATE INDEX IF NOT EXISTS idx_videos_channel_id ON videos(channel_id)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_videos_created_at ON videos(created_at)");
-    $db->exec("CREATE INDEX IF NOT EXISTS idx_videos_is_active ON videos(is_active)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_videos_is_featured ON videos(is_featured)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_channel_categories_channel_id ON channel_categories(channel_id)");
