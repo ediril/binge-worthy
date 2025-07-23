@@ -75,44 +75,6 @@
                 <?php endif; ?>
             </div>
         </section>
-
-
-        <!-- New Videos Section -->
-        <section class="video-section">
-            <h2 class="section-title">New Videos</h2>
-            <div class="video-row">
-                <?php if (!empty($new_videos)): ?>
-                    <?php foreach ($new_videos as $video): ?>
-                        <div class="video-card">
-                            <div class="video-thumbnail">
-                                <img src="<?php echo htmlspecialchars($video['thumbnail_url']); ?>" 
-                                     alt="<?php echo htmlspecialchars($video['title']); ?>"
-                                     onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>')">
-                            </div>
-                            <div class="video-info">
-                                <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
-                                <p class="video-channel"><?php echo htmlspecialchars($video['channel_name']); ?></p>
-                                <?php if ($video['category'] && $video['category'] !== 'Not Categorized'): ?>
-                                    <div class="video-categories mb-2">
-                                        <?php
-                                        $categories = explode(', ', $video['category']);
-                                        foreach ($categories as $cat):
-                                            if (trim($cat)):
-                                        ?>
-                                            <span class="badge bg-secondary me-1"><?php echo htmlspecialchars(trim($cat)); ?></span>
-                                        <?php
-                                            endif;
-                                        endforeach;
-                                        ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-        </section>
-
     </div>
 
     <?php include 'templates/partials/footer.php'; ?>
