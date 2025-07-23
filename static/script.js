@@ -136,6 +136,11 @@ function initializeThumbnailErrorHandling() {
         // Set initial opacity for loading effect
         img.style.opacity = '0.5';
         img.style.transition = 'opacity 0.3s ease';
+        
+        // If image is already loaded, set opacity to 1
+        if (img.complete && img.naturalHeight !== 0) {
+            img.style.opacity = '1';
+        }
     });
 }
 

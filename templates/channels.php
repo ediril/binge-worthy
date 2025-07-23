@@ -54,17 +54,17 @@ $current_page = 'channels';
                                     <?php if (!empty($channel['thumbnail_url'])): ?>
                                         <img src="<?php echo htmlspecialchars($channel['thumbnail_url']); ?>" 
                                              alt="<?php echo htmlspecialchars($channel['name']); ?>"
-                                             onclick="window.location.href='channel.php?id=<?php echo $channel['id']; ?>'">
+                                             onclick="window.location.href='channel?id=<?php echo $channel['id']; ?>'">
                                     <?php else: ?>
                                         <div class="channel-thumbnail-placeholder d-flex justify-content-center align-items-center" 
-                                             onclick="window.location.href='channel.php?id=<?php echo $channel['id']; ?>'">
+                                             onclick="window.location.href='channel?id=<?php echo $channel['id']; ?>'">
                                             <span class="placeholder-icon">📺</span>
                                         </div>
                                     <?php endif; ?>
                                 </div>
                                 <div class="channel-info p-3">
                                     <h3 class="channel-title mb-2">
-                                        <a href="channel.php?id=<?php echo $channel['id']; ?>" class="text-decoration-none text-light">
+                                        <a href="channel?id=<?php echo $channel['id']; ?>" class="text-decoration-none text-light">
                                             <?php echo htmlspecialchars($channel['name']); ?>
                                         </a>
                                     </h3>
@@ -106,7 +106,7 @@ $current_page = 'channels';
                                            class="btn btn-outline-light btn-sm me-2">
                                             <i class="fas fa-external-link-alt"></i> YouTube
                                         </a>
-                                        <a href="channel.php?id=<?php echo $channel['id']; ?>" 
+                                        <a href="channel?id=<?php echo $channel['id']; ?>" 
                                            class="btn btn-primary btn-sm">
                                             View Videos
                                         </a>

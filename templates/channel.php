@@ -86,7 +86,7 @@ $current_page = 'channel';
                                          alt="<?php echo htmlspecialchars($video['title']); ?>"
                                          onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>')">
                                 </div>
-                                <div class="video-info">
+                                <div class="video-info p-3">
                                     <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
                                     <p class="video-channel"><?php echo htmlspecialchars($video['channel_name']); ?></p>
                                     <?php if ($video['category'] && $video['category'] !== 'Not Categorized'): ?>
