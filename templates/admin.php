@@ -37,12 +37,70 @@ if (!$is_localhost) {
 
 $db = get_database();
 
+// Handle AJAX request for getting channel categories
+if (isset($_GET['action']) && $_GET['action'] === 'get_channel_categories' && isset($_GET['channel_id'])) {
+    $channel_id = intval($_GET['channel_id']);
+    $categories = get_channel_categories($db, $channel_id);
+    
+    header('Content-Type: application/json');
+    echo json_encode(['categories' => $categories]);
+    exit;
+}
+
 // Handle form submissions
 $message = '';
 $error = '';
 
 if ($_POST) {
-    if (isset($_POST['content_type']) && isset($_POST['content_input'])) {
+    // Handle editing channel categories
+    if (isset($_POST['action']) && $_POST['action'] === 'edit_categories' && isset($_POST['channel_id'])) {
+        $channel_id = intval($_POST['channel_id']);
+        $category_ids = [];
+        
+        // Get selected existing categories
+        if (isset($_POST['edit_existing_categories']) && is_array($_POST['edit_existing_categories'])) {
+            $category_ids = array_map('intval', $_POST['edit_existing_categories']);
+        }
+        
+        // Handle new category creation
+        if (!empty($_POST['edit_new_category'])) {
+            $new_category_name = trim($_POST['edit_new_category']);
+            $new_category_description = trim($_POST['edit_new_category_description'] ?? '');
+            
+            // Check if category already exists
+            $existing_category = $db->prepare("SELECT id FROM categories WHERE name = ? AND is_active = 1");
+            $existing_category->execute([$new_category_name]);
+            $existing_cat = $existing_category->fetch();
+            
+            if ($existing_cat) {
+                // Add existing category to selection if not already selected
+                if (!in_array($existing_cat['id'], $category_ids)) {
+                    $category_ids[] = $existing_cat['id'];
+                }
+            } else {
+                if (add_category($db, $new_category_name, $new_category_description)) {
+                    $category_ids[] = $db->lastInsertId();
+                } else {
+                    $error = "Failed to create new category.";
+                }
+            }
+        }
+        
+        // At least one category is required
+        if (empty($category_ids) && !$error) {
+            $error = "Please select at least one category.";
+        }
+        
+        if (!empty($category_ids) && !$error) {
+            if (add_channel_categories($db, $channel_id, $category_ids)) {
+                $message = "Channel categories updated successfully!";
+            } else {
+                $error = "Failed to update channel categories.";
+            }
+        }
+    }
+    // Handle adding new content
+    else if (isset($_POST['content_type']) && isset($_POST['content_input'])) {
         $content_type = $_POST['content_type'];
         $content_input = trim($_POST['content_input']);
         
@@ -74,38 +132,47 @@ if ($_POST) {
                             if ($existing_name->fetch()) {
                                 $error = "A channel with the name '{$channel_metadata['name']}' already exists in the database.";
                             } else {
-                                // Handle category selection for channel
-                                $category_id = null;
+                                // Handle multiple category selection for channel
+                                $category_ids = [];
                                 
-                                if (isset($_POST['category_choice']) && $_POST['category_choice'] === 'existing' && !empty($_POST['existing_category'])) {
-                                    // Use existing category
-                                    $category_id = intval($_POST['existing_category']);
-                                } else if (isset($_POST['category_choice']) && $_POST['category_choice'] === 'new' && !empty($_POST['new_category'])) {
-                                    // Create new category
+                                // Get selected existing categories
+                                if (isset($_POST['existing_categories']) && is_array($_POST['existing_categories'])) {
+                                    $category_ids = array_map('intval', $_POST['existing_categories']);
+                                }
+                                
+                                // Handle new category creation
+                                if (!empty($_POST['new_category'])) {
                                     $new_category_name = trim($_POST['new_category']);
                                     $new_category_description = trim($_POST['new_category_description'] ?? '');
                                     
                                     // Check if category already exists
                                     $existing_category = $db->prepare("SELECT id FROM categories WHERE name = ? AND is_active = 1");
                                     $existing_category->execute([$new_category_name]);
+                                    $existing_cat = $existing_category->fetch();
                                     
-                                    if ($existing_category->fetch()) {
-                                        $error = "Category '{$new_category_name}' already exists.";
+                                    if ($existing_cat) {
+                                        // Add existing category to selection if not already selected
+                                        if (!in_array($existing_cat['id'], $category_ids)) {
+                                            $category_ids[] = $existing_cat['id'];
+                                        }
                                     } else {
                                         if (add_category($db, $new_category_name, $new_category_description)) {
-                                            $category_id = $db->lastInsertId();
+                                            $category_ids[] = $db->lastInsertId();
                                         } else {
                                             $error = "Failed to create new category.";
                                         }
                                     }
-                                } else {
-                                    // Category selection is required
-                                    $error = "Please select a category or create a new one.";
                                 }
                                 
-                                if ($category_id && !$error) {
-                                    if (add_channel($db, $channel_metadata['name'], $channel_metadata['description'], $channel_metadata['youtube_url'], $category_id, $channel_metadata['thumbnail_url'])) {
-                                        $message = "Channel '{$channel_metadata['name']}' added successfully!";
+                                // At least one category is required
+                                if (empty($category_ids) && !$error) {
+                                    $error = "Please select at least one category or create a new one.";
+                                }
+                                
+                                if (!empty($category_ids) && !$error) {
+                                    $channel_id = add_channel_with_categories($db, $channel_metadata['name'], $channel_metadata['description'], $channel_metadata['youtube_url'], $category_ids, $channel_metadata['thumbnail_url']);
+                                    if ($channel_id) {
+                                        $message = "Channel '{$channel_metadata['name']}' added successfully with " . count($category_ids) . " categories!";
                                     } else {
                                         $error = "Failed to add channel to database.";
                                     }
@@ -159,12 +226,14 @@ if ($_POST) {
     }
 }
 
-// Get all channels for display
+// Get all channels for display with their categories
 $all_channels = $db->prepare("
-    SELECT c.*, cat.name as category_name 
+    SELECT c.*, GROUP_CONCAT(cat.name, ', ') as category_names
     FROM channels c 
-    JOIN categories cat ON c.category_id = cat.id
+    LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
+    LEFT JOIN categories cat ON cc.category_id = cat.id AND cat.is_active = 1
     WHERE c.is_active = 1 
+    GROUP BY c.id
     ORDER BY c.name
 ");
 $all_channels->execute();
@@ -175,11 +244,13 @@ $all_categories = get_display_categories($db);
 
 // Get all videos to display in admin
 $all_videos = $db->prepare("
-    SELECT v.*, c.name as channel_name, cat.name as category 
+    SELECT v.*, c.name as channel_name, GROUP_CONCAT(cat.name, ', ') as category 
     FROM videos v 
     JOIN channels c ON v.channel_id = c.id 
-    JOIN categories cat ON c.category_id = cat.id
+    LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
+    LEFT JOIN categories cat ON cc.category_id = cat.id AND cat.is_active = 1
     WHERE v.is_active = 1 
+    GROUP BY v.id
     ORDER BY v.created_at DESC
 ");
 $all_videos->execute();
@@ -245,49 +316,42 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                 </div>
                             </div>
                             
-                            <!-- Category Selection (only for channels) -->
+                            <!-- Multiple Category Selection (only for channels) -->
                             <div id="category-section" style="display: none;">
                                 <div class="mb-3">
-                                    <label class="form-label">Category</label>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="category_choice" id="existing-category-choice" value="existing" checked>
-                                        <label class="form-check-label" for="existing-category-choice">
-                                            Use existing category
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="category_choice" id="new-category-choice" value="new">
-                                        <label class="form-check-label" for="new-category-choice">
-                                            Create new category
-                                        </label>
-                                    </div>
-                                </div>
-                                
-                                <!-- Existing Category Selection -->
-                                <div id="existing-category-section" class="mb-3">
-                                    <label for="existing-category" class="form-label">Select Category</label>
-                                    <select class="form-select" id="existing-category" name="existing_category">
-                                        <option value="">-- Select a category --</option>
-                                        <?php foreach ($all_categories as $category): ?>
-                                            <option value="<?php echo $category['id']; ?>">
-                                                <?php echo htmlspecialchars($category['name']); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                                
-                                <!-- New Category Creation -->
-                                <div id="new-category-section" style="display: none;">
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label for="new-category" class="form-label">Category Name</label>
-                                            <input type="text" class="form-control" id="new-category" name="new_category" 
-                                                   placeholder="e.g., Education, Entertainment">
+                                    <label class="form-label">Categories (select multiple)</label>
+                                    
+                                    <!-- Existing Categories as Checkboxes -->
+                                    <div class="mb-3">
+                                        <div class="row">
+                                            <?php foreach ($all_categories as $category): ?>
+                                                <div class="col-md-6 mb-2">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" name="existing_categories[]" 
+                                                               id="category-<?php echo $category['id']; ?>" value="<?php echo $category['id']; ?>">
+                                                        <label class="form-check-label" for="category-<?php echo $category['id']; ?>">
+                                                            <?php echo htmlspecialchars($category['name']); ?>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
                                         </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label for="new-category-description" class="form-label">Description (optional)</label>
-                                            <input type="text" class="form-control" id="new-category-description" name="new_category_description" 
-                                                   placeholder="Brief description of the category">
+                                    </div>
+                                    
+                                    <!-- New Category Creation -->
+                                    <div class="border-top pt-3">
+                                        <h6>Or create a new category:</h6>
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="new-category" class="form-label">Category Name</label>
+                                                <input type="text" class="form-control" id="new-category" name="new_category" 
+                                                       placeholder="e.g., Education, Entertainment">
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label for="new-category-description" class="form-label">Description (optional)</label>
+                                                <input type="text" class="form-control" id="new-category-description" name="new_category_description" 
+                                                       placeholder="Brief description of the category">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -319,7 +383,7 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                             <th class="text-light">Name</th>
                                             <th class="text-light">Description</th>
                                             <th class="text-light">Category</th>
-                                            <th class="text-light">YouTube URL</th>
+                                            <th class="text-light">Actions</th>
                                             <th class="text-light">Created</th>
                                         </tr>
                                     </thead>
@@ -329,12 +393,29 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                                 <td class="text-light"><?php echo htmlspecialchars($channel['name']); ?></td>
                                                 <td class="text-light"><?php echo htmlspecialchars($channel['description']); ?></td>
                                                 <td>
-                                                    <span class="badge bg-light text-dark"><?php echo htmlspecialchars($channel['category_name']); ?></span>
+                                                    <?php if ($channel['category_names']): ?>
+                                                        <?php
+                                                        $categories = explode(', ', $channel['category_names']);
+                                                        foreach ($categories as $cat):
+                                                            if (trim($cat)):
+                                                        ?>
+                                                            <span class="badge bg-secondary me-1"><?php echo htmlspecialchars(trim($cat)); ?></span>
+                                                        <?php
+                                                            endif;
+                                                        endforeach;
+                                                        ?>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-light text-dark">No categories</span>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" target="_blank" class="btn btn-sm btn-outline-light">
-                                                        <i class="fas fa-external-link-alt"></i> View Channel
+                                                    <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" target="_blank" class="btn btn-sm btn-outline-light me-2">
+                                                        <i class="fas fa-external-link-alt"></i> View
                                                     </a>
+                                                    <button type="button" class="btn btn-sm btn-outline-warning" 
+                                                            onclick="openEditModal(<?php echo $channel['id']; ?>, '<?php echo htmlspecialchars($channel['name'], ENT_QUOTES); ?>')">
+                                                        <i class="fas fa-edit"></i> Edit Categories
+                                                    </button>
                                                 </td>
                                                 <td class="text-light"><?php echo date('Y-m-d', strtotime($channel['created_at'])); ?></td>
                                             </tr>
@@ -397,6 +478,71 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
         </div>
     </div>
 
+    <!-- Edit Categories Modal -->
+    <div class="modal fade" id="editCategoriesModal" tabindex="-1" aria-labelledby="editCategoriesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark text-light">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editCategoriesModalLabel">Edit Channel Categories</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="edit_categories">
+                        <input type="hidden" name="channel_id" id="edit-channel-id">
+                        
+                        <h6 id="edit-channel-name" class="mb-3"></h6>
+                        
+                        <!-- Current Categories Display -->
+                        <div class="mb-3">
+                            <label class="form-label">Current Categories:</label>
+                            <div id="current-categories-display"></div>
+                        </div>
+                        
+                        <!-- Category Selection -->
+                        <div class="mb-3">
+                            <label class="form-label">Select Categories (select multiple):</label>
+                            <div class="row" id="edit-categories-checkboxes">
+                                <?php foreach ($all_categories as $category): ?>
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="edit_existing_categories[]" 
+                                                   id="edit-category-<?php echo $category['id']; ?>" value="<?php echo $category['id']; ?>">
+                                            <label class="form-check-label" for="edit-category-<?php echo $category['id']; ?>">
+                                                <?php echo htmlspecialchars($category['name']); ?>
+                                            </label>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        
+                        <!-- New Category Creation -->
+                        <div class="border-top pt-3">
+                            <h6>Or create a new category:</h6>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-new-category" class="form-label">Category Name</label>
+                                    <input type="text" class="form-control" id="edit-new-category" name="edit_new_category" 
+                                           placeholder="e.g., Education, Entertainment">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit-new-category-description" class="form-label">Description (optional)</label>
+                                    <input type="text" class="form-control" id="edit-new-category-description" name="edit_new_category_description" 
+                                           placeholder="Brief description of the category">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-warning">Update Categories</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <?php include 'templates/partials/footer.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -443,46 +589,74 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             updateUIForContentType('channel'); // Default to channel
         });
         
-        // Handle category choice radio buttons
-        document.querySelectorAll('input[name="category_choice"]').forEach(function(radio) {
-            radio.addEventListener('change', function() {
-                const existingSection = document.getElementById('existing-category-section');
-                const newSection = document.getElementById('new-category-section');
-                
-                if (this.value === 'existing') {
-                    existingSection.style.display = 'block';
-                    newSection.style.display = 'none';
-                } else if (this.value === 'new') {
-                    existingSection.style.display = 'none';
-                    newSection.style.display = 'block';
-                }
-            });
-        });
+        // No longer needed - categories are always visible in the new interface
         
-        // Form validation
+        // Form validation for multiple categories
         document.getElementById('add-content-form').addEventListener('submit', function(e) {
             const contentType = document.getElementById('content-type').value;
             
             if (contentType === 'channel') {
-                const categoryChoice = document.querySelector('input[name="category_choice"]:checked').value;
+                const selectedCategories = document.querySelectorAll('input[name="existing_categories[]"]:checked');
+                const newCategory = document.getElementById('new-category').value.trim();
                 
-                if (categoryChoice === 'existing') {
-                    const existingCategory = document.getElementById('existing-category').value;
-                    if (!existingCategory) {
-                        e.preventDefault();
-                        alert('Please select a category or choose to create a new one.');
-                        return;
-                    }
-                } else if (categoryChoice === 'new') {
-                    const newCategory = document.getElementById('new-category').value.trim();
-                    if (!newCategory) {
-                        e.preventDefault();
-                        alert('Please enter a name for the new category.');
-                        return;
-                    }
+                if (selectedCategories.length === 0 && !newCategory) {
+                    e.preventDefault();
+                    alert('Please select at least one existing category or create a new one.');
+                    return;
+                }
+                
+                if (newCategory && newCategory.length < 2) {
+                    e.preventDefault();
+                    alert('Category name must be at least 2 characters long.');
+                    return;
                 }
             }
         });
+        
+        // Function to open edit categories modal
+        function openEditModal(channelId, channelName) {
+            // Set channel info
+            document.getElementById('edit-channel-id').value = channelId;
+            document.getElementById('edit-channel-name').textContent = 'Editing categories for: ' + channelName;
+            
+            // Clear previous selections and new category fields
+            document.querySelectorAll('input[name="edit_existing_categories[]"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            document.getElementById('edit-new-category').value = '';
+            document.getElementById('edit-new-category-description').value = '';
+            
+            // Fetch current categories for this channel
+            fetch('?action=get_channel_categories&channel_id=' + channelId)
+                .then(response => response.json())
+                .then(data => {
+                    // Display current categories
+                    const currentCategoriesDiv = document.getElementById('current-categories-display');
+                    if (data.categories && data.categories.length > 0) {
+                        currentCategoriesDiv.innerHTML = data.categories.map(cat => 
+                            '<span class="badge bg-secondary me-1">' + cat.name + '</span>'
+                        ).join('');
+                        
+                        // Pre-select current categories
+                        data.categories.forEach(cat => {
+                            const checkbox = document.getElementById('edit-category-' + cat.id);
+                            if (checkbox) {
+                                checkbox.checked = true;
+                            }
+                        });
+                    } else {
+                        currentCategoriesDiv.innerHTML = '<span class="badge bg-light text-dark">No categories</span>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching categories:', error);
+                    document.getElementById('current-categories-display').innerHTML = '<span class="text-danger">Error loading current categories</span>';
+                });
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('editCategoriesModal'));
+            modal.show();
+        }
     </script>
 </body>
 </html> 

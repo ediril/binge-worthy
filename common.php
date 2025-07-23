@@ -5,11 +5,13 @@
  */
 function get_new_videos($db, $limit) {
     $stmt = $db->prepare("
-        SELECT v.*, c.name as channel_name, cat.name as category 
+        SELECT v.*, c.name as channel_name, GROUP_CONCAT(cat.name, ', ') as category 
         FROM videos v 
         JOIN channels c ON v.channel_id = c.id 
-        JOIN categories cat ON c.category_id = cat.id
+        LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
+        LEFT JOIN categories cat ON cc.category_id = cat.id AND cat.is_active = 1
         WHERE v.is_active = 1 AND v.created_at >= datetime('now', '-7 days')
+        GROUP BY v.id
         ORDER BY v.created_at DESC 
         LIMIT ?
     ");
@@ -38,11 +40,13 @@ function get_new_channels($db) {
  */
 function get_suggested_videos($db, $limit) {
     $stmt = $db->prepare("
-        SELECT v.*, c.name as channel_name, cat.name as category 
+        SELECT v.*, c.name as channel_name, GROUP_CONCAT(cat.name, ', ') as category 
         FROM videos v 
         JOIN channels c ON v.channel_id = c.id 
-        JOIN categories cat ON c.category_id = cat.id
+        LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
+        LEFT JOIN categories cat ON cc.category_id = cat.id AND cat.is_active = 1
         WHERE v.is_active = 1
+        GROUP BY v.id
         ORDER BY RANDOM() 
         LIMIT ?
     ");
@@ -55,10 +59,11 @@ function get_suggested_videos($db, $limit) {
  */
 function search_videos($db, $query, $channel_filter = null, $category_filter = null) {
     $sql = "
-        SELECT v.*, c.name as channel_name, cat.name as category 
+        SELECT v.*, c.name as channel_name, GROUP_CONCAT(cat.name, ', ') as category 
         FROM videos v 
         JOIN channels c ON v.channel_id = c.id 
-        JOIN categories cat ON c.category_id = cat.id
+        LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
+        LEFT JOIN categories cat ON cc.category_id = cat.id AND cat.is_active = 1
         WHERE v.is_active = 1
     ";
     
@@ -76,11 +81,11 @@ function search_videos($db, $query, $channel_filter = null, $category_filter = n
     }
     
     if (!empty($category_filter)) {
-        $sql .= " AND cat.name = ?";
+        $sql .= " AND EXISTS (SELECT 1 FROM channel_categories cc2 JOIN categories cat2 ON cc2.category_id = cat2.id WHERE cc2.channel_id = c.id AND cat2.name = ?)";
         $params[] = $category_filter;
     }
     
-    $sql .= " ORDER BY v.created_at DESC";
+    $sql .= " GROUP BY v.id ORDER BY v.created_at DESC";
     
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
@@ -115,9 +120,40 @@ function get_display_categories($db) {
 }
 
 /**
- * Add a new channel
+ * Get categories for a specific channel
  */
-function add_channel($db, $name, $description, $youtube_url, $category_id, $thumbnail_url = null) {
+function get_channel_categories($db, $channel_id) {
+    $stmt = $db->prepare("
+        SELECT cat.* 
+        FROM categories cat 
+        JOIN channel_categories cc ON cat.id = cc.category_id 
+        WHERE cc.channel_id = ? AND cat.is_active = 1
+        ORDER BY cat.name
+    ");
+    $stmt->execute([$channel_id]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Add categories to a channel
+ */
+function add_channel_categories($db, $channel_id, $category_ids) {
+    // First remove existing categories
+    $stmt = $db->prepare("DELETE FROM channel_categories WHERE channel_id = ?");
+    $stmt->execute([$channel_id]);
+    
+    // Add new categories
+    $stmt = $db->prepare("INSERT INTO channel_categories (channel_id, category_id) VALUES (?, ?)");
+    foreach ($category_ids as $category_id) {
+        $stmt->execute([$channel_id, $category_id]);
+    }
+    return true;
+}
+
+/**
+ * Add a new channel with multiple categories
+ */
+function add_channel_with_categories($db, $name, $description, $youtube_url, $category_ids, $thumbnail_url = null) {
     // Check if channel with this name already exists
     $stmt = $db->prepare("SELECT id FROM channels WHERE name = ? AND is_active = 1");
     $stmt->execute([$name]);
@@ -125,11 +161,25 @@ function add_channel($db, $name, $description, $youtube_url, $category_id, $thum
         return false; // Channel with this name already exists
     }
     
+    // Add channel without category_id
     $stmt = $db->prepare("
-        INSERT INTO channels (name, description, youtube_url, category_id, thumbnail_url, is_active, created_at) 
-        VALUES (?, ?, ?, ?, ?, 1, datetime('now'))
+        INSERT INTO channels (name, description, youtube_url, thumbnail_url, is_active, created_at) 
+        VALUES (?, ?, ?, ?, 1, datetime('now'))
     ");
-    return $stmt->execute([$name, $description, $youtube_url, $category_id, $thumbnail_url]);
+    if ($stmt->execute([$name, $description, $youtube_url, $thumbnail_url])) {
+        $channel_id = $db->lastInsertId();
+        add_channel_categories($db, $channel_id, $category_ids);
+        return $channel_id;
+    }
+    return false;
+}
+
+/**
+ * Add a new channel (legacy function - maintain compatibility)
+ */
+function add_channel($db, $name, $description, $youtube_url, $category_id, $thumbnail_url = null) {
+    // Use the new multi-category function with single category
+    return add_channel_with_categories($db, $name, $description, $youtube_url, [$category_id], $thumbnail_url);
 }
 
 /**
@@ -410,25 +460,15 @@ function get_or_create_channel_from_video($db, $video_metadata, $category_id) {
     // Try to get channel thumbnail
     $thumbnail_url = generate_youtube_channel_thumbnail($video_metadata['channel_url']);
     
-    // Create new channel
-    $stmt = $db->prepare("
-        INSERT INTO channels (name, description, youtube_url, category_id, thumbnail_url, is_active, created_at) 
-        VALUES (?, ?, ?, ?, ?, 1, datetime('now'))
-    ");
-    
-    $success = $stmt->execute([
-        $video_metadata['channel_name'],
-        '',
-        $video_metadata['channel_url'],
-        $category_id,
+    // Create new channel using the multi-category function
+    return add_channel_with_categories(
+        $db, 
+        $video_metadata['channel_name'], 
+        '', 
+        $video_metadata['channel_url'], 
+        [$category_id], 
         $thumbnail_url
-    ]);
-    
-    if ($success) {
-        return $db->lastInsertId();
-    }
-    
-    return null;
+    );
 }
 
 /**
@@ -505,11 +545,13 @@ function get_channel_by_id($db, $channel_id) {
  */
 function get_videos_by_channel($db, $channel_id, $limit = null) {
     $sql = "
-        SELECT v.*, c.name as channel_name, cat.name as category 
+        SELECT v.*, c.name as channel_name, GROUP_CONCAT(cat.name, ', ') as category 
         FROM videos v 
         JOIN channels c ON v.channel_id = c.id 
-        JOIN categories cat ON c.category_id = cat.id
+        LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
+        LEFT JOIN categories cat ON cc.category_id = cat.id AND cat.is_active = 1
         WHERE v.channel_id = ? AND v.is_active = 1
+        GROUP BY v.id
         ORDER BY v.created_at DESC
     ";
     
@@ -530,11 +572,13 @@ function get_videos_by_channel($db, $channel_id, $limit = null) {
  */
 function get_videos_by_category($db, $category_id, $limit = null) {
     $sql = "
-        SELECT v.*, c.name as channel_name, cat.name as category 
+        SELECT v.*, c.name as channel_name, GROUP_CONCAT(cat.name, ', ') as category 
         FROM videos v 
         JOIN channels c ON v.channel_id = c.id 
-        JOIN categories cat ON c.category_id = cat.id
-        WHERE c.category_id = ? AND v.is_active = 1
+        JOIN channel_categories cc ON c.id = cc.channel_id 
+        LEFT JOIN categories cat ON cc.category_id = cat.id AND cat.is_active = 1
+        WHERE cc.category_id = ? AND v.is_active = 1
+        GROUP BY v.id
         ORDER BY v.created_at DESC
     ";
     

@@ -1,7 +1,7 @@
 <?php
 // Default title if not set
 if (!isset($page_title)) {
-    $page_title = 'Binge-Worthy - Educational Content Platform';
+    $page_title = 'Binge Worthy Shows - Edutainment Videos';
 }
 ?>
 <head>

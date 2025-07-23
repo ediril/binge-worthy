@@ -37,10 +37,8 @@ function create_tables($db) {
             description TEXT,
             youtube_url TEXT NOT NULL UNIQUE,
             thumbnail_url TEXT,
-            category_id INTEGER NOT NULL,
             is_active INTEGER DEFAULT 1,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (category_id) REFERENCES categories (id)
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ");
     
@@ -61,6 +59,19 @@ function create_tables($db) {
         )
     ");
     
+    // Create channel_categories junction table for many-to-many relationship
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS channel_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_id INTEGER NOT NULL,
+            category_id INTEGER NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (channel_id) REFERENCES channels (id) ON DELETE CASCADE,
+            FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE,
+            UNIQUE(channel_id, category_id)
+        )
+    ");
+    
     // Insert default categories
     $db->exec("
         INSERT OR IGNORE INTO categories (name, description) VALUES
@@ -72,13 +83,17 @@ function create_tables($db) {
         ('Not Categorized', 'Channels that have not been categorized yet')
     ");
     
+    // Migration of existing channel categories to junction table is handled separately
+    // This ensures compatibility when creating fresh databases
+    
     // Create indexes for better performance
     $db->exec("CREATE INDEX IF NOT EXISTS idx_videos_channel_id ON videos(channel_id)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_videos_created_at ON videos(created_at)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_videos_is_active ON videos(is_active)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_videos_is_featured ON videos(is_featured)");
-    $db->exec("CREATE INDEX IF NOT EXISTS idx_channels_category_id ON channels(category_id)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_channel_categories_channel_id ON channel_categories(channel_id)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_channel_categories_category_id ON channel_categories(category_id)");
 }
 
 // Check if this file is being run directly from command line

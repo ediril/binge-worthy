@@ -89,8 +89,19 @@ $current_page = 'channel';
                                 <div class="video-info">
                                     <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
                                     <p class="video-channel"><?php echo htmlspecialchars($video['channel_name']); ?></p>
-                                    <?php if ($video['category'] !== 'Not Categorized'): ?>
-                                        <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
+                                    <?php if ($video['category'] && $video['category'] !== 'Not Categorized'): ?>
+                                        <div class="video-categories mb-2">
+                                            <?php
+                                            $categories = explode(', ', $video['category']);
+                                            foreach ($categories as $cat):
+                                                if (trim($cat)):
+                                            ?>
+                                                <span class="badge bg-secondary me-1"><?php echo htmlspecialchars(trim($cat)); ?></span>
+                                            <?php
+                                                endif;
+                                            endforeach;
+                                            ?>
+                                        </div>
                                     <?php endif; ?>
                                     <small class="video-date text-muted">
                                         Added <?php echo date('M j, Y', strtotime($video['created_at'])); ?>
