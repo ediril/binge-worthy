@@ -55,7 +55,7 @@ foreach ($argv as $arg) {
 // Show help
 if ($options['help']) {
     echo "Fetch Videos Script - Terminal Only\n\n";
-    echo "Usage: php fetch_videos.php [OPTIONS]\n\n";
+    echo "Usage: php fetch.php [OPTIONS]\n\n";
     echo "Options:\n";
     echo "  --chan-id=ID       Fetch videos for specific channel ID only\n";
     echo "  --limit=N          Maximum number of videos to fetch per channel (default: 15)\n";

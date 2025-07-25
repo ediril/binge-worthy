@@ -55,44 +55,6 @@ function get_suggested_videos($db, $limit) {
 }
 
 /**
- * Search videos by query
- */
-function search_videos($db, $query, $channel_filter = null, $category_filter = null) {
-    $sql = "
-        SELECT v.*, c.name as channel_name, GROUP_CONCAT(cat.name, ', ') as category 
-        FROM videos v 
-        JOIN channels c ON v.channel_id = c.id 
-        LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
-        LEFT JOIN categories cat ON cc.category_id = cat.id
-        WHERE 1=1
-    ";
-    
-    $params = [];
-    
-    if (!empty($query)) {
-        $sql .= " AND (v.title LIKE ? OR v.description LIKE ? OR c.name LIKE ?)";
-        $search_term = "%{$query}%";
-        $params = array_merge($params, [$search_term, $search_term, $search_term]);
-    }
-    
-    if (!empty($channel_filter)) {
-        $sql .= " AND c.name = ?";
-        $params[] = $channel_filter;
-    }
-    
-    if (!empty($category_filter)) {
-        $sql .= " AND EXISTS (SELECT 1 FROM channel_categories cc2 JOIN categories cat2 ON cc2.category_id = cat2.id WHERE cc2.channel_id = c.id AND cat2.name = ?)";
-        $params[] = $category_filter;
-    }
-    
-    $sql .= " GROUP BY v.id ORDER BY v.published_at DESC";
-    
-    $stmt = $db->prepare($sql);
-    $stmt->execute($params);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-/**
  * Get all channels
  */
 function get_all_channels($db) {
