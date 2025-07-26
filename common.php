@@ -47,7 +47,7 @@ function get_suggested_videos($db, $limit) {
         LEFT JOIN categories cat ON cc.category_id = cat.id
         WHERE 1=1
         GROUP BY v.id
-        ORDER BY RANDOM() 
+        ORDER BY v.created_at DESC, RANDOM() 
         LIMIT ?
     ");
     $stmt->execute([$limit]);
