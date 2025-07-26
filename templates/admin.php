@@ -124,6 +124,60 @@ if ($_POST) {
             }
         }
     }
+    // Handle category editing
+    else if (isset($_POST['action']) && $_POST['action'] === 'edit_category' && isset($_POST['category_id']) && isset($_POST['category_name'])) {
+        $category_id = intval($_POST['category_id']);
+        $new_name = trim($_POST['category_name']);
+        
+        header('Content-Type: application/json');
+        
+        if (empty($new_name) || strlen($new_name) < 2) {
+            echo json_encode(['success' => false, 'error' => 'Category name must be at least 2 characters long.']);
+            exit;
+        }
+        
+        // Check if category name already exists (excluding current category)
+        $check_stmt = $db->prepare("SELECT id FROM categories WHERE name = ? AND id != ?");
+        $check_stmt->execute([$new_name, $category_id]);
+        if ($check_stmt->fetch()) {
+            echo json_encode(['success' => false, 'error' => 'A category with this name already exists.']);
+            exit;
+        }
+        
+        // Update category name
+        $update_stmt = $db->prepare("UPDATE categories SET name = ? WHERE id = ?");
+        if ($update_stmt->execute([$new_name, $category_id])) {
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Failed to update category name.']);
+        }
+        exit;
+    }
+    // Handle category deletion
+    else if (isset($_POST['action']) && $_POST['action'] === 'delete_category' && isset($_POST['category_id'])) {
+        $category_id = intval($_POST['category_id']);
+        
+        header('Content-Type: application/json');
+        
+        try {
+            $db->beginTransaction();
+            
+            // Delete all channel-category associations for this category
+            $delete_associations = $db->prepare("DELETE FROM channel_categories WHERE category_id = ?");
+            $delete_associations->execute([$category_id]);
+            
+            // Delete the category itself
+            $delete_category = $db->prepare("DELETE FROM categories WHERE id = ?");
+            $delete_category->execute([$category_id]);
+            
+            $db->commit();
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            $db->rollback();
+            echo json_encode(['success' => false, 'error' => 'Failed to delete category.']);
+        }
+        exit;
+    }
     // Handle channel deletion
     else if (isset($_POST['action']) && $_POST['action'] === 'delete_channel' && isset($_POST['channel_id'])) {
         $channel_id = intval($_POST['channel_id']);
@@ -393,17 +447,63 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                     <!-- Existing Categories as Checkboxes -->
                                     <div class="mb-3">
                                         <div class="row">
-                                            <?php foreach ($all_categories as $category): ?>
-                                                <div class="col-md-6 mb-2">
-                                                    <div class="form-check">
+                                            <?php 
+                                            // Split categories into two columns for vertical ordering
+                                            $total_categories = count($all_categories);
+                                            $per_column = ceil($total_categories / 2);
+                                            $first_column = array_slice($all_categories, 0, $per_column);
+                                            $second_column = array_slice($all_categories, $per_column);
+                                            ?>
+                                            <div class="col-md-6">
+                                                <?php foreach ($first_column as $category): ?>
+                                                    <div class="form-check mb-2 d-flex align-items-center">
                                                         <input class="form-check-input" type="checkbox" name="existing_categories[]" 
                                                                id="category-<?php echo $category['id']; ?>" value="<?php echo $category['id']; ?>">
-                                                        <label class="form-check-label" for="category-<?php echo $category['id']; ?>">
-                                                            <?php echo htmlspecialchars($category['name']); ?>
+                                                        <label class="form-check-label flex-grow-1 ms-2" for="category-<?php echo $category['id']; ?>">
+                                                            <span class="category-name" data-category-id="<?php echo $category['id']; ?>">
+                                                                <?php echo htmlspecialchars($category['name']); ?>
+                                                            </span>
                                                         </label>
+                                                        <div class="category-actions ms-2">
+                                                            <button type="button" class="btn btn-sm btn-link p-0 me-1 edit-category-btn" 
+                                                                    data-category-id="<?php echo $category['id']; ?>"
+                                                                    title="Edit category">
+                                                                <i class="fas fa-edit text-warning" style="font-size: 0.8rem;"></i>
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm btn-link p-0 delete-category-btn" 
+                                                                    data-category-id="<?php echo $category['id']; ?>"
+                                                                    title="Delete category">
+                                                                <i class="fas fa-trash text-danger" style="font-size: 0.8rem;"></i>
+                                                            </button>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            <?php endforeach; ?>
+                                                <?php endforeach; ?>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <?php foreach ($second_column as $category): ?>
+                                                    <div class="form-check mb-2 d-flex align-items-center">
+                                                        <input class="form-check-input" type="checkbox" name="existing_categories[]" 
+                                                               id="category-<?php echo $category['id']; ?>" value="<?php echo $category['id']; ?>">
+                                                        <label class="form-check-label flex-grow-1 ms-2" for="category-<?php echo $category['id']; ?>">
+                                                            <span class="category-name" data-category-id="<?php echo $category['id']; ?>">
+                                                                <?php echo htmlspecialchars($category['name']); ?>
+                                                            </span>
+                                                        </label>
+                                                        <div class="category-actions ms-2">
+                                                            <button type="button" class="btn btn-sm btn-link p-0 me-1 edit-category-btn" 
+                                                                    data-category-id="<?php echo $category['id']; ?>"
+                                                                    title="Edit category">
+                                                                <i class="fas fa-edit text-warning" style="font-size: 0.8rem;"></i>
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm btn-link p-0 delete-category-btn" 
+                                                                    data-category-id="<?php echo $category['id']; ?>"
+                                                                    title="Delete category">
+                                                                <i class="fas fa-trash text-danger" style="font-size: 0.8rem;"></i>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
                                         </div>
                                     </div>
                                     
@@ -492,15 +592,18 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                                             </a>
                                                         </div>
                                                         <div class="col-6">
-                                                            <button type="button" class="btn btn-sm btn-outline-warning w-100 d-flex justify-content-center align-items-center" 
-                                                                    onclick="openEditModal(<?php echo $channel['id']; ?>, '<?php echo htmlspecialchars($channel['name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($channel['description'], ENT_QUOTES); ?>')"
+                                                            <button type="button" class="btn btn-sm btn-outline-warning w-100 d-flex justify-content-center align-items-center edit-channel-btn" 
+                                                                    data-channel-id="<?php echo $channel['id']; ?>"
+                                                                    data-channel-name="<?php echo htmlspecialchars($channel['name'], ENT_QUOTES); ?>"
+                                                                    data-channel-description="<?php echo htmlspecialchars($channel['description'] ?? '', ENT_QUOTES); ?>"
                                                                     title="Edit channel" data-bs-toggle="tooltip" data-bs-placement="top">
                                                                 <i class="fas fa-edit"></i>
                                                             </button>
                                                         </div>
                                                         <div class="col-6">
-                                                            <button type="button" class="btn btn-sm btn-outline-danger w-100 d-flex justify-content-center align-items-center" 
-                                                                    onclick="deleteChannel(<?php echo $channel['id']; ?>, '<?php echo htmlspecialchars($channel['name'], ENT_QUOTES); ?>')"
+                                                            <button type="button" class="btn btn-sm btn-outline-danger w-100 d-flex justify-content-center align-items-center delete-channel-btn" 
+                                                                    data-channel-id="<?php echo $channel['id']; ?>"
+                                                                    data-channel-name="<?php echo htmlspecialchars($channel['name'], ENT_QUOTES); ?>"
                                                                     title="Delete channel and all its videos" data-bs-toggle="tooltip" data-bs-placement="top">
                                                                 <i class="fas fa-trash"></i>
                                                             </button>
@@ -598,17 +701,35 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                         <div class="mb-3">
                             <label class="form-label">Select Categories (select multiple):</label>
                             <div class="row" id="edit-categories-checkboxes">
-                                <?php foreach ($all_categories as $category): ?>
-                                    <div class="col-md-6 mb-2">
-                                        <div class="form-check">
+                                <?php 
+                                // Split categories into two columns for vertical ordering (same as add form)
+                                $total_categories_edit = count($all_categories);
+                                $per_column_edit = ceil($total_categories_edit / 2);
+                                $first_column_edit = array_slice($all_categories, 0, $per_column_edit);
+                                $second_column_edit = array_slice($all_categories, $per_column_edit);
+                                ?>
+                                <div class="col-md-6">
+                                    <?php foreach ($first_column_edit as $category): ?>
+                                        <div class="form-check mb-2">
                                             <input class="form-check-input" type="checkbox" name="edit_existing_categories[]" 
                                                    id="edit-category-<?php echo $category['id']; ?>" value="<?php echo $category['id']; ?>">
                                             <label class="form-check-label" for="edit-category-<?php echo $category['id']; ?>">
                                                 <?php echo htmlspecialchars($category['name']); ?>
                                             </label>
                                         </div>
-                                    </div>
-                                <?php endforeach; ?>
+                                    <?php endforeach; ?>
+                                </div>
+                                <div class="col-md-6">
+                                    <?php foreach ($second_column_edit as $category): ?>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" name="edit_existing_categories[]" 
+                                                   id="edit-category-<?php echo $category['id']; ?>" value="<?php echo $category['id']; ?>">
+                                            <label class="form-check-label" for="edit-category-<?php echo $category['id']; ?>">
+                                                <?php echo htmlspecialchars($category['name']); ?>
+                                            </label>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
                             </div>
                         </div>
                         
@@ -679,15 +800,54 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             }
         }
         
+        // Function to initialize tooltips
+        function initializeTooltips() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                // Check if tooltip already exists
+                var existingTooltip = bootstrap.Tooltip.getInstance(tooltipTriggerEl);
+                if (!existingTooltip) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                }
+                return existingTooltip;
+            });
+        }
+        
         // Initialize UI on page load
         document.addEventListener('DOMContentLoaded', function() {
             updateUIForContentType('channel'); // Default to channel
             
             // Initialize Bootstrap tooltips
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
+            initializeTooltips();
+            
+            // Add event listeners for edit and delete buttons
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.edit-channel-btn')) {
+                    const btn = e.target.closest('.edit-channel-btn');
+                    const channelId = parseInt(btn.getAttribute('data-channel-id'));
+                    const channelName = btn.getAttribute('data-channel-name');
+                    const channelDescription = btn.getAttribute('data-channel-description');
+                    openEditModal(channelId, channelName, channelDescription);
+                } else if (e.target.closest('.delete-channel-btn')) {
+                    const btn = e.target.closest('.delete-channel-btn');
+                    const channelId = parseInt(btn.getAttribute('data-channel-id'));
+                    const channelName = btn.getAttribute('data-channel-name');
+                    deleteChannel(channelId, channelName);
+                } else if (e.target.closest('.edit-category-btn')) {
+                    const btn = e.target.closest('.edit-category-btn');
+                    const categoryId = parseInt(btn.getAttribute('data-category-id'));
+                    editCategoryInline(categoryId);
+                } else if (e.target.closest('.delete-category-btn')) {
+                    const btn = e.target.closest('.delete-category-btn');
+                    const categoryId = parseInt(btn.getAttribute('data-category-id'));
+                    deleteCategory(categoryId);
+                }
             });
+        });
+        
+        // Also initialize tooltips after the page has fully loaded (catches any late-rendered elements)
+        window.addEventListener('load', function() {
+            setTimeout(initializeTooltips, 100);
         });
         
         // No longer needed - categories are always visible in the new interface
@@ -790,6 +950,115 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                 form.appendChild(channelIdInput);
                 document.body.appendChild(form);
                 form.submit();
+            }
+        }
+        
+        // Function to edit category inline
+        function editCategoryInline(categoryId) {
+            const categorySpan = document.querySelector(`.category-name[data-category-id="${categoryId}"]`);
+            if (!categorySpan) return;
+            
+            const currentName = categorySpan.textContent.trim();
+            
+            // Create input field
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentName;
+            input.className = 'form-control form-control-sm';
+            input.style.width = '150px';
+            input.style.display = 'inline-block';
+            
+            // Replace span with input
+            categorySpan.style.display = 'none';
+            categorySpan.parentNode.insertBefore(input, categorySpan);
+            input.focus();
+            input.select();
+            
+            // Save on Enter key
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    saveCategoryName(categoryId, input.value.trim(), categorySpan, input);
+                }
+            });
+            
+            // Cancel on Escape or blur
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    cancelCategoryEdit(categorySpan, input);
+                }
+            });
+            
+            input.addEventListener('blur', function() {
+                setTimeout(() => cancelCategoryEdit(categorySpan, input), 100);
+            });
+        }
+        
+        // Function to save category name
+        function saveCategoryName(categoryId, newName, categorySpan, input) {
+            if (!newName || newName.length < 2) {
+                alert('Category name must be at least 2 characters long.');
+                input.focus();
+                return;
+            }
+            
+            // Send AJAX request
+            fetch('', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=edit_category&category_id=${categoryId}&category_name=${encodeURIComponent(newName)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    categorySpan.textContent = newName;
+                    categorySpan.style.display = 'inline';
+                    input.remove();
+                } else {
+                    alert(data.error || 'Failed to update category name.');
+                    input.focus();
+                }
+            })
+            .catch(error => {
+                alert('Error updating category name.');
+                input.focus();
+            });
+        }
+        
+        // Function to cancel category edit
+        function cancelCategoryEdit(categorySpan, input) {
+            categorySpan.style.display = 'inline';
+            input.remove();
+        }
+        
+        // Function to delete category
+        function deleteCategory(categoryId) {
+            // Get category name for confirmation
+            const categorySpan = document.querySelector(`.category-name[data-category-id="${categoryId}"]`);
+            const categoryName = categorySpan ? categorySpan.textContent.trim() : 'this category';
+            
+            if (confirm(`Are you sure you want to delete "${categoryName}"? This will remove it from all channels. This action cannot be undone.`)) {
+                // Send AJAX request
+                fetch('', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `action=delete_category&category_id=${categoryId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Reload page to refresh category lists
+                        window.location.reload();
+                    } else {
+                        alert(data.error || 'Failed to delete category.');
+                    }
+                })
+                .catch(error => {
+                    alert('Error deleting category.');
+                });
             }
         }
     </script>
