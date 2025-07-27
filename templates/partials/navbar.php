@@ -9,12 +9,17 @@ $current_page = isset($current_page) ? $current_page : 'home';
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link <?php echo ($current_page == 'channels') ? 'active' : ''; ?>" href="channels.php">Channels</a>
+                </li>
                 <li class="nav-item">
                     <a class="nav-link <?php echo ($current_page == 'categories') ? 'active' : ''; ?>" href="categories.php">Categories</a>
                 </li>
+            </ul>
+            <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link <?php echo ($current_page == 'channels') ? 'active' : ''; ?>" href="channels.php">Channels</a>
+                    <a class="nav-link <?php echo ($current_page == 'about') ? 'active' : ''; ?>" href="about.php">About</a>
                 </li>
                 <?php 
                 // Only show admin button on localhost
@@ -22,8 +27,8 @@ $current_page = isset($current_page) ? $current_page : 'home';
                                (isset($_SERVER['HTTP_HOST']) && preg_match('/^localhost:\d+$/', $_SERVER['HTTP_HOST']));
                 if ($is_localhost): 
                 ?>
-                    <li class="nav-item ms-2">
-                        <a href="admin.php" class="btn btn-outline-light btn-sm mt-1 mb-0 py-1">Admin</a>
+                    <li class="nav-item ms-2 d-flex align-items-center">
+                        <a href="admin.php" class="btn btn-outline-light btn-sm">Admin</a>
                     </li>
                 <?php endif; ?>
             </ul>

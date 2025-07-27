@@ -4,7 +4,6 @@
             <div class="col-12 text-center">
                 <p>
                     <a href="/blog">Blog</a> • 
-                    <a href="/about">About</a> • 
                     <a href="/legal">Legal</a> • 
                     <a href="/privacy">Privacy</a>
                 </p>
