@@ -490,15 +490,12 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
         <h1>Admin Panel</h1>
         
         <div class="row">
-            <div class="col-md-8 mx-auto">
+            <div class="col-md-12">
                 <div class="card">
                     <div class="card-header">
                         <h3>Add New Content</h3>
                     </div>
                     <div class="card-body">
-                        <p class="text-light mb-3" id="input-description">
-                            Enter a YouTube channel URL, channel name, or handle. We'll automatically fetch the channel information.
-                        </p>
                         <form method="POST" id="add-content-form">
                             <div class="row">
                                 <div class="col-md-3 mb-3">
@@ -526,17 +523,27 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                 <div class="mb-3">
                                     <label class="form-label">Categories (select multiple)</label>
                                     
+                                    <!-- New Category Creation Input -->
+                                    <div class="mb-3">
+                                        <div class="d-flex align-items-center">
+                                            <label for="new-category" class="form-label me-3 mb-0">Create New:</label>
+                                            <input type="text" class="form-control" id="new-category" name="new_category" 
+                                                   placeholder="e.g., Education, Entertainment, Science (comma-separated)">
+                                        </div>
+                                    </div>
+                                    
                                     <!-- Existing Categories as Checkboxes -->
                                     <div class="mb-3">
                                         <div class="row">
                                             <?php 
-                                            // Split categories into two columns for vertical ordering
+                                            // Split categories into three columns for vertical ordering
                                             $total_categories = count($all_categories);
-                                            $per_column = ceil($total_categories / 2);
+                                            $per_column = ceil($total_categories / 3);
                                             $first_column = array_slice($all_categories, 0, $per_column);
-                                            $second_column = array_slice($all_categories, $per_column);
+                                            $second_column = array_slice($all_categories, $per_column, $per_column);
+                                            $third_column = array_slice($all_categories, $per_column * 2);
                                             ?>
-                                            <div class="col-md-6">
+                                            <div class="col-md-4">
                                                 <?php foreach ($first_column as $category): ?>
                                                     <div class="form-check mb-2 d-flex align-items-center">
                                                         <input class="form-check-input" type="checkbox" name="existing_categories[]" 
@@ -561,8 +568,33 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                                     </div>
                                                 <?php endforeach; ?>
                                             </div>
-                                            <div class="col-md-6">
+                                            <div class="col-md-4">
                                                 <?php foreach ($second_column as $category): ?>
+                                                    <div class="form-check mb-2 d-flex align-items-center">
+                                                        <input class="form-check-input" type="checkbox" name="existing_categories[]" 
+                                                               id="category-<?php echo $category['id']; ?>" value="<?php echo $category['id']; ?>">
+                                                        <label class="form-check-label flex-grow-1 ms-2" for="category-<?php echo $category['id']; ?>">
+                                                            <span class="category-name" data-category-id="<?php echo $category['id']; ?>">
+                                                                <?php echo htmlspecialchars($category['name']); ?>
+                                                            </span>
+                                                        </label>
+                                                        <div class="category-actions ms-2">
+                                                            <button type="button" class="btn btn-sm btn-link p-0 me-1 edit-category-btn" 
+                                                                    data-category-id="<?php echo $category['id']; ?>"
+                                                                    title="Edit category">
+                                                                <i class="fas fa-edit text-warning" style="font-size: 0.8rem;"></i>
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm btn-link p-0 delete-category-btn" 
+                                                                    data-category-id="<?php echo $category['id']; ?>"
+                                                                    title="Delete category">
+                                                                <i class="fas fa-trash text-danger" style="font-size: 0.8rem;"></i>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <?php foreach ($third_column as $category): ?>
                                                     <div class="form-check mb-2 d-flex align-items-center">
                                                         <input class="form-check-input" type="checkbox" name="existing_categories[]" 
                                                                id="category-<?php echo $category['id']; ?>" value="<?php echo $category['id']; ?>">
@@ -589,28 +621,20 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                         </div>
                                     </div>
                                     
-                                    <!-- New Category Creation -->
-                                    <div class="border-top pt-3">
-                                        <h6>Or create new categories:</h6>
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <label for="new-category" class="form-label">Category Names</label>
-                                                <input type="text" class="form-control" id="new-category" name="new_category" 
-                                                       placeholder="e.g., Education, Entertainment, Science (comma-separated)">
-                                            </div>
-                                            <div class="col-md-6 mb-3">
-                                                <label for="new-category-description" class="form-label">Description (optional)</label>
-                                                <input type="text" class="form-control" id="new-category-description" name="new_category_description" 
-                                                       placeholder="Brief description of the category">
-                                            </div>
-                                        </div>
+                                    <!-- Optional Description for New Categories -->
+                                    <div class="mb-3">
+                                        <label for="new-category-description" class="form-label">Description (optional)</label>
+                                        <textarea class="form-control" id="new-category-description" name="new_category_description" 
+                                                  rows="3" placeholder="Brief description of the category"></textarea>
                                     </div>
                                 </div>
                             </div>
                             
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-plus"></i> <span id="submit-text">Add Channel</span>
-                            </button>
+                            <div class="text-end">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> <span id="submit-text">Add Channel</span>
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -700,12 +724,6 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
                                                         <button type="button" 
-                                                                class="btn btn-outline-primary" 
-                                                                onclick="window.open('<?php echo htmlspecialchars($suggestion['link']); ?>', '_blank')"
-                                                                title="Open Link">
-                                                            <i class="fas fa-eye"></i>
-                                                        </button>
-                                                        <button type="button" 
                                                                 class="btn btn-outline-success" 
                                                                 onclick="addSuggestionToForm('<?php echo htmlspecialchars($suggestion['link']); ?>')"
                                                                 title="Add to Form">
@@ -739,7 +757,7 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
-                        <h3>Existing Channels</h3>
+                        <h3>All Channels</h3>
                     </div>
                     <div class="card-body">
                         <?php if (empty($all_channels)): ?>
@@ -786,7 +804,11 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                         <?php foreach ($all_channels as $channel): ?>
                                             <tr>
                                                 <td class="text-light"><?php echo $channel['id']; ?></td>
-                                                <td class="text-light"><?php echo htmlspecialchars($channel['name']); ?></td>
+                                                <td class="text-light">
+                                                    <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" target="_blank" class="text-info text-decoration-underline">
+                                                        <?php echo htmlspecialchars($channel['name']); ?>
+                                                    </a>
+                                                </td>
                                                 <td class="text-light">
                                                     <?php 
                                                     $description = htmlspecialchars($channel['description']); 
@@ -813,12 +835,6 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                                 <td>
                                                     <div class="row g-1">
                                                         <div class="col-6">
-                                                            <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" target="_blank" class="btn btn-sm btn-outline-light w-100 d-flex justify-content-center align-items-center"
-                                                               title="View channel on YouTube" data-bs-toggle="tooltip" data-bs-placement="top">
-                                                                <i class="fas fa-external-link-alt"></i>
-                                                            </a>
-                                                        </div>
-                                                        <div class="col-6">
                                                             <button type="button" class="btn btn-sm btn-outline-warning w-100 d-flex justify-content-center align-items-center edit-channel-btn" 
                                                                     data-channel-id="<?php echo $channel['id']; ?>"
                                                                     data-channel-name="<?php echo htmlspecialchars($channel['name'], ENT_QUOTES); ?>"
@@ -834,9 +850,6 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                                                     title="Delete channel and all its videos" data-bs-toggle="tooltip" data-bs-placement="top">
                                                                 <i class="fas fa-trash"></i>
                                                             </button>
-                                                        </div>
-                                                        <div class="col-6">
-                                                            <!-- Placeholder for future action -->
                                                         </div>
                                                     </div>
                                                 </td>
@@ -898,7 +911,6 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                             <th class="text-light">ID</th>
                                             <th class="text-light">Title</th>
                                             <th class="text-light">Channel</th>
-                                            <th class="text-light">Video URL</th>
                                             <th class="text-light">Added</th>
                                         </tr>
                                     </thead>
@@ -906,13 +918,12 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                         <?php foreach ($all_videos as $video): ?>
                                             <tr>
                                                 <td class="text-light"><?php echo $video['id']; ?></td>
-                                                <td class="text-light"><?php echo htmlspecialchars($video['title']); ?></td>
-                                                <td class="text-light"><?php echo htmlspecialchars($video['channel_name']); ?></td>
-                                                <td>
-                                                    <a href="<?php echo htmlspecialchars($video['video_url']); ?>" target="_blank" class="btn btn-sm btn-outline-light">
-                                                        <i class="fas fa-play"></i> Watch
+                                                <td class="text-light">
+                                                    <a href="<?php echo htmlspecialchars($video['video_url']); ?>" target="_blank" class="text-info text-decoration-underline">
+                                                        <?php echo htmlspecialchars($video['title']); ?>
                                                     </a>
                                                 </td>
+                                                <td class="text-light"><?php echo htmlspecialchars($video['channel_name']); ?></td>
                                                 <td class="text-light"><?php echo $video['created_at'] ? date('Y-m-d H:i', strtotime($video['created_at'])) : 'Unknown'; ?></td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -1006,8 +1017,8 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label for="edit-new-category-description" class="form-label">Description (optional)</label>
-                                    <input type="text" class="form-control" id="edit-new-category-description" name="edit_new_category_description" 
-                                           placeholder="Brief description of the category">
+                                    <textarea class="form-control" id="edit-new-category-description" name="edit_new_category_description" 
+                                              rows="3" placeholder="Brief description of the category"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -1044,18 +1055,15 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
         
         // Function to update UI based on content type
         function updateUIForContentType(contentType) {
-            const description = document.getElementById('input-description');
             const input = document.getElementById('content-input');
             const submitText = document.getElementById('submit-text');
             const categorySection = document.getElementById('category-section');
             
             if (contentType === 'channel') {
-                description.textContent = 'Enter a YouTube channel URL, channel name, or handle. We\'ll automatically fetch the channel information.';
                 input.placeholder = '@username, channelname, or full URL';
                 submitText.textContent = 'Add Channel';
                 categorySection.style.display = 'block';
             } else if (contentType === 'video') {
-                description.textContent = 'Enter a YouTube video URL or video ID. We\'ll automatically fetch the video information and create the channel if needed.';
                 input.placeholder = 'dQw4w9WgXcQ or full URL';
                 submitText.textContent = 'Add Video';
                 categorySection.style.display = 'none';
@@ -1574,17 +1582,16 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                     html += `
                         <tr>
                             <td class="text-light">${channel.id}</td>
-                            <td class="text-light">${escapeHtml(channel.name)}</td>
+                            <td class="text-light">
+                                <a href="${escapeHtml(channel.youtube_url)}" target="_blank" class="text-info text-decoration-underline">
+                                    ${escapeHtml(channel.name)}
+                                </a>
+                            </td>
                             <td class="text-light">${truncatedDesc}</td>
                             <td>${categories}</td>
                             <td class="text-light">${formatDate(channel.created_at)}</td>
                             <td>
                                 <div class="row g-1">
-                                    <div class="col-6">
-                                        <a href="${escapeHtml(channel.youtube_url)}" target="_blank" class="btn btn-sm btn-outline-light w-100 d-flex justify-content-center align-items-center" title="View channel on YouTube">
-                                            <i class="fas fa-external-link-alt"></i>
-                                        </a>
-                                    </div>
                                     <div class="col-6">
                                         <button type="button" class="btn btn-sm btn-outline-warning w-100 d-flex justify-content-center align-items-center edit-channel-btn" 
                                                 data-channel-id="${channel.id}"
@@ -1602,7 +1609,6 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </div>
-                                    <div class="col-6"></div>
                                 </div>
                             </td>
                         </tr>
@@ -1613,13 +1619,12 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                     html += `
                         <tr>
                             <td class="text-light">${video.id}</td>
-                            <td class="text-light">${escapeHtml(video.title)}</td>
-                            <td class="text-light">${escapeHtml(video.channel_name)}</td>
-                            <td>
-                                <a href="${escapeHtml(video.video_url)}" target="_blank" class="btn btn-sm btn-outline-light">
-                                    <i class="fas fa-play"></i> Watch
+                            <td class="text-light">
+                                <a href="${escapeHtml(video.video_url)}" target="_blank" class="text-info text-decoration-underline">
+                                    ${escapeHtml(video.title)}
                                 </a>
                             </td>
+                            <td class="text-light">${escapeHtml(video.channel_name)}</td>
                             <td class="text-light">${video.created_at ? formatDateTime(video.created_at) : 'Unknown'}</td>
                         </tr>
                     `;
@@ -1654,9 +1659,6 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                             <td class="text-light">${formatDateTime(suggestion.timestamp)}</td>
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
-                                    <button type="button" class="btn btn-outline-primary" onclick="window.open('${link}', '_blank')" title="Open Link">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
                                     <button type="button" class="btn btn-outline-success" onclick="addSuggestionToForm('${link}')" title="Add to Form">
                                         <i class="fas fa-plus"></i>
                                     </button>
