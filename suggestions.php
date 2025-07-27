@@ -176,6 +176,13 @@ try {
     $suggestions_db = new PDO('sqlite:suggestions.db');
     $suggestions_db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
+    // Create table if it doesn't exist
+    $suggestions_db->exec("CREATE TABLE IF NOT EXISTS suggestions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        link TEXT NOT NULL UNIQUE,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+    
     // Use INSERT OR REPLACE to handle duplicates gracefully
     // This will insert new record or update timestamp if link already exists
     $upsert_stmt = $suggestions_db->prepare("

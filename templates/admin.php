@@ -628,9 +628,7 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
         <div id="toastContainer"></div>
     </div>
 
-    <div class="container mt-4">
-        <h1>Admin Panel</h1>
-        
+    <div class="container mt-4">        
         <div class="row">
             <div class="col-md-12">
                 <div class="card">
