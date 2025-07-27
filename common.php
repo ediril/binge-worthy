@@ -1,5 +1,12 @@
 <?php
 
+// ================================
+// Admin Configuration
+// ================================
+define('ADMIN_CHANNELS_PER_PAGE', 10);
+define('ADMIN_VIDEOS_PER_PAGE', 10);
+define('ADMIN_SUGGESTIONS_PER_PAGE', 10);
+
 /**
  * Get new videos from the database (last 7 days)
  */

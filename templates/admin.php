@@ -389,7 +389,28 @@ if ($_POST) {
     }
 }
 
-// Get all channels for display with their categories
+// Pagination setup
+$channels_per_page = ADMIN_CHANNELS_PER_PAGE;
+$videos_per_page = ADMIN_VIDEOS_PER_PAGE;
+$suggestions_per_page = ADMIN_SUGGESTIONS_PER_PAGE;
+$channels_page = max(1, intval($_GET['channels_page'] ?? 1));
+$videos_page = max(1, intval($_GET['videos_page'] ?? 1));
+$suggestions_page = max(1, intval($_GET['suggestions_page'] ?? 1));
+
+// Get total count of channels
+$channels_count_stmt = $db->prepare("SELECT COUNT(*) as total FROM channels");
+$channels_count_stmt->execute();
+$total_channels = $channels_count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
+$total_channels_pages = max(1, ceil($total_channels / $channels_per_page));
+
+// Get total count of videos
+$videos_count_stmt = $db->prepare("SELECT COUNT(*) as total FROM videos");
+$videos_count_stmt->execute();
+$total_videos = $videos_count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
+$total_videos_pages = max(1, ceil($total_videos / $videos_per_page));
+
+// Get channels for current page
+$channels_offset = ($channels_page - 1) * $channels_per_page;
 $all_channels = $db->prepare("
     SELECT c.*, GROUP_CONCAT(cat.name, ', ') as category_names
     FROM channels c 
@@ -397,26 +418,43 @@ $all_channels = $db->prepare("
     LEFT JOIN categories cat ON cc.category_id = cat.id
     GROUP BY c.id
     ORDER BY c.created_at DESC
+    LIMIT :limit OFFSET :offset
 ");
+$all_channels->bindValue(':limit', $channels_per_page, PDO::PARAM_INT);
+$all_channels->bindValue(':offset', $channels_offset, PDO::PARAM_INT);
 $all_channels->execute();
 $all_channels = $all_channels->fetchAll(PDO::FETCH_ASSOC);
 
 // Get all categories for dropdown (excluding "Not Categorized")
 $all_categories = get_display_categories($db);
 
-// Get suggestions from suggestions database
+// Get suggestions from suggestions database with pagination
 $suggestions = [];
+$total_suggestions = 0;
+$total_suggestions_pages = 1;
 try {
     $suggestions_db = new PDO('sqlite:suggestions.db');
     $suggestions_db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $suggestions_stmt = $suggestions_db->prepare("SELECT * FROM suggestions ORDER BY timestamp DESC");
+    
+    // Get total count of suggestions
+    $suggestions_count_stmt = $suggestions_db->prepare("SELECT COUNT(*) as total FROM suggestions");
+    $suggestions_count_stmt->execute();
+    $total_suggestions = $suggestions_count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
+    $total_suggestions_pages = max(1, ceil($total_suggestions / $suggestions_per_page));
+    
+    // Get suggestions for current page
+    $suggestions_offset = ($suggestions_page - 1) * $suggestions_per_page;
+    $suggestions_stmt = $suggestions_db->prepare("SELECT * FROM suggestions ORDER BY timestamp DESC LIMIT :limit OFFSET :offset");
+    $suggestions_stmt->bindValue(':limit', $suggestions_per_page, PDO::PARAM_INT);
+    $suggestions_stmt->bindValue(':offset', $suggestions_offset, PDO::PARAM_INT);
     $suggestions_stmt->execute();
     $suggestions = $suggestions_stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     // Suggestions database might not exist yet, that's okay
 }
 
-// Get all videos to display in admin
+// Get videos for current page
+$videos_offset = ($videos_page - 1) * $videos_per_page;
 $all_videos = $db->prepare("
     SELECT v.*, c.name as channel_name, GROUP_CONCAT(cat.name, ', ') as category 
     FROM videos v 
@@ -425,7 +463,10 @@ $all_videos = $db->prepare("
     LEFT JOIN categories cat ON cc.category_id = cat.id
     GROUP BY v.id
     ORDER BY v.created_at DESC
+    LIMIT :limit OFFSET :offset
 ");
+$all_videos->bindValue(':limit', $videos_per_page, PDO::PARAM_INT);
+$all_videos->bindValue(':offset', $videos_offset, PDO::PARAM_INT);
 $all_videos->execute();
 $all_videos = $all_videos->fetchAll(PDO::FETCH_ASSOC);
 
@@ -577,11 +618,11 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
         </div>
         
         <!-- User Suggestions Section -->
-        <div class="row mt-4">
+        <div class="row mt-4" id="suggestions-section">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
-                        <h3>User Suggestions (<?php echo count($suggestions); ?>)</h3>
+                        <h3>User Suggestions (<?php echo $total_suggestions; ?>)</h3>
                     </div>
                     <div class="card-body">
                         <?php if (empty($suggestions)): ?>
@@ -658,13 +699,41 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                     </tbody>
                                 </table>
                             </div>
+                            
+                            <!-- Suggestions Pagination -->
+                            <?php if ($total_suggestions_pages > 1): ?>
+                                <nav aria-label="Suggestions pagination" class="mt-3">
+                                    <ul class="pagination pagination-sm justify-content-center">
+                                        <?php if ($suggestions_page > 1): ?>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?suggestions_page=<?php echo $suggestions_page - 1; ?><?php echo isset($_GET['channels_page']) ? '&channels_page=' . $_GET['channels_page'] : ''; ?><?php echo isset($_GET['videos_page']) ? '&videos_page=' . $_GET['videos_page'] : ''; ?>#suggestions-section">Previous</a>
+                                            </li>
+                                        <?php endif; ?>
+                                        
+                                        <?php for ($i = max(1, $suggestions_page - 2); $i <= min($total_suggestions_pages, $suggestions_page + 2); $i++): ?>
+                                            <li class="page-item <?php echo $i == $suggestions_page ? 'active' : ''; ?>">
+                                                <a class="page-link" href="?suggestions_page=<?php echo $i; ?><?php echo isset($_GET['channels_page']) ? '&channels_page=' . $_GET['channels_page'] : ''; ?><?php echo isset($_GET['videos_page']) ? '&videos_page=' . $_GET['videos_page'] : ''; ?>#suggestions-section"><?php echo $i; ?></a>
+                                            </li>
+                                        <?php endfor; ?>
+                                        
+                                        <?php if ($suggestions_page < $total_suggestions_pages): ?>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?suggestions_page=<?php echo $suggestions_page + 1; ?><?php echo isset($_GET['channels_page']) ? '&channels_page=' . $_GET['channels_page'] : ''; ?><?php echo isset($_GET['videos_page']) ? '&videos_page=' . $_GET['videos_page'] : ''; ?>#suggestions-section">Next</a>
+                                            </li>
+                                        <?php endif; ?>
+                                    </ul>
+                                    <div class="text-center text-light">
+                                        Showing <?php echo (($suggestions_page - 1) * $suggestions_per_page) + 1; ?>-<?php echo min($suggestions_page * $suggestions_per_page, $total_suggestions); ?> of <?php echo $total_suggestions; ?> suggestions
+                                    </div>
+                                </nav>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </div>
                 </div>
             </div>
         </div>
         
-        <div class="row mt-4">
+        <div class="row mt-4" id="channels-section">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
@@ -749,13 +818,41 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                     </tbody>
                                 </table>
                             </div>
+                            
+                            <!-- Channels Pagination -->
+                            <?php if ($total_channels_pages > 1): ?>
+                                <nav aria-label="Channels pagination" class="mt-3">
+                                    <ul class="pagination pagination-sm justify-content-center">
+                                        <?php if ($channels_page > 1): ?>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?channels_page=<?php echo $channels_page - 1; ?><?php echo isset($_GET['videos_page']) ? '&videos_page=' . $_GET['videos_page'] : ''; ?>#channels-section">Previous</a>
+                                            </li>
+                                        <?php endif; ?>
+                                        
+                                        <?php for ($i = max(1, $channels_page - 2); $i <= min($total_channels_pages, $channels_page + 2); $i++): ?>
+                                            <li class="page-item <?php echo $i == $channels_page ? 'active' : ''; ?>">
+                                                <a class="page-link" href="?channels_page=<?php echo $i; ?><?php echo isset($_GET['videos_page']) ? '&videos_page=' . $_GET['videos_page'] : ''; ?>#channels-section"><?php echo $i; ?></a>
+                                            </li>
+                                        <?php endfor; ?>
+                                        
+                                        <?php if ($channels_page < $total_channels_pages): ?>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?channels_page=<?php echo $channels_page + 1; ?><?php echo isset($_GET['videos_page']) ? '&videos_page=' . $_GET['videos_page'] : ''; ?>#channels-section">Next</a>
+                                            </li>
+                                        <?php endif; ?>
+                                    </ul>
+                                    <div class="text-center text-light">
+                                        Showing <?php echo (($channels_page - 1) * $channels_per_page) + 1; ?>-<?php echo min($channels_page * $channels_per_page, $total_channels); ?> of <?php echo $total_channels; ?> channels
+                                    </div>
+                                </nav>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </div>
                 </div>
             </div>
         </div>
         
-        <div class="row mt-4">
+        <div class="row mt-4" id="videos-section">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
@@ -793,6 +890,34 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                     </tbody>
                                 </table>
                             </div>
+                            
+                            <!-- Videos Pagination -->
+                            <?php if ($total_videos_pages > 1): ?>
+                                <nav aria-label="Videos pagination" class="mt-3">
+                                    <ul class="pagination pagination-sm justify-content-center">
+                                        <?php if ($videos_page > 1): ?>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?videos_page=<?php echo $videos_page - 1; ?><?php echo isset($_GET['channels_page']) ? '&channels_page=' . $_GET['channels_page'] : ''; ?>#videos-section">Previous</a>
+                                            </li>
+                                        <?php endif; ?>
+                                        
+                                        <?php for ($i = max(1, $videos_page - 2); $i <= min($total_videos_pages, $videos_page + 2); $i++): ?>
+                                            <li class="page-item <?php echo $i == $videos_page ? 'active' : ''; ?>">
+                                                <a class="page-link" href="?videos_page=<?php echo $i; ?><?php echo isset($_GET['channels_page']) ? '&channels_page=' . $_GET['channels_page'] : ''; ?>#videos-section"><?php echo $i; ?></a>
+                                            </li>
+                                        <?php endfor; ?>
+                                        
+                                        <?php if ($videos_page < $total_videos_pages): ?>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?videos_page=<?php echo $videos_page + 1; ?><?php echo isset($_GET['channels_page']) ? '&channels_page=' . $_GET['channels_page'] : ''; ?>#videos-section">Next</a>
+                                            </li>
+                                        <?php endif; ?>
+                                    </ul>
+                                    <div class="text-center text-light">
+                                        Showing <?php echo (($videos_page - 1) * $videos_per_page) + 1; ?>-<?php echo min($videos_page * $videos_per_page, $total_videos); ?> of <?php echo $total_videos; ?> videos
+                                    </div>
+                                </nav>
+                            <?php endif; ?>
                         <?php endif; ?>
                     </div>
                 </div>
