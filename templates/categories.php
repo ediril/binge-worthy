@@ -79,7 +79,7 @@ $current_page = 'categories';
                                          alt="<?php echo htmlspecialchars($video['title']); ?>"
                                          onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>')">
                                 </div>
-                                <div class="video-info">
+                                <div class="video-info p-3">
                                     <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
                                     <p class="video-channel">
                                         <a href="/channel?id=<?php echo $video['channel_id']; ?>" class="channel-link">
