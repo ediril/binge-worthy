@@ -628,6 +628,31 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                         <?php if (empty($suggestions)): ?>
                             <p class="text-light">No suggestions submitted yet.</p>
                         <?php else: ?>
+                            <!-- Top Pagination Controls -->
+                            <?php if ($total_suggestions_pages > 1): ?>
+                                <div class="top-pagination d-flex justify-content-center align-items-center mb-3" style="gap: 8px;">
+                                    <button class="btn btn-outline-light btn-sm" <?php echo $suggestions_page <= 1 ? 'disabled' : ''; ?>
+                                            onclick="loadTableDataNoScroll('suggestions', <?php echo $suggestions_page - 1; ?>)" style="margin-right: 10px; min-width: 80px;">
+                                        <i class="fas fa-chevron-left"></i> Previous
+                                    </button>
+                                    <div class="dropdown" style="margin-right: 10px;">
+                                        <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" 
+                                                data-bs-toggle="dropdown" aria-expanded="false" style="min-width: 160px;">
+                                            Page <?php echo $suggestions_page; ?> of <?php echo $total_suggestions_pages; ?>
+                                        </button>
+                                        <ul class="dropdown-menu" style="max-height: 300px; overflow-y: auto;">
+                                            <?php for ($i = 1; $i <= $total_suggestions_pages; $i++): ?>
+                                                <li><a class="dropdown-item <?php echo $i == $suggestions_page ? 'active' : ''; ?>" href="#" data-page="<?php echo $i; ?>" data-table="suggestions">Page <?php echo $i; ?> of <?php echo $total_suggestions_pages; ?></a></li>
+                                            <?php endfor; ?>
+                                        </ul>
+                                    </div>
+                                    <button class="btn btn-outline-light btn-sm" <?php echo $suggestions_page >= $total_suggestions_pages ? 'disabled' : ''; ?>
+                                            onclick="loadTableDataNoScroll('suggestions', <?php echo $suggestions_page + 1; ?>)" style="min-width: 70px;">
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </div>
+                            <?php endif; ?>
+                            
                             <div class="table-responsive">
                                 <table class="table table-dark table-striped">
                                     <thead>
@@ -700,33 +725,10 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                 </table>
                             </div>
                             
-                            <!-- Suggestions Pagination -->
-                            <?php if ($total_suggestions_pages > 1): ?>
-                                <nav aria-label="Suggestions pagination" class="mt-3">
-                                    <ul class="pagination pagination-sm justify-content-center">
-                                        <?php if ($suggestions_page > 1): ?>
-                                            <li class="page-item">
-                                                <a class="page-link" href="?suggestions_page=<?php echo $suggestions_page - 1; ?><?php echo isset($_GET['channels_page']) ? '&channels_page=' . $_GET['channels_page'] : ''; ?><?php echo isset($_GET['videos_page']) ? '&videos_page=' . $_GET['videos_page'] : ''; ?>#suggestions-section">Previous</a>
-                                            </li>
-                                        <?php endif; ?>
-                                        
-                                        <?php for ($i = max(1, $suggestions_page - 2); $i <= min($total_suggestions_pages, $suggestions_page + 2); $i++): ?>
-                                            <li class="page-item <?php echo $i == $suggestions_page ? 'active' : ''; ?>">
-                                                <a class="page-link" href="?suggestions_page=<?php echo $i; ?><?php echo isset($_GET['channels_page']) ? '&channels_page=' . $_GET['channels_page'] : ''; ?><?php echo isset($_GET['videos_page']) ? '&videos_page=' . $_GET['videos_page'] : ''; ?>#suggestions-section"><?php echo $i; ?></a>
-                                            </li>
-                                        <?php endfor; ?>
-                                        
-                                        <?php if ($suggestions_page < $total_suggestions_pages): ?>
-                                            <li class="page-item">
-                                                <a class="page-link" href="?suggestions_page=<?php echo $suggestions_page + 1; ?><?php echo isset($_GET['channels_page']) ? '&channels_page=' . $_GET['channels_page'] : ''; ?><?php echo isset($_GET['videos_page']) ? '&videos_page=' . $_GET['videos_page'] : ''; ?>#suggestions-section">Next</a>
-                                            </li>
-                                        <?php endif; ?>
-                                    </ul>
-                                    <div class="text-center text-light">
-                                        Showing <?php echo (($suggestions_page - 1) * $suggestions_per_page) + 1; ?>-<?php echo min($suggestions_page * $suggestions_per_page, $total_suggestions); ?> of <?php echo $total_suggestions; ?> suggestions
-                                    </div>
-                                </nav>
-                            <?php endif; ?>
+                            <!-- Bottom Item Count -->
+                            <div class="bottom-item-count text-center text-light mt-3">
+                                Showing <?php echo (($suggestions_page - 1) * $suggestions_per_page) + 1; ?>-<?php echo min($suggestions_page * $suggestions_per_page, $total_suggestions); ?> of <?php echo $total_suggestions; ?> suggestions
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -743,6 +745,31 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                         <?php if (empty($all_channels)): ?>
                             <p class="text-light">No channels added yet. Add your first channel above!</p>
                         <?php else: ?>
+                            <!-- Top Pagination Controls -->
+                            <?php if ($total_channels_pages > 1): ?>
+                                <div class="top-pagination d-flex justify-content-center align-items-center mb-3" style="gap: 8px;">
+                                    <button class="btn btn-outline-light btn-sm" <?php echo $channels_page <= 1 ? 'disabled' : ''; ?>
+                                            onclick="loadTableDataNoScroll('channels', <?php echo $channels_page - 1; ?>)" style="margin-right: 10px; min-width: 80px;">
+                                        <i class="fas fa-chevron-left"></i> Previous
+                                    </button>
+                                    <div class="dropdown" style="margin-right: 10px;">
+                                        <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" 
+                                                data-bs-toggle="dropdown" aria-expanded="false" style="min-width: 160px;">
+                                            Page <?php echo $channels_page; ?> of <?php echo $total_channels_pages; ?>
+                                        </button>
+                                        <ul class="dropdown-menu" style="max-height: 300px; overflow-y: auto;">
+                                            <?php for ($i = 1; $i <= $total_channels_pages; $i++): ?>
+                                                <li><a class="dropdown-item <?php echo $i == $channels_page ? 'active' : ''; ?>" href="#" data-page="<?php echo $i; ?>" data-table="channels">Page <?php echo $i; ?> of <?php echo $total_channels_pages; ?></a></li>
+                                            <?php endfor; ?>
+                                        </ul>
+                                    </div>
+                                    <button class="btn btn-outline-light btn-sm" <?php echo $channels_page >= $total_channels_pages ? 'disabled' : ''; ?>
+                                            onclick="loadTableDataNoScroll('channels', <?php echo $channels_page + 1; ?>)" style="min-width: 70px;">
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </div>
+                            <?php endif; ?>
+                            
                             <div class="table-responsive">
                                 <table class="table table-dark table-striped">
                                     <thead>
@@ -819,33 +846,10 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                 </table>
                             </div>
                             
-                            <!-- Channels Pagination -->
-                            <?php if ($total_channels_pages > 1): ?>
-                                <nav aria-label="Channels pagination" class="mt-3">
-                                    <ul class="pagination pagination-sm justify-content-center">
-                                        <?php if ($channels_page > 1): ?>
-                                            <li class="page-item">
-                                                <a class="page-link" href="?channels_page=<?php echo $channels_page - 1; ?><?php echo isset($_GET['videos_page']) ? '&videos_page=' . $_GET['videos_page'] : ''; ?>#channels-section">Previous</a>
-                                            </li>
-                                        <?php endif; ?>
-                                        
-                                        <?php for ($i = max(1, $channels_page - 2); $i <= min($total_channels_pages, $channels_page + 2); $i++): ?>
-                                            <li class="page-item <?php echo $i == $channels_page ? 'active' : ''; ?>">
-                                                <a class="page-link" href="?channels_page=<?php echo $i; ?><?php echo isset($_GET['videos_page']) ? '&videos_page=' . $_GET['videos_page'] : ''; ?>#channels-section"><?php echo $i; ?></a>
-                                            </li>
-                                        <?php endfor; ?>
-                                        
-                                        <?php if ($channels_page < $total_channels_pages): ?>
-                                            <li class="page-item">
-                                                <a class="page-link" href="?channels_page=<?php echo $channels_page + 1; ?><?php echo isset($_GET['videos_page']) ? '&videos_page=' . $_GET['videos_page'] : ''; ?>#channels-section">Next</a>
-                                            </li>
-                                        <?php endif; ?>
-                                    </ul>
-                                    <div class="text-center text-light">
-                                        Showing <?php echo (($channels_page - 1) * $channels_per_page) + 1; ?>-<?php echo min($channels_page * $channels_per_page, $total_channels); ?> of <?php echo $total_channels; ?> channels
-                                    </div>
-                                </nav>
-                            <?php endif; ?>
+                            <!-- Bottom Item Count -->
+                            <div class="bottom-item-count text-center text-light mt-3">
+                                Showing <?php echo (($channels_page - 1) * $channels_per_page) + 1; ?>-<?php echo min($channels_page * $channels_per_page, $total_channels); ?> of <?php echo $total_channels; ?> channels
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -862,6 +866,31 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                         <?php if (empty($all_videos)): ?>
                             <p class="text-light">No videos added yet. Add your first video above!</p>
                         <?php else: ?>
+                            <!-- Top Pagination Controls -->
+                            <?php if ($total_videos_pages > 1): ?>
+                                <div class="top-pagination d-flex justify-content-center align-items-center mb-3" style="gap: 8px;">
+                                    <button class="btn btn-outline-light btn-sm" <?php echo $videos_page <= 1 ? 'disabled' : ''; ?>
+                                            onclick="loadTableDataNoScroll('videos', <?php echo $videos_page - 1; ?>)" style="margin-right: 10px; min-width: 80px;">
+                                        <i class="fas fa-chevron-left"></i> Previous
+                                    </button>
+                                    <div class="dropdown" style="margin-right: 10px;">
+                                        <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" 
+                                                data-bs-toggle="dropdown" aria-expanded="false" style="min-width: 160px;">
+                                            Page <?php echo $videos_page; ?> of <?php echo $total_videos_pages; ?>
+                                        </button>
+                                        <ul class="dropdown-menu" style="max-height: 300px; overflow-y: auto;">
+                                            <?php for ($i = 1; $i <= $total_videos_pages; $i++): ?>
+                                                <li><a class="dropdown-item <?php echo $i == $videos_page ? 'active' : ''; ?>" href="#" data-page="<?php echo $i; ?>" data-table="videos">Page <?php echo $i; ?> of <?php echo $total_videos_pages; ?></a></li>
+                                            <?php endfor; ?>
+                                        </ul>
+                                    </div>
+                                    <button class="btn btn-outline-light btn-sm" <?php echo $videos_page >= $total_videos_pages ? 'disabled' : ''; ?>
+                                            onclick="loadTableDataNoScroll('videos', <?php echo $videos_page + 1; ?>)" style="min-width: 70px;">
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </div>
+                            <?php endif; ?>
+                            
                             <div class="table-responsive">
                                 <table class="table table-dark table-striped">
                                     <thead>
@@ -891,33 +920,10 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                 </table>
                             </div>
                             
-                            <!-- Videos Pagination -->
-                            <?php if ($total_videos_pages > 1): ?>
-                                <nav aria-label="Videos pagination" class="mt-3">
-                                    <ul class="pagination pagination-sm justify-content-center">
-                                        <?php if ($videos_page > 1): ?>
-                                            <li class="page-item">
-                                                <a class="page-link" href="?videos_page=<?php echo $videos_page - 1; ?><?php echo isset($_GET['channels_page']) ? '&channels_page=' . $_GET['channels_page'] : ''; ?>#videos-section">Previous</a>
-                                            </li>
-                                        <?php endif; ?>
-                                        
-                                        <?php for ($i = max(1, $videos_page - 2); $i <= min($total_videos_pages, $videos_page + 2); $i++): ?>
-                                            <li class="page-item <?php echo $i == $videos_page ? 'active' : ''; ?>">
-                                                <a class="page-link" href="?videos_page=<?php echo $i; ?><?php echo isset($_GET['channels_page']) ? '&channels_page=' . $_GET['channels_page'] : ''; ?>#videos-section"><?php echo $i; ?></a>
-                                            </li>
-                                        <?php endfor; ?>
-                                        
-                                        <?php if ($videos_page < $total_videos_pages): ?>
-                                            <li class="page-item">
-                                                <a class="page-link" href="?videos_page=<?php echo $videos_page + 1; ?><?php echo isset($_GET['channels_page']) ? '&channels_page=' . $_GET['channels_page'] : ''; ?>#videos-section">Next</a>
-                                            </li>
-                                        <?php endif; ?>
-                                    </ul>
-                                    <div class="text-center text-light">
-                                        Showing <?php echo (($videos_page - 1) * $videos_per_page) + 1; ?>-<?php echo min($videos_page * $videos_per_page, $total_videos); ?> of <?php echo $total_videos; ?> videos
-                                    </div>
-                                </nav>
-                            <?php endif; ?>
+                            <!-- Bottom Item Count -->
+                            <div class="bottom-item-count text-center text-light mt-3">
+                                Showing <?php echo (($videos_page - 1) * $videos_per_page) + 1; ?>-<?php echo min($videos_page * $videos_per_page, $total_videos); ?> of <?php echo $total_videos; ?> videos
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -1075,6 +1081,18 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             
             // Initialize Bootstrap tooltips
             initializeTooltips();
+            
+            // Add event listener for pagination dropdown items
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('dropdown-item') && e.target.hasAttribute('data-page')) {
+                    e.preventDefault();
+                    const table = e.target.getAttribute('data-table');
+                    const page = parseInt(e.target.getAttribute('data-page'));
+                    if (table && page) {
+                        loadTableDataNoScroll(table, page);
+                    }
+                }
+            });
             
             // Add event listeners for edit and delete buttons
             document.addEventListener('click', function(e) {
@@ -1389,8 +1407,8 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                 .then(data => {
                     if (data.success) {
                         showToast('Suggestion deleted successfully', 'success');
-                        // Reload page to refresh suggestions list
-                        setTimeout(() => window.location.reload(), 1000);
+                        // Reload suggestions table
+                        loadTableData('suggestions', getCurrentPage('suggestions'));
                     } else {
                         showToast(data.error || 'Failed to delete suggestion', 'danger');
                     }
@@ -1399,6 +1417,346 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                     showToast('Error deleting suggestion', 'danger');
                 });
             }
+        }
+        
+        // AJAX Pagination Functions
+        const currentPages = {
+            channels: <?php echo $channels_page; ?>,
+            videos: <?php echo $videos_page; ?>,
+            suggestions: <?php echo $suggestions_page; ?>
+        };
+        
+        function getCurrentPage(table) {
+            return currentPages[table] || 1;
+        }
+        
+        function setCurrentPage(table, page) {
+            currentPages[table] = page;
+        }
+        
+        function loadTableData(table, page) {
+            // Show loading state
+            showLoadingState(table);
+            
+            fetch('/admin_ajax.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    table: table,
+                    page: page
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateTable(table, data);
+                    updatePagination(table, data);
+                    setCurrentPage(table, data.current_page);
+                } else {
+                    showToast('Error loading data: ' + (data.error || 'Unknown error'), 'danger');
+                }
+            })
+            .catch(error => {
+                showToast('Network error loading data', 'danger');
+                console.error('Error:', error);
+            })
+            .finally(() => {
+                hideLoadingState(table);
+            });
+        }
+        
+        function loadTableDataNoScroll(table, page) {
+            // Prevent any scrolling during the entire operation
+            const currentScrollY = window.scrollY;
+            const currentScrollX = window.scrollX;
+            
+            // Lock scroll position
+            document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
+            
+            // Show loading state
+            showLoadingState(table);
+            
+            fetch('/admin_ajax.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    table: table,
+                    page: page
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Preserve table container height to prevent layout shift
+                    const tableContainer = document.querySelector(`#${table}-section .table-responsive`);
+                    const originalHeight = tableContainer ? tableContainer.offsetHeight : null;
+                    
+                    if (tableContainer && originalHeight) {
+                        tableContainer.style.minHeight = originalHeight + 'px';
+                    }
+                    
+                    updateTable(table, data);
+                    updatePagination(table, data);
+                    setCurrentPage(table, data.current_page);
+                    
+                    // Remove height constraint after a brief moment
+                    setTimeout(() => {
+                        if (tableContainer) {
+                            tableContainer.style.minHeight = '';
+                        }
+                    }, 100);
+                    
+                } else {
+                    showToast('Error loading data: ' + (data.error || 'Unknown error'), 'danger');
+                }
+            })
+            .catch(error => {
+                showToast('Network error loading data', 'danger');
+                console.error('Error:', error);
+            })
+            .finally(() => {
+                hideLoadingState(table);
+                
+                // Restore scroll and unlock scrolling
+                window.scrollTo(currentScrollX, currentScrollY);
+                document.body.style.overflow = '';
+                document.documentElement.style.overflow = '';
+            });
+        }
+        
+        function showLoadingState(table) {
+            const tbody = document.querySelector(`#${table}-section tbody`);
+            if (tbody) {
+                // Just add opacity without replacing content to reduce flashing
+                tbody.style.opacity = '0.5';
+                tbody.style.pointerEvents = 'none';
+            }
+        }
+        
+        function hideLoadingState(table) {
+            const tbody = document.querySelector(`#${table}-section tbody`);
+            if (tbody) {
+                tbody.style.opacity = '1';
+                tbody.style.pointerEvents = 'auto';
+            }
+        }
+        
+        function updateTable(table, data) {
+            const tbody = document.querySelector(`#${table}-section tbody`);
+            if (!tbody) return;
+            
+            // Reset any height constraints from loading state
+            tbody.style.height = '';
+            
+            if (data.data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="100%" class="text-light">No ${table} found.</td></tr>`;
+                return;
+            }
+            
+            let html = '';
+            
+            if (table === 'channels') {
+                data.data.forEach(channel => {
+                    const categories = channel.category_names ? 
+                        channel.category_names.split(', ').map(cat => 
+                            `<span class="badge bg-secondary me-1">${escapeHtml(cat.trim())}</span>`
+                        ).join('') : 
+                        '<span class="badge bg-light text-dark">No categories</span>';
+                    
+                    const description = escapeHtml(channel.description || '');
+                    const truncatedDesc = description.length > 200 ? description.substring(0, 200) + '...' : description;
+                    
+                    html += `
+                        <tr>
+                            <td class="text-light">${channel.id}</td>
+                            <td class="text-light">${escapeHtml(channel.name)}</td>
+                            <td class="text-light">${truncatedDesc}</td>
+                            <td>${categories}</td>
+                            <td class="text-light">${formatDate(channel.created_at)}</td>
+                            <td>
+                                <div class="row g-1">
+                                    <div class="col-6">
+                                        <a href="${escapeHtml(channel.youtube_url)}" target="_blank" class="btn btn-sm btn-outline-light w-100 d-flex justify-content-center align-items-center" title="View channel on YouTube">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </a>
+                                    </div>
+                                    <div class="col-6">
+                                        <button type="button" class="btn btn-sm btn-outline-warning w-100 d-flex justify-content-center align-items-center edit-channel-btn" 
+                                                data-channel-id="${channel.id}"
+                                                data-channel-name="${escapeHtml(channel.name)}"
+                                                data-channel-description="${escapeHtml(channel.description || '')}"
+                                                title="Edit channel">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button type="button" class="btn btn-sm btn-outline-danger w-100 d-flex justify-content-center align-items-center delete-channel-btn" 
+                                                data-channel-id="${channel.id}"
+                                                data-channel-name="${escapeHtml(channel.name)}"
+                                                title="Delete channel and all its videos">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                    <div class="col-6"></div>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } else if (table === 'videos') {
+                data.data.forEach(video => {
+                    html += `
+                        <tr>
+                            <td class="text-light">${video.id}</td>
+                            <td class="text-light">${escapeHtml(video.title)}</td>
+                            <td class="text-light">${escapeHtml(video.channel_name)}</td>
+                            <td>
+                                <a href="${escapeHtml(video.video_url)}" target="_blank" class="btn btn-sm btn-outline-light">
+                                    <i class="fas fa-play"></i> Watch
+                                </a>
+                            </td>
+                            <td class="text-light">${video.created_at ? formatDateTime(video.created_at) : 'Unknown'}</td>
+                        </tr>
+                    `;
+                });
+            } else if (table === 'suggestions') {
+                data.data.forEach(suggestion => {
+                    const link = escapeHtml(suggestion.link);
+                    const displayLink = link.length > 60 ? link.substring(0, 60) + '...' : link;
+                    
+                    let badgeClass = 'bg-secondary';
+                    let badgeText = 'Unknown';
+                    if (/watch\?v=|youtu\.be\//.test(suggestion.link)) {
+                        badgeClass = 'bg-danger';
+                        badgeText = 'Video';
+                    } else if (/channel\/|@|\/c\/|\/user\//.test(suggestion.link)) {
+                        badgeClass = 'bg-primary';
+                        badgeText = 'Channel';
+                    }
+                    
+                    html += `
+                        <tr>
+                            <td class="text-light">${suggestion.id}</td>
+                            <td class="text-light">
+                                <a href="${link}" target="_blank" class="text-info text-decoration-none">
+                                    ${displayLink}
+                                    <i class="fas fa-external-link-alt ms-1" style="font-size: 0.8rem;"></i>
+                                </a>
+                            </td>
+                            <td class="text-light">
+                                <span class="badge ${badgeClass}">${badgeText}</span>
+                            </td>
+                            <td class="text-light">${formatDateTime(suggestion.timestamp)}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-primary" onclick="window.open('${link}', '_blank')" title="Open Link">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success" onclick="addSuggestionToForm('${link}')" title="Add to Form">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" onclick="deleteSuggestion(${suggestion.id})" title="Delete Suggestion">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+            
+            tbody.innerHTML = html;
+        }
+        
+        function updatePagination(table, data) {
+            // Update top pagination controls
+            const topPaginationContainer = document.querySelector(`#${table}-section .top-pagination`);
+            const itemCountContainer = document.querySelector(`#${table}-section .bottom-item-count`);
+            
+            // Update item count at bottom
+            if (itemCountContainer) {
+                const start = ((data.current_page - 1) * data.per_page) + 1;
+                const end = Math.min(data.current_page * data.per_page, data.total_items);
+                itemCountContainer.textContent = `Showing ${start}-${end} of ${data.total_items} ${table}`;
+            }
+            
+            if (!topPaginationContainer) return;
+            
+            // Hide pagination if only one page
+            if (data.total_pages <= 1) {
+                topPaginationContainer.style.display = 'none';
+                return;
+            } else {
+                topPaginationContainer.style.display = 'flex';
+            }
+            
+            // Create dropdown options
+            let options = '';
+            for (let i = 1; i <= data.total_pages; i++) {
+                const selected = i === data.current_page ? 'selected' : '';
+                options += `<option value="${i}" ${selected}>Page ${i} of ${data.total_pages}</option>`;
+            }
+            
+            // Build pagination HTML
+            const prevDisabled = data.current_page <= 1 ? 'disabled' : '';
+            const nextDisabled = data.current_page >= data.total_pages ? 'disabled' : '';
+            
+            // Create dropdown menu items
+            let menuItems = '';
+            for (let i = 1; i <= data.total_pages; i++) {
+                const activeClass = i === data.current_page ? 'active' : '';
+                menuItems += `<li><a class="dropdown-item ${activeClass}" href="#" data-page="${i}" data-table="${table}">Page ${i} of ${data.total_pages}</a></li>`;
+            }
+            
+            topPaginationContainer.innerHTML = `
+                <button class="btn btn-outline-light btn-sm" ${prevDisabled} 
+                        onclick="loadTableDataNoScroll('${table}', ${data.current_page - 1})" 
+                        style="margin-right: 10px; min-width: 80px;">
+                    <i class="fas fa-chevron-left"></i> Previous
+                </button>
+                <div class="dropdown" style="margin-right: 10px;">
+                    <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" 
+                            data-bs-toggle="dropdown" aria-expanded="false" style="min-width: 160px;">
+                        Page ${data.current_page} of ${data.total_pages}
+                    </button>
+                    <ul class="dropdown-menu" style="max-height: 300px; overflow-y: auto;">
+                        ${menuItems}
+                    </ul>
+                </div>
+                <button class="btn btn-outline-light btn-sm" ${nextDisabled} 
+                        onclick="loadTableDataNoScroll('${table}', ${data.current_page + 1})" style="min-width: 70px;">
+                    Next <i class="fas fa-chevron-right"></i>
+                </button>
+            `;
+        }
+        
+        // Utility functions
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+        }
+        
+        function formatDateTime(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
         }
     </script>
 </body>
