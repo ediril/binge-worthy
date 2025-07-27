@@ -29,15 +29,34 @@ document.addEventListener('DOMContentLoaded', function() {
     const videoRows = document.querySelectorAll('.video-row');
     videoRows.forEach(row => {
         row.addEventListener('wheel', function(e) {
-            // Only apply horizontal scrolling if the user is hovering over the video row
-            // and there's horizontal overflow to scroll
+            // Only apply horizontal scrolling if:
+            // 1. There's horizontal overflow to scroll
+            // 2. User is holding Shift key (common convention for horizontal scroll)
+            // OR the row is at the scroll boundaries and user is trying to scroll further
             if (e.deltaY !== 0 && this.scrollWidth > this.clientWidth) {
-                // Only prevent default if we're actually over the video row area
-                const rect = this.getBoundingClientRect();
-                if (e.clientX >= rect.left && e.clientX <= rect.right &&
-                    e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                // Check if user is holding Shift for intentional horizontal scroll
+                if (e.shiftKey) {
                     e.preventDefault();
                     this.scrollLeft += e.deltaY;
+                    return;
+                }
+                
+                // Check if we're at scroll boundaries and trying to scroll further
+                const atLeftBoundary = this.scrollLeft <= 0 && e.deltaY < 0;
+                const atRightBoundary = this.scrollLeft >= (this.scrollWidth - this.clientWidth) && e.deltaY > 0;
+                
+                // Only prevent default vertical scroll if we can actually scroll horizontally
+                if (!atLeftBoundary && !atRightBoundary) {
+                    // Only convert to horizontal scroll if the mouse is directly over the scrollable content
+                    const rect = this.getBoundingClientRect();
+                    if (e.clientX >= rect.left && e.clientX <= rect.right &&
+                        e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                        // Allow some vertical scrolling, only convert excess to horizontal
+                        if (Math.abs(e.deltaY) > 50) {
+                            e.preventDefault();
+                            this.scrollLeft += e.deltaY * 0.5;
+                        }
+                    }
                 }
             }
         });
