@@ -3,25 +3,41 @@
  * Handle suggestion submissions with semaphore locking
  */
 
-header('Content-Type: application/json');
-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'error' => 'Method not allowed']);
     exit;
 }
 
-$input = json_decode(file_get_contents('php://input'), true);
-if (!$input || !isset($input['link'])) {
-    echo json_encode(['success' => false, 'error' => 'Invalid input']);
-    exit;
-}
+// Check if this is a JSON request or regular form submission
+$content_type = $_SERVER['CONTENT_TYPE'] ?? '';
+$is_json_request = strpos($content_type, 'application/json') !== false;
 
-$link = trim($input['link']);
+if ($is_json_request) {
+    header('Content-Type: application/json');
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (!$input || !isset($input['link'])) {
+        echo json_encode(['success' => false, 'error' => 'Invalid input']);
+        exit;
+    }
+    $link = trim($input['link']);
+} else {
+    // Regular form submission
+    if (!isset($_POST['link'])) {
+        header('Location: /?error=' . urlencode('Invalid input'));
+        exit;
+    }
+    $link = trim($_POST['link']);
+}
 
 // Basic input validation
 if (empty($link)) {
-    echo json_encode(['success' => false, 'error' => 'Please enter a link']);
+    if ($is_json_request) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Please enter a link']);
+    } else {
+        header('Location: /?error=' . urlencode('Please enter a link'));
+    }
     exit;
 }
 
@@ -65,17 +81,46 @@ function isValidYouTubeURL($url) {
 }
 
 if (!isValidYouTubeURL($link)) {
-    echo json_encode(['success' => false, 'error' => 'Please enter a valid YouTube channel or video URL']);
+    if ($is_json_request) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Please enter a valid YouTube channel or video URL']);
+    } else {
+        header('Location: /?error=' . urlencode('Please enter a valid YouTube channel or video URL'));
+    }
     exit;
 }
 
-// Semaphore locking to prevent concurrent writes
-$semaphore_key = ftok(__FILE__, 's');
-$semaphore = sem_get($semaphore_key, 1, 0666, 1);
+// File-based locking as fallback for servers without semaphore support
+$lock_file = 'suggestions.lock';
+$lock_handle = null;
 
-if (!sem_acquire($semaphore)) {
-    echo json_encode(['success' => false, 'error' => 'Unable to acquire lock. Please try again.']);
-    exit;
+// Try semaphore locking first (better), fall back to file locking
+$use_semaphore = function_exists('sem_get') && function_exists('sem_acquire');
+
+if ($use_semaphore) {
+    $semaphore_key = ftok(__FILE__, 's');
+    $semaphore = sem_get($semaphore_key, 1, 0666, 1);
+    if (!sem_acquire($semaphore)) {
+        if ($is_json_request) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Unable to acquire lock. Please try again.']);
+        } else {
+            header('Location: /?error=' . urlencode('Unable to acquire lock. Please try again.'));
+        }
+        exit;
+    }
+} else {
+    // Use file locking as fallback
+    $lock_handle = fopen($lock_file, 'c');
+    if (!$lock_handle || !flock($lock_handle, LOCK_EX)) {
+        if ($is_json_request) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Unable to acquire lock. Please try again.']);
+        } else {
+            header('Location: /?error=' . urlencode('Unable to acquire lock. Please try again.'));
+        }
+        exit;
+    }
 }
 
 try {
@@ -95,15 +140,37 @@ try {
     ");
     
     if ($upsert_stmt->execute([$link, $link])) {
-        echo json_encode(['success' => true, 'message' => 'Thank you! Your suggestion has been submitted.']);
+        if ($is_json_request) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'message' => 'Thank you! Your suggestion has been submitted.']);
+        } else {
+            header('Location: /?success=' . urlencode('Thank you! Your suggestion has been submitted.'));
+        }
     } else {
-        echo json_encode(['success' => false, 'error' => 'Failed to save suggestion. Please try again.']);
+        if ($is_json_request) {
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Failed to save suggestion. Please try again.']);
+        } else {
+            header('Location: /?error=' . urlencode('Failed to save suggestion. Please try again.'));
+        }
     }
     
 } catch (PDOException $e) {
-    echo json_encode(['success' => false, 'error' => 'Database error. Please try again.']);
+    if ($is_json_request) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Database error. Please try again.']);
+    } else {
+        header('Location: /?error=' . urlencode('Database error. Please try again.'));
+    }
 } finally {
-    // Always release the semaphore
-    sem_release($semaphore);
+    // Release the appropriate lock
+    if ($use_semaphore) {
+        sem_release($semaphore);
+    } else {
+        if ($lock_handle) {
+            flock($lock_handle, LOCK_UN);
+            fclose($lock_handle);
+        }
+    }
 }
 ?>

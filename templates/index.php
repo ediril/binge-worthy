@@ -84,10 +84,11 @@
                         <h3 class="section-title mb-3 text-center">Suggest a Channel or Video</h3>
                         <p class="text-center text-muted mb-4">Know a great channel or video? Share it with us!</p>
                         
-                        <form id="suggestionForm" class="suggestion-form">
+                        <form id="suggestionForm" class="suggestion-form" action="/suggestions" method="post">
                             <div class="input-group mb-3">
                                 <input type="url" 
                                        id="suggestionLink" 
+                                       name="link"
                                        class="form-control" 
                                        placeholder="Paste YouTube channel or video URL here..." 
                                        required>

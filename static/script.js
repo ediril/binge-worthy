@@ -265,7 +265,7 @@ function handleSuggestionSubmit(e) {
     submitSpinner.classList.remove('d-none');
     
     // Submit to backend
-    fetch('suggestions.php', {
+    fetch('/suggestions.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
