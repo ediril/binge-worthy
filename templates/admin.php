@@ -38,6 +38,136 @@ if (!$is_localhost) {
 
 $db = get_database();
 
+/**
+ * Clean up YouTube URLs to their base form
+ */
+function cleanup_youtube_url($url) {
+    $url = trim($url);
+    
+    // If it's not a YouTube URL, return as is
+    if (strpos($url, 'youtube.com') === false && strpos($url, 'youtu.be') === false) {
+        return $url;
+    }
+    
+    // Handle video URLs - extract video ID and create clean URL
+    if (preg_match('/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/', $url, $matches)) {
+        $video_id = $matches[1];
+        return "https://youtube.com/watch?v=" . $video_id;
+    }
+    
+    // For youtu.be short URLs without video ID pattern, remove query parameters
+    if (strpos($url, 'youtu.be') !== false) {
+        return strtok($url, '?');
+    }
+    
+    // For channel URLs, remove query parameters and trailing paths
+    $base_url = strtok($url, '?'); // Remove query parameters first
+    
+    // Normalize domain to include www for consistency
+    $base_url = str_replace('https://youtube.com/', 'https://www.youtube.com/', $base_url);
+    
+    // Remove common trailing paths from channel URLs
+    $paths_to_remove = [
+        '/videos',
+        '/playlists', 
+        '/community',
+        '/channels',
+        '/about',
+        '/search',
+        '/shorts',
+        '/live',
+        '/streams',
+        '/releases',
+        '/podcasts'
+    ];
+    
+    foreach ($paths_to_remove as $path) {
+        if (substr($base_url, -strlen($path)) === $path) {
+            $base_url = substr($base_url, 0, -strlen($path));
+            break; // Only remove one trailing path
+        }
+    }
+    
+    return $base_url;
+}
+
+/**
+ * Auto-remove matching suggestions from the suggestions database
+ */
+function auto_remove_matching_suggestions($content_url) {
+    try {
+        // Connect to suggestions database
+        $suggestions_db = new PDO('sqlite:suggestions.db');
+        $suggestions_db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+        // Clean up and normalize the input URL
+        $normalized_url = cleanup_youtube_url($content_url);
+        
+        // Remove suggestions that match the cleaned URL exactly
+        $delete_stmt = $suggestions_db->prepare("DELETE FROM suggestions WHERE TRIM(link) = ?");
+        $deleted_count = 0;
+        
+        if ($delete_stmt->execute([$normalized_url])) {
+            $deleted_count = $delete_stmt->rowCount();
+        }
+        
+        // Also check for uncleaned versions that might match the cleaned URL
+        $cleanup_stmt = $suggestions_db->prepare("SELECT id, link FROM suggestions");
+        $cleanup_stmt->execute();
+        $suggestions = $cleanup_stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($suggestions as $suggestion) {
+            $cleaned_suggestion = cleanup_youtube_url($suggestion['link']);
+            if ($cleaned_suggestion === $normalized_url) {
+                $delete_specific = $suggestions_db->prepare("DELETE FROM suggestions WHERE id = ?");
+                if ($delete_specific->execute([$suggestion['id']])) {
+                    $deleted_count += $delete_specific->rowCount();
+                }
+            }
+        }
+        
+        // Also try to match different URL formats for the same content
+        if (strpos($normalized_url, 'youtube.com') !== false || strpos($normalized_url, 'youtu.be') !== false) {
+            // Extract video/channel ID and try to match other formats
+            if (preg_match('/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/', $normalized_url, $matches)) {
+                // Video ID found - remove all formats of this video
+                $video_id = $matches[1];
+                $patterns = [
+                    "https://youtube.com/watch?v={$video_id}",
+                    "https://www.youtube.com/watch?v={$video_id}",
+                    "https://youtu.be/{$video_id}",
+                    "https://www.youtu.be/{$video_id}"
+                ];
+                
+                foreach ($patterns as $pattern) {
+                    $delete_stmt->execute([$pattern]);
+                    $deleted_count += $delete_stmt->rowCount();
+                }
+            } elseif (preg_match('/youtube\.com\/(@[a-zA-Z0-9_-]+|channel\/[a-zA-Z0-9_-]+|c\/[a-zA-Z0-9_-]+|user\/[a-zA-Z0-9_-]+)/', $normalized_url, $matches)) {
+                // Channel URL - try to match different channel URL formats
+                $channel_part = $matches[1];
+                $base_patterns = [
+                    "https://youtube.com/{$channel_part}",
+                    "https://www.youtube.com/{$channel_part}"
+                ];
+                
+                foreach ($base_patterns as $pattern) {
+                    $delete_stmt->execute([$pattern]);
+                    $deleted_count += $delete_stmt->rowCount();
+                }
+            }
+        }
+        
+        if ($deleted_count > 0) {
+            error_log("Auto-removed {$deleted_count} matching suggestion(s) for: {$normalized_url}");
+        }
+        
+    } catch (Exception $e) {
+        // Don't break the main flow if suggestion removal fails
+        error_log("Failed to auto-remove suggestions: " . $e->getMessage());
+    }
+}
+
 // Handle AJAX request for getting channel categories
 if (isset($_GET['action']) && $_GET['action'] === 'get_channel_categories' && isset($_GET['channel_id'])) {
     $channel_id = intval($_GET['channel_id']);
@@ -259,7 +389,8 @@ if ($_POST) {
         } else {
             if ($content_type === 'channel') {
                 // Handle channel addition
-                $channel_url = normalize_channel_input($content_input);
+                $cleaned_input = cleanup_youtube_url($content_input);
+                $channel_url = normalize_channel_input($cleaned_input);
                 
                 if (!$channel_url) {
                     $error = "Please provide a valid YouTube channel URL, channel name, or handle (e.g., @username).";
@@ -333,6 +464,9 @@ if ($_POST) {
                                     
                                     $channel_id = add_channel_with_categories($db, $channel_metadata['name'], $final_description, $channel_metadata['youtube_url'], $category_ids, $channel_metadata['thumbnail_url']);
                                     if ($channel_id) {
+                                        // Auto-remove matching suggestions
+                                        auto_remove_matching_suggestions($channel_metadata['youtube_url']);
+                                        
                                         // Redirect to prevent form resubmission
                                         $_SESSION['admin_message'] = "Channel '{$channel_metadata['name']}' added successfully with " . count($category_ids) . " categories!";
                                         header('Location: admin.php');
@@ -349,7 +483,8 @@ if ($_POST) {
                 }
             } else if ($content_type === 'video') {
                 // Handle video addition
-                $video_url = normalize_video_input($content_input);
+                $cleaned_input = cleanup_youtube_url($content_input);
+                $video_url = normalize_video_input($cleaned_input);
                 
                 if (!$video_url) {
                     $error = "Please provide a valid YouTube video URL or video ID.";
@@ -373,6 +508,9 @@ if ($_POST) {
                             
                             if ($channel_id) {
                                 if (add_video($db, $channel_id, $video_metadata['title'], $video_url, $video_metadata['thumbnail_url'], 1)) {
+                                    // Auto-remove matching suggestions
+                                    auto_remove_matching_suggestions($video_url);
+                                    
                                     // Redirect to prevent form resubmission
                                     $_SESSION['admin_message'] = "Video '{$video_metadata['title']}' added successfully!";
                                     header('Location: admin.php');
@@ -1083,6 +1221,110 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             });
         });
         
+        // Function to check if content already exists
+        function checkContentExists(url) {
+            // Safety check - don't check if URL is empty
+            if (!url || !url.trim()) {
+                console.log('❌ checkContentExists called with empty URL');
+                return Promise.resolve(false);
+            }
+            
+            console.log('Checking if content exists for URL:', url);
+            return fetch('admin_ajax.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'check_content_exists',
+                    url: url
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Content exists response:', data);
+                const contentInfo = document.getElementById('content-info');
+                const contentInfoText = document.getElementById('content-info-text');
+                
+                if (data.success && data.exists) {
+                    console.log('Content exists! Hiding form elements...');
+                    // Content already exists - hide form elements and show alert
+                    const categorySection = document.getElementById('category-section');
+                    const descriptionField = document.getElementById('new-category-description').parentElement;
+                    const submitButton = document.querySelector('#add-content-form button[type="submit"]');
+                    
+                    console.log('Elements found:', {
+                        categorySection: !!categorySection,
+                        descriptionField: !!descriptionField, 
+                        submitButton: !!submitButton,
+                        contentInfo: !!contentInfo
+                    });
+                    
+                    // Hide form sections
+                    if (categorySection) categorySection.style.display = 'none';
+                    if (descriptionField) descriptionField.style.display = 'none';
+                    if (submitButton) submitButton.style.display = 'none';
+                    
+                    // Show alert
+                    contentInfo.style.display = 'block';
+                    if (data.type === 'video') {
+                        contentInfoText.innerHTML = `<strong>⚠️ This video already exists in the database:</strong><br>"${data.title}"`;
+                    } else {
+                        contentInfoText.innerHTML = `<strong>⚠️ This channel already exists in the database:</strong><br>"${data.name}"`;
+                    }
+                    contentInfo.style.backgroundColor = '#f8d7da';
+                    contentInfo.style.borderColor = '#f5c6cb';
+                    contentInfo.style.color = '#721c24';
+                    
+                    console.log('Alert should now be visible with red styling');
+                    return true; // Content exists
+                } else if (data.success && !data.exists && data.error === 'url_not_found') {
+                    console.log('URL not found on YouTube!');
+                    // URL doesn't exist on YouTube - show error alert
+                    const categorySection = document.getElementById('category-section');
+                    const descriptionField = document.getElementById('new-category-description').parentElement;
+                    const submitButton = document.querySelector('#add-content-form button[type="submit"]');
+                    
+                    // Hide form sections
+                    if (categorySection) categorySection.style.display = 'none';
+                    if (descriptionField) descriptionField.style.display = 'none';
+                    if (submitButton) submitButton.style.display = 'none';
+                    
+                    // Show error alert
+                    contentInfo.style.display = 'block';
+                    contentInfoText.innerHTML = `<strong>❌ URL Not Found:</strong><br>${data.message}`;
+                    contentInfo.style.backgroundColor = '#f8d7da';
+                    contentInfo.style.borderColor = '#f5c6cb';
+                    contentInfo.style.color = '#721c24';
+                    
+                    console.log('URL not found alert should now be visible');
+                    return false; // URL doesn't exist
+                } else if (data.success && !data.exists) {
+                    // Content doesn't exist - show form elements and proceed with normal flow
+                    const categorySection = document.getElementById('category-section');
+                    const descriptionField = document.getElementById('new-category-description').parentElement;
+                    const submitButton = document.querySelector('#add-content-form button[type="submit"]');
+                    const contentType = document.getElementById('content-type');
+                    
+                    // Show form sections
+                    descriptionField.style.display = 'block';
+                    submitButton.style.display = 'block';
+                    
+                    if (contentType.value === 'video') {
+                        checkChannelExistence(url);
+                    } else {
+                        categorySection.style.display = 'block';
+                    }
+                    return false; // Content doesn't exist
+                }
+                return false; // Default case
+            })
+            .catch(error => {
+                console.error('Error checking content existence:', error);
+                return false; // On error, assume content doesn't exist
+            });
+        }
+        
         // Function to update UI based on content type
         function updateUIForContentType(contentType) {
             const input = document.getElementById('content-input');
@@ -1176,6 +1418,41 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             clearButton.addEventListener('click', function() {
                 contentInput.value = '';
                 descriptionField.value = '';
+                
+                // Reset the content info alert to default state
+                const contentInfo = document.getElementById('content-info');
+                const contentInfoText = document.getElementById('content-info-text');
+                const contentType = document.getElementById('content-type');
+                
+                if (contentInfo && contentInfoText && contentType) {
+                    // Reset alert styling to default
+                    contentInfo.style.backgroundColor = '';
+                    contentInfo.style.borderColor = '';
+                    contentInfo.style.color = '';
+                    
+                    // Reset to default content type info
+                    if (contentType.value === 'channel') {
+                        contentInfo.style.display = 'none';
+                    } else if (contentType.value === 'video') {
+                        contentInfo.style.display = 'block';
+                        contentInfoText.textContent = 'Enter a video URL to check if its channel exists in the database.';
+                    }
+                }
+                
+                // Show all form elements that might have been hidden
+                const categorySection = document.getElementById('category-section');
+                const descriptionFieldContainer = document.getElementById('new-category-description').parentElement;
+                const submitButton = document.querySelector('#add-content-form button[type="submit"]');
+                
+                if (descriptionFieldContainer) descriptionFieldContainer.style.display = 'block';
+                if (submitButton) submitButton.style.display = 'block';
+                if (categorySection && contentType.value === 'channel') {
+                    categorySection.style.display = 'block';
+                }
+                
+                // Reset to default UI state immediately
+                updateUIForContentType(contentType.value);
+                
                 toggleClearButton();
                 contentInput.focus();
             });
@@ -1188,22 +1465,179 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
         function initializeAutoFetch() {
             const contentInput = document.getElementById('content-input');
             const contentType = document.getElementById('content-type');
-            let fetchTimeout;
             
             contentInput.addEventListener('input', function() {
-                // Clear previous timeout
-                clearTimeout(fetchTimeout);
+                console.log('=== INPUT EVENT TRIGGERED ===');
+                console.log('Current input value:', contentInput.value);
                 
-                // Set new timeout (500ms delay)
-                fetchTimeout = setTimeout(() => {
-                    const url = contentInput.value.trim();
-                    const descriptionField = document.getElementById('new-category-description');
+                // IMMEDIATELY reset any error/exists messages when input changes
+                const contentInfo = document.getElementById('content-info');
+                const contentInfoText = document.getElementById('content-info-text');
+                const categorySection = document.getElementById('category-section');
+                const descriptionField = document.getElementById('new-category-description').parentElement;
+                const submitButton = document.querySelector('#add-content-form button[type="submit"]');
+                const contentType = document.getElementById('content-type');
+                
+                console.log('Clearing existing alerts and resetting form...');
+                
+                // IMMEDIATELY clear any existing alert messages and reset form state
+                contentInfo.style.backgroundColor = '';
+                contentInfo.style.borderColor = '';
+                contentInfo.style.color = '';
+                contentInfo.style.display = 'none'; // Hide immediately
+                contentInfoText.innerHTML = ''; // Clear content
+                
+                // Show form elements by default (in case they were hidden by exists/error message)
+                descriptionField.style.display = 'block';
+                submitButton.style.display = 'block';
+                if (contentType.value === 'channel') {
+                    categorySection.style.display = 'block';
+                }
+                
+                // Only check for duplicates if URL looks valid - don't waste API calls on invalid URLs
+                const url = contentInput.value.trim();
+                console.log('Trimmed URL:', url);
+                console.log('URL length:', url.length);
+                
+                if (url && isValidYouTubeURL(url)) {
+                    console.log('🔍 STARTING CHECK for valid URL:', url);
+                    console.log('🔍 Content type:', contentType.value);
                     
-                    // Only fetch if URL is valid and description field is empty
-                    if (url && isValidYouTubeURL(url) && !descriptionField.value.trim()) {
-                        fetchContentDescription(url, contentType.value);
+                    // Check if URL type matches selected content type
+                    const looksLikeVideoURL = /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/.test(url);
+                    const isValidVideoURL = /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/.test(url);
+                    console.log('🔍 Looks like video URL:', looksLikeVideoURL, 'Is valid video URL:', isValidVideoURL);
+                    
+                    // Auto-correct content type based on URL if there's a mismatch
+                    if (contentType.value === 'video' && !looksLikeVideoURL) {
+                        // Video selected but channel URL pasted - auto-switch to Channel
+                        console.log('🔄 AUTO-SWITCHING: Video content type selected but channel URL provided - switching to Channel');
+                        const contentTypeField = document.getElementById('content-type');
+                        const contentTypeText = document.getElementById('content-type-text');
+                        contentTypeField.value = 'channel';
+                        contentTypeText.textContent = 'Channel';
+                        updateUIForContentType('channel');
+                        // Continue processing as channel
+                    } else if (contentType.value === 'channel' && looksLikeVideoURL) {
+                        // Channel selected but video URL pasted - auto-switch to Video first
+                        console.log('🔄 AUTO-SWITCHING: Channel content type selected but video URL provided - switching to Video');
+                        const contentTypeField = document.getElementById('content-type');
+                        const contentTypeText = document.getElementById('content-type-text');
+                        contentTypeField.value = 'video';
+                        contentTypeText.textContent = 'Video';
+                        updateUIForContentType('video');
+                        
+                        // Now check if the video URL is valid
+                        if (!isValidVideoURL) {
+                            // It looks like a video URL but has invalid video ID length
+                            console.log('❌ Invalid video URL detected after auto-switch - showing error message');
+                            
+                            // Hide form elements
+                            const contentInfo = document.getElementById('content-info');
+                            const contentInfoText = document.getElementById('content-info-text');
+                            const categorySection = document.getElementById('category-section');
+                            const descriptionField = document.getElementById('new-category-description').parentElement;
+                            const submitButton = document.querySelector('#add-content-form button[type="submit"]');
+                            
+                            // Hide form sections
+                            if (categorySection) categorySection.style.display = 'none';
+                            if (descriptionField) descriptionField.style.display = 'none';
+                            if (submitButton) submitButton.style.display = 'none';
+                            
+                            // Show error alert
+                            contentInfo.style.display = 'block';
+                            contentInfoText.innerHTML = `<strong>❌ Invalid Video URL:</strong><br>This YouTube video URL is invalid (video ID must be 11 characters).`;
+                            contentInfo.style.backgroundColor = '#f8d7da';
+                            contentInfo.style.borderColor = '#f5c6cb';
+                            contentInfo.style.color = '#721c24';
+                            
+                            console.log('Invalid URL alert should now be visible with red styling');
+                            return;
+                        }
+                        // If valid, continue processing as video
                     }
-                }, 500);
+                    
+                    // Re-check content type in case it was auto-switched above
+                    const currentContentType = document.getElementById('content-type').value;
+                    if (currentContentType === 'video') {
+                        // For videos: First validate URL format before checking duplicates
+                        if (!isValidVideoURL) {
+                            console.log('❌ Invalid video URL detected in video mode - showing error message');
+                            
+                            // Hide form elements
+                            const contentInfo = document.getElementById('content-info');
+                            const contentInfoText = document.getElementById('content-info-text');
+                            const categorySection = document.getElementById('category-section');
+                            const descriptionField = document.getElementById('new-category-description').parentElement;
+                            const submitButton = document.querySelector('#add-content-form button[type="submit"]');
+                            
+                            // Hide form sections
+                            if (categorySection) categorySection.style.display = 'none';
+                            if (descriptionField) descriptionField.style.display = 'none';
+                            if (submitButton) submitButton.style.display = 'none';
+                            
+                            // Show error alert
+                            contentInfo.style.display = 'block';
+                            contentInfoText.innerHTML = `<strong>❌ Invalid Video URL:</strong><br>This YouTube video URL is invalid (video ID must be 11 characters).`;
+                            contentInfo.style.backgroundColor = '#f8d7da';
+                            contentInfo.style.borderColor = '#f5c6cb';
+                            contentInfo.style.color = '#721c24';
+                            
+                            console.log('Invalid URL alert should now be visible with red styling');
+                            return;
+                        }
+                        
+                        // URL is valid - now check if the VIDEO itself already exists
+                        console.log('🎥 Valid video URL detected - checking if video already exists in database');
+                        checkContentExists(url).then(exists => {
+                            console.log('✅ VIDEO DUPLICATE CHECK COMPLETED - exists:', exists);
+                            
+                            if (exists) {
+                                console.log('⚠️ Video already exists in database - stopping all operations');
+                                return;
+                            }
+                            
+                            // Video doesn't exist - now check if its channel exists
+                            console.log('🎥 Video is new - checking if its channel exists in database');
+                            checkChannelExistence(url);
+                        }).catch(error => {
+                            console.error('❌ VIDEO DUPLICATE CHECK FAILED:', error);
+                        });
+                    } else {
+                        // For channels: Check if channel itself exists in database
+                        console.log('📺 Channel URL detected - checking if channel exists in database');
+                        checkContentExists(url).then(exists => {
+                            console.log('✅ CHANNEL CHECK COMPLETED - exists:', exists);
+                            
+                            if (exists) {
+                                console.log('⚠️ Channel already exists in database - stopping all operations');
+                                return;
+                            }
+                            
+                            console.log('✨ Channel is new - checking if description fetch needed');
+                            
+                            // Auto-fetch description only if field is empty (preserve user input)
+                            const descField = document.getElementById('new-category-description');
+                            console.log('📝 Description field current value:', `"${descField.value}"`);
+                            console.log('📝 Description field trimmed length:', descField.value.trim().length);
+                            
+                            if (!descField.value.trim()) {
+                                console.log('📝 Auto-fetching description for new channel');
+                                fetchContentDescription(url, contentType.value);
+                            } else {
+                                console.log('📝 Description field already has content - skipping auto-fetch to preserve user input');
+                            }
+                        }).catch(error => {
+                            console.error('❌ CHANNEL CHECK FAILED:', error);
+                        });
+                    }
+                } else if (url === '') {
+                    console.log('📭 Empty URL - resetting to default UI');
+                    updateUIForContentType(contentType.value);
+                } else {
+                    console.log('❌ Invalid URL format - skipping duplicate check:', url);
+                    // Invalid URL - just leave form in cleared state, no API calls
+                }
             });
         }
         
@@ -1226,12 +1660,12 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             
             // Check URL patterns
             const patterns = [
-                /youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,           // Video
+                /youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/,              // Video (flexible length)
                 /youtube\.com\/channel\/([a-zA-Z0-9_-]+)/,              // Channel ID
                 /youtube\.com\/c\/([a-zA-Z0-9_-]+)/,                    // Custom channel
                 /youtube\.com\/user\/([a-zA-Z0-9_-]+)/,                 // User channel
                 /youtube\.com\/@([a-zA-Z0-9_.-]+)/,                     // Handle
-                /youtu\.be\/([a-zA-Z0-9_-]{11})/,                       // Short video URL
+                /youtu\.be\/([a-zA-Z0-9_-]+)/,                          // Short video URL (flexible length)
             ];
             
             return patterns.some(pattern => pattern.test(input));
@@ -1259,13 +1693,17 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    const descriptionField = document.getElementById('new-category-description').parentElement;
+                    
                     if (data.channel_exists) {
-                        // Channel exists - hide category section
+                        // Channel exists - hide both category section and description field
                         categorySection.style.display = 'none';
+                        descriptionField.style.display = 'none';
                         contentInfoText.textContent = `Channel "${data.channel_name}" already exists. Video will be added to this channel with its existing categories.`;
                     } else {
-                        // Channel doesn't exist - show category section
+                        // Channel doesn't exist - show both category section and description field
                         categorySection.style.display = 'block';
+                        descriptionField.style.display = 'block';
                         contentInfoText.textContent = `Channel "${data.channel_name}" doesn't exist yet. It will be created with the categories you select below.`;
                     }
                 } else {
@@ -1283,6 +1721,16 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
         }
         
         function fetchContentDescription(url, type) {
+            // Safety check - don't fetch if URL is empty
+            if (!url || !url.trim()) {
+                console.log('❌ fetchContentDescription called with empty URL');
+                return;
+            }
+            
+            console.log('📝 Starting fetchContentDescription for:', url);
+            console.log('📝 URL validation result:', isValidYouTubeURL(url.trim()));
+            console.log('📝 Content type:', type);
+            
             // Show loading indicator
             const descriptionField = document.getElementById('new-category-description');
             const originalPlaceholder = descriptionField.placeholder;
@@ -1656,9 +2104,27 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                     updateUIForContentType(contentType);
                 }
                 
-                // Auto-fetch description if valid URL
+                // FIRST: Check for duplicates when adding from suggestions (blocking check)
                 if (isValidYouTubeURL(link)) {
-                    fetchContentDescription(link, contentType);
+                    checkContentExists(link).then(exists => {
+                        const descriptionField = document.getElementById('new-category-description');
+                        console.log('Suggestion check - Content exists:', exists);
+                        
+                        if (exists) {
+                            // Content exists - stop here, don't fetch anything
+                            console.log('Suggestion already exists in database - stopping all fetch operations');
+                            return;
+                        }
+                        
+                        // Content doesn't exist - proceed with description fetch only if field is empty
+                        console.log('Suggestion is new content - checking if description auto-fetch needed');
+                        if (!descriptionField.value.trim()) {
+                            console.log('Description field empty - auto-fetching description for suggestion');
+                            fetchContentDescription(link, contentType);
+                        } else {
+                            console.log('Description field has content - skipping auto-fetch to preserve user input');
+                        }
+                    });
                 }
                 
                 // Update clear button visibility

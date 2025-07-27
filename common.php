@@ -374,8 +374,11 @@ function fetch_youtube_video_metadata($video_url) {
     ]);
     
     $response = @file_get_contents($oembed_url, false, $context);
+    error_log("DEBUG: oEmbed URL: $oembed_url");
+    error_log("DEBUG: oEmbed response: " . ($response === false ? 'FALSE' : $response));
     
     if ($response === false) {
+        error_log("DEBUG: Video doesn't exist - returning null");
         return null;
     }
     
@@ -443,7 +446,10 @@ function fetch_youtube_channel_metadata($channel_url) {
     
     // Method 2: Try to extract from YouTube's internal JSON data
     if (empty($description) && preg_match('/"description":"([^"]*(?:\\.[^"]*)*)"/', $html, $matches)) {
-        $description = html_entity_decode(json_decode('"' . $matches[1] . '"'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $decoded_json = json_decode('"' . $matches[1] . '"');
+        if ($decoded_json !== null) {
+            $description = html_entity_decode($decoded_json, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
     }
     
     // Method 3: Fallback to meta description (usually truncated)
@@ -457,11 +463,27 @@ function fetch_youtube_channel_metadata($channel_url) {
         $thumbnail_url = $matches[1];
     }
     
+    // Try to extract the actual YouTube channel ID (UC...)
+    $youtube_channel_id = null;
+    // Method 1: Look for channel ID in the HTML
+    if (preg_match('/"channelId":"([^"]*)"/', $html, $matches)) {
+        $youtube_channel_id = $matches[1];
+    }
+    // Method 2: Look in URL redirects or canonical links
+    elseif (preg_match('/youtube\.com\/channel\/([a-zA-Z0-9_-]+)/', $html, $matches)) {
+        $youtube_channel_id = $matches[1];
+    }
+    // Method 3: Look in JSON-LD data
+    elseif (preg_match('/"@id"[^"]*"[^"]*\/channel\/([a-zA-Z0-9_-]+)"/', $html, $matches)) {
+        $youtube_channel_id = $matches[1];
+    }
+    
     return [
         'name' => $channel_name,
         'description' => $description,
         'youtube_url' => $channel_url,
-        'thumbnail_url' => $thumbnail_url
+        'thumbnail_url' => $thumbnail_url,
+        'youtube_channel_id' => $youtube_channel_id
     ];
 }
 

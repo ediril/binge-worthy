@@ -41,6 +41,51 @@ if (empty($link)) {
     exit;
 }
 
+/**
+ * Clean up YouTube URLs to their base form
+ */
+function cleanup_youtube_url($url) {
+    $url = trim($url);
+    
+    // If it's not a YouTube URL, return as is
+    if (strpos($url, 'youtube.com') === false && strpos($url, 'youtu.be') === false) {
+        return $url;
+    }
+    
+    // For youtu.be short URLs, they're already clean
+    if (strpos($url, 'youtu.be') !== false) {
+        // Remove any query parameters
+        return strtok($url, '?');
+    }
+    
+    // For regular YouTube URLs, remove common trailing paths
+    $base_url = strtok($url, '?'); // Remove query parameters first
+    
+    // Remove common trailing paths from channel URLs
+    $paths_to_remove = [
+        '/videos',
+        '/playlists', 
+        '/community',
+        '/channels',
+        '/about',
+        '/search',
+        '/shorts',
+        '/live',
+        '/streams',
+        '/releases',
+        '/podcasts'
+    ];
+    
+    foreach ($paths_to_remove as $path) {
+        if (substr($base_url, -strlen($path)) === $path) {
+            $base_url = substr($base_url, 0, -strlen($path));
+            break; // Only remove one trailing path
+        }
+    }
+    
+    return $base_url;
+}
+
 // Validate YouTube URL
 function isValidYouTubeURL($url) {
     // Check if it's a valid URL first
@@ -89,6 +134,9 @@ if (!isValidYouTubeURL($link)) {
     }
     exit;
 }
+
+// Clean up the URL before saving
+$link = cleanup_youtube_url($link);
 
 // File-based locking as fallback for servers without semaphore support
 $lock_file = 'suggestions.lock';
