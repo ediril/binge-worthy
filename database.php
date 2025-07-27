@@ -46,7 +46,6 @@ function create_tables($db) {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             channel_id INTEGER NOT NULL,
             title TEXT NOT NULL,
-            description TEXT,
             video_url TEXT NOT NULL UNIQUE,
             thumbnail_url TEXT,
             is_featured INTEGER DEFAULT 0,

@@ -372,7 +372,7 @@ if ($_POST) {
                             $channel_id = get_or_create_channel_from_video($db, $video_metadata, $category_id);
                             
                             if ($channel_id) {
-                                if (add_video($db, $channel_id, $video_metadata['title'], $video_metadata['description'], $video_url, $video_metadata['thumbnail_url'], 1)) {
+                                if (add_video($db, $channel_id, $video_metadata['title'], $video_url, $video_metadata['thumbnail_url'], 1)) {
                                     // Redirect to prevent form resubmission
                                     $_SESSION['admin_message'] = "Video '{$video_metadata['title']}' added successfully!";
                                     header('Location: admin.php');
@@ -1099,9 +1099,11 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             } else if (contentType === 'video') {
                 input.placeholder = 'dQw4w9WgXcQ or full URL';
                 submitText.textContent = 'Add Video';
-                categorySection.style.display = 'none';
+                
+                // For videos, show default state until we check if channel exists
+                categorySection.style.display = 'block';
                 contentInfo.style.display = 'block';
-                contentInfoText.textContent = 'Videos will be automatically added to their channel\'s categories. You don\'t need to select categories for individual videos.';
+                contentInfoText.textContent = 'Enter a video URL to check if its channel exists in the database.';
             }
             
             console.log('Updated UI for content type:', contentType);
@@ -1236,6 +1238,50 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
         }
         
         // Fetch content description from YouTube
+        function checkChannelExistence(videoUrl) {
+            const categorySection = document.getElementById('category-section');
+            const contentInfo = document.getElementById('content-info');
+            const contentInfoText = document.getElementById('content-info-text');
+            
+            // Show checking state
+            contentInfoText.textContent = 'Checking if channel exists...';
+            
+            fetch('admin_ajax.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'check_channel_exists',
+                    video_url: videoUrl
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.channel_exists) {
+                        // Channel exists - hide category section
+                        categorySection.style.display = 'none';
+                        contentInfoText.textContent = `Channel "${data.channel_name}" already exists. Video will be added to this channel with its existing categories.`;
+                    } else {
+                        // Channel doesn't exist - show category section
+                        categorySection.style.display = 'block';
+                        contentInfoText.textContent = `Channel "${data.channel_name}" doesn't exist yet. It will be created with the categories you select below.`;
+                    }
+                } else {
+                    // Error checking - show category section as fallback
+                    categorySection.style.display = 'block';
+                    contentInfoText.textContent = 'Could not check if channel exists. Select categories in case a new channel needs to be created.';
+                }
+            })
+            .catch(error => {
+                console.error('Error checking channel existence:', error);
+                // Error - show category section as fallback
+                categorySection.style.display = 'block';
+                contentInfoText.textContent = 'Could not check if channel exists. Select categories in case a new channel needs to be created.';
+            });
+        }
+        
         function fetchContentDescription(url, type) {
             // Show loading indicator
             const descriptionField = document.getElementById('new-category-description');
@@ -1243,13 +1289,19 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             descriptionField.placeholder = 'Fetching description...';
             descriptionField.disabled = true;
             
-            // Create a simple endpoint to fetch YouTube metadata
-            fetch('fetch_youtube_metadata.php', {
+            // For videos, also check if channel exists
+            if (type === 'video') {
+                checkChannelExistence(url);
+            }
+            
+            // Fetch YouTube metadata using the admin_ajax.php endpoint
+            fetch('admin_ajax.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
+                    action: 'fetch_metadata',
                     url: url,
                     type: type
                 })

@@ -17,7 +17,6 @@ RewriteRule ^ - [R=404,L]
 RewriteCond %{THE_REQUEST} \s/+([^?\s]*?)\.php[\s?] [NC]
 RewriteCond %{REQUEST_URI} !^/suggestions\.php$
 RewriteCond %{REQUEST_URI} !^/admin_ajax\.php$
-RewriteCond %{REQUEST_URI} !^/fetch_youtube_metadata\.php$
 RewriteRule ^ /%1? [R=301,L]
 
 # Clean URL rules for existing pages

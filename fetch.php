@@ -5,7 +5,7 @@
  * This script fetches videos from existing YouTube channels in the database
  * and adds them as new videos. It only runs from the command line.
  * 
- * Usage: php fetch_videos.php [--chan-id=ID] [--limit=N] [--backfill] [--dry-run]
+ * Usage: php fetch.php [--chan-id=ID] [--limit=N] [--backfill] [--dry-run]
  */
 
 // CLI-only protection - return 404 if accessed via web server
@@ -188,7 +188,6 @@ try {
                             $db,
                             $channel['id'],
                             $video['title'],
-                            $video['description'],
                             $video['url'],
                             $video['thumbnail'],
                             0 // is_featured
@@ -232,7 +231,6 @@ try {
                         $db,
                         $channel['id'],
                         $video['title'],
-                        $video['description'],
                         $video['url'],
                         $video['thumbnail'],
                         0 // is_featured
@@ -348,7 +346,6 @@ function fetch_channel_videos_rss($channel_url, $limit = 10) {
             
             $videos[] = [
                 'title' => $title,
-                'description' => '',
                 'url' => $video_url,
                 'thumbnail' => $thumbnail_url,
                 'published' => $published
@@ -478,7 +475,6 @@ function fetch_channel_videos_scraping($channel_url, $limit = 10) {
         
         $videos[] = [
             'title' => $title,
-            'description' => '',
             'url' => $video_url,
             'thumbnail' => $thumbnail_url,
             'published' => $published_text

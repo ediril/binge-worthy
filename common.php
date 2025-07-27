@@ -205,12 +205,12 @@ function add_channel($db, $name, $description, $youtube_url, $category_id, $thum
 /**
  * Add a new video
  */
-function add_video($db, $channel_id, $title, $description, $video_url, $thumbnail_url, $is_featured = 0) {
+function add_video($db, $channel_id, $title, $video_url, $thumbnail_url, $is_featured = 0) {
     $stmt = $db->prepare("
-        INSERT INTO videos (channel_id, title, description, video_url, thumbnail_url, is_featured, view_count) 
-        VALUES (?, ?, ?, ?, ?, ?, 0)
+        INSERT INTO videos (channel_id, title, video_url, thumbnail_url, is_featured, view_count) 
+        VALUES (?, ?, ?, ?, ?, 0)
     ");
-    return $stmt->execute([$channel_id, $title, $description, $video_url, $thumbnail_url, $is_featured]);
+    return $stmt->execute([$channel_id, $title, $video_url, $thumbnail_url, $is_featured]);
 }
 
 /**
