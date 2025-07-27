@@ -662,7 +662,7 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
-                        <h3>User Suggestions (<?php echo $total_suggestions; ?>)</h3>
+                        <h3>User Suggestions</h3>
                     </div>
                     <div class="card-body">
                         <?php if (empty($suggestions)): ?>
