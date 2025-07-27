@@ -757,3 +757,62 @@ a.btn.btn-primary.btn-lg {
         font-size: 1rem;
     }
 }
+
+/* Suggestion form */
+.suggestion-section {
+    margin-top: 3rem;
+}
+
+.suggestion-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.suggestion-form .form-control {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+.suggestion-form .form-control:focus {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-color: #e50914;
+    box-shadow: 0 0 0 0.2rem rgba(229, 9, 20, 0.25);
+    color: #ffffff;
+}
+
+.suggestion-form .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.suggestion-form .btn-primary {
+    background-color: #e50914;
+    border-color: #e50914;
+    font-weight: 500;
+    min-width: 100px;
+}
+
+.suggestion-form .btn-primary:hover {
+    background-color: #b8070f;
+    border-color: #b8070f;
+}
+
+.suggestion-form .btn-primary:disabled {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    opacity: 0.8;
+}
+
+/* Suggestion toast */
+#suggestionToast .toast {
+    min-width: 300px;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: all 0.3s ease;
+}
+
+#suggestionToast .toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}

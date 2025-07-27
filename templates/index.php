@@ -75,6 +75,42 @@
                 <?php endif; ?>
             </div>
         </section>
+
+        <!-- Suggest Content Section -->
+        <section class="suggestion-section mb-4 px-4">
+            <div class="row justify-content-center">
+                <div class="col-lg-6 col-md-8">
+                    <div class="suggestion-card p-4 rounded">
+                        <h3 class="section-title mb-3 text-center">Suggest a Channel or Video</h3>
+                        <p class="text-center text-muted mb-4">Know a great channel or video? Share it with us!</p>
+                        
+                        <form id="suggestionForm" class="suggestion-form">
+                            <div class="input-group mb-3">
+                                <input type="url" 
+                                       id="suggestionLink" 
+                                       class="form-control" 
+                                       placeholder="Paste YouTube channel or video URL here..." 
+                                       required>
+                                <button type="submit" class="btn btn-primary" id="submitSuggestion">
+                                    <span class="submit-text">Submit</span>
+                                    <span class="submit-spinner spinner-border spinner-border-sm d-none" role="status"></span>
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <!-- Toast container for this section -->
+                        <div id="suggestionToast" class="position-fixed start-50 translate-middle-x" style="z-index: 1050; top: 100px; display: none;">
+                            <div class="toast align-items-center text-white border-0" role="alert">
+                                <div class="d-flex">
+                                    <div class="toast-body"></div>
+                                    <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="hideSuggestionToast()"></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
 
     <?php include 'templates/partials/footer.php'; ?>

@@ -103,6 +103,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
+    
+    // Suggestion form handling
+    const suggestionForm = document.getElementById('suggestionForm');
+    if (suggestionForm) {
+        suggestionForm.addEventListener('submit', handleSuggestionSubmit);
+    }
 });
 
 /**
@@ -225,4 +231,149 @@ function createThumbnailPlaceholder(img) {
     
     // Replace the image with the placeholder
     img.parentNode.replaceChild(placeholder, img);
+}
+
+/**
+ * Handle suggestion form submission
+ * @param {Event} e - Form submission event
+ */
+function handleSuggestionSubmit(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const linkInput = document.getElementById('suggestionLink');
+    const submitButton = document.getElementById('submitSuggestion');
+    const submitText = submitButton.querySelector('.submit-text');
+    const submitSpinner = submitButton.querySelector('.submit-spinner');
+    
+    const link = linkInput.value.trim();
+    
+    if (!link) {
+        showSuggestionToast('Please enter a YouTube URL', 'error');
+        return;
+    }
+    
+    // Basic client-side validation
+    if (!isValidYouTubeURL(link)) {
+        showSuggestionToast('Please enter a valid YouTube channel or video URL', 'error');
+        return;
+    }
+    
+    // Show loading state
+    submitButton.disabled = true;
+    submitText.classList.add('d-none');
+    submitSpinner.classList.remove('d-none');
+    
+    // Submit to backend
+    fetch('suggestions.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ link: link })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuggestionToast(data.message, 'success');
+            form.reset();
+        } else {
+            showSuggestionToast(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showSuggestionToast('Network error. Please try again.', 'error');
+    })
+    .finally(() => {
+        // Reset button state
+        submitButton.disabled = false;
+        submitText.classList.remove('d-none');
+        submitSpinner.classList.add('d-none');
+    });
+}
+
+/**
+ * Validate YouTube URL on client side
+ * @param {string} url - URL to validate
+ * @returns {boolean} True if valid YouTube URL
+ */
+function isValidYouTubeURL(url) {
+    try {
+        const urlObj = new URL(url);
+        const hostname = urlObj.hostname.toLowerCase();
+        
+        // Check if it's a YouTube domain
+        const validHosts = ['youtube.com', 'www.youtube.com', 'youtu.be', 'm.youtube.com'];
+        if (!validHosts.includes(hostname)) {
+            return false;
+        }
+        
+        // Check for valid YouTube patterns
+        const patterns = [
+            /youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,           // Video
+            /youtube\.com\/channel\/([a-zA-Z0-9_-]+)/,              // Channel ID
+            /youtube\.com\/c\/([a-zA-Z0-9_-]+)/,                    // Custom channel
+            /youtube\.com\/user\/([a-zA-Z0-9_-]+)/,                 // User channel
+            /youtube\.com\/@([a-zA-Z0-9_.-]+)/,                     // Handle
+            /youtu\.be\/([a-zA-Z0-9_-]{11})/,                       // Short video URL
+        ];
+        
+        return patterns.some(pattern => pattern.test(url));
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Show suggestion toast message
+ * @param {string} message - Message to show
+ * @param {string} type - Type: 'success' or 'error'
+ */
+function showSuggestionToast(message, type) {
+    const toastContainer = document.getElementById('suggestionToast');
+    if (!toastContainer) {
+        console.error('Toast container not found');
+        return;
+    }
+    
+    const toast = toastContainer.querySelector('.toast');
+    const toastBody = toast.querySelector('.toast-body');
+    
+    // Set message and style
+    toastBody.textContent = message;
+    toast.className = `toast align-items-center text-white border-0 bg-${type === 'success' ? 'success' : 'danger'} show`;
+    
+    // Show toast container
+    toastContainer.style.display = 'block';
+    
+    // Add a slight delay to ensure visibility
+    setTimeout(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    }, 100);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        hideSuggestionToast();
+    }, 5000);
+}
+
+/**
+ * Hide suggestion toast
+ */
+function hideSuggestionToast() {
+    const toastContainer = document.getElementById('suggestionToast');
+    if (!toastContainer) return;
+    
+    const toast = toastContainer.querySelector('.toast');
+    
+    // Fade out animation
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-20px)';
+    
+    // Hide after animation
+    setTimeout(() => {
+        toastContainer.style.display = 'none';
+        toast.classList.remove('show');
+    }, 300);
 } 
