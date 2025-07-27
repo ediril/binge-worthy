@@ -87,11 +87,10 @@ $current_page = 'categories';
                                         </a>
                                     </p>
                                     <?php if ($video['category'] !== 'Not Categorized'): ?>
-                                        <p class="video-category"><?php echo htmlspecialchars($video['category']); ?></p>
+                                        <div class="video-categories mb-2">
+                                            <span class="badge bg-secondary"><?php echo htmlspecialchars($video['category']); ?></span>
+                                        </div>
                                     <?php endif; ?>
-                                    <small class="video-date text-muted">
-                                        <?php echo $video['created_at'] ? 'Added ' . date('M j, Y', strtotime($video['created_at'])) : 'Date unknown'; ?>
-                                    </small>
                                 </div>
                             </div>
                         <?php endforeach; ?>
