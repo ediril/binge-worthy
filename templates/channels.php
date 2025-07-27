@@ -5,6 +5,16 @@ require_once 'database.php';
 // Get database connection
 $db = get_database();
 
+// Get sorting parameter
+$sort = isset($_GET['sort']) ? $_GET['sort'] : 'newest';
+$valid_sorts = ['newest', 'alphabetical'];
+if (!in_array($sort, $valid_sorts)) {
+    $sort = 'newest';
+}
+
+// Determine ORDER BY clause based on sort parameter
+$order_by = $sort === 'alphabetical' ? 'c.name ASC' : 'c.created_at DESC';
+
 // Get all channels with their categories and video counts
 $channels_stmt = $db->prepare("
     SELECT c.*, 
@@ -14,7 +24,7 @@ $channels_stmt = $db->prepare("
     LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
     LEFT JOIN categories cat ON cc.category_id = cat.id
     GROUP BY c.id, c.name, c.description, c.youtube_url, c.thumbnail_url, c.created_at
-    ORDER BY c.created_at DESC
+    ORDER BY {$order_by}
 ");
 $channels_stmt->execute();
 $channels = $channels_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -34,8 +44,22 @@ $current_page = 'channels';
 
         <!-- Page Header -->
         <div class="page-header mb-4 px-4">
-            <h1 class="section-title mb-3">All Channels</h1>
-            <p class="text-light mb-0">Discover all the educational and intellectually stimulating channels in our collection.</p>
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-3">
+                <div class="mb-3 mb-md-0">
+                    <h1 class="section-title mb-2">All Channels</h1>
+                    <p class="text-light mb-0">Discover all the educational and intellectually stimulating channels in our collection.</p>
+                </div>
+                <div class="sort-controls">
+                    <div class="btn-group" role="group" aria-label="Sort channels">
+                        <a href="?sort=newest" class="btn <?php echo $sort === 'newest' ? 'btn-primary' : 'btn-outline-primary'; ?> btn-sm">
+                            <i class="fas fa-clock"></i> <span class="d-none d-sm-inline">Newest</span>
+                        </a>
+                        <a href="?sort=alphabetical" class="btn <?php echo $sort === 'alphabetical' ? 'btn-primary' : 'btn-outline-primary'; ?> btn-sm">
+                            <i class="fas fa-sort-alpha-down"></i> <span class="d-none d-sm-inline">Alphabetical</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Channels Section -->
