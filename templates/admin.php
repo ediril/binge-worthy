@@ -189,6 +189,27 @@ if ($_POST) {
         }
         exit;
     }
+    // Handle suggestion deletion
+    else if (isset($_POST['action']) && $_POST['action'] === 'delete_suggestion' && isset($_POST['suggestion_id'])) {
+        $suggestion_id = intval($_POST['suggestion_id']);
+        
+        header('Content-Type: application/json');
+        
+        try {
+            $suggestions_db = new PDO('sqlite:suggestions.db');
+            $suggestions_db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            
+            $delete_stmt = $suggestions_db->prepare("DELETE FROM suggestions WHERE id = ?");
+            if ($delete_stmt->execute([$suggestion_id])) {
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Failed to delete suggestion.']);
+            }
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'error' => 'Database error.']);
+        }
+        exit;
+    }
     // Handle channel deletion
     else if (isset($_POST['action']) && $_POST['action'] === 'delete_channel' && isset($_POST['channel_id'])) {
         $channel_id = intval($_POST['channel_id']);
@@ -383,6 +404,18 @@ $all_channels = $all_channels->fetchAll(PDO::FETCH_ASSOC);
 // Get all categories for dropdown (excluding "Not Categorized")
 $all_categories = get_display_categories($db);
 
+// Get suggestions from suggestions database
+$suggestions = [];
+try {
+    $suggestions_db = new PDO('sqlite:suggestions.db');
+    $suggestions_db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $suggestions_stmt = $suggestions_db->prepare("SELECT * FROM suggestions ORDER BY timestamp DESC");
+    $suggestions_stmt->execute();
+    $suggestions = $suggestions_stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    // Suggestions database might not exist yet, that's okay
+}
+
 // Get all videos to display in admin
 $all_videos = $db->prepare("
     SELECT v.*, c.name as channel_name, GROUP_CONCAT(cat.name, ', ') as category 
@@ -538,6 +571,94 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                 <i class="fas fa-plus"></i> <span id="submit-text">Add Channel</span>
                             </button>
                         </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- User Suggestions Section -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>User Suggestions (<?php echo count($suggestions); ?>)</h3>
+                    </div>
+                    <div class="card-body">
+                        <?php if (empty($suggestions)): ?>
+                            <p class="text-light">No suggestions submitted yet.</p>
+                        <?php else: ?>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-light">ID</th>
+                                            <th class="text-light">Link</th>
+                                            <th class="text-light">Type</th>
+                                            <th class="text-light">Submitted</th>
+                                            <th class="text-light">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($suggestions as $suggestion): ?>
+                                            <tr>
+                                                <td class="text-light"><?php echo $suggestion['id']; ?></td>
+                                                <td class="text-light">
+                                                    <a href="<?php echo htmlspecialchars($suggestion['link']); ?>" 
+                                                       target="_blank" 
+                                                       class="text-info text-decoration-none">
+                                                        <?php 
+                                                        $display_link = htmlspecialchars($suggestion['link']);
+                                                        echo strlen($display_link) > 60 ? substr($display_link, 0, 60) . '...' : $display_link;
+                                                        ?>
+                                                        <i class="fas fa-external-link-alt ms-1" style="font-size: 0.8rem;"></i>
+                                                    </a>
+                                                </td>
+                                                <td class="text-light">
+                                                    <?php
+                                                    $link = $suggestion['link'];
+                                                    if (preg_match('/watch\?v=|youtu\.be\//', $link)) {
+                                                        echo '<span class="badge bg-danger">Video</span>';
+                                                    } elseif (preg_match('/channel\/|@|\/c\/|\/user\//', $link)) {
+                                                        echo '<span class="badge bg-primary">Channel</span>';
+                                                    } else {
+                                                        echo '<span class="badge bg-secondary">Unknown</span>';
+                                                    }
+                                                    ?>
+                                                </td>
+                                                <td class="text-light">
+                                                    <?php 
+                                                    $timestamp = strtotime($suggestion['timestamp']);
+                                                    echo date('M j, Y g:i A', $timestamp);
+                                                    ?>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm" role="group">
+                                                        <button type="button" 
+                                                                class="btn btn-outline-primary" 
+                                                                onclick="window.open('<?php echo htmlspecialchars($suggestion['link']); ?>', '_blank')"
+                                                                title="Open Link">
+                                                            <i class="fas fa-eye"></i>
+                                                        </button>
+                                                        <button type="button" 
+                                                                class="btn btn-outline-success" 
+                                                                onclick="addSuggestionToForm('<?php echo htmlspecialchars($suggestion['link']); ?>')"
+                                                                title="Add to Form">
+                                                            <i class="fas fa-plus"></i>
+                                                        </button>
+                                                        <button type="button" 
+                                                                class="btn btn-outline-danger" 
+                                                                onclick="deleteSuggestion(<?php echo $suggestion['id']; ?>)"
+                                                                title="Delete Suggestion">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -1107,6 +1228,50 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                 })
                 .catch(error => {
                     alert('Error deleting category.');
+                });
+            }
+        }
+        
+        // Function to add suggestion to content form
+        function addSuggestionToForm(link) {
+            const contentInput = document.getElementById('content-input');
+            if (contentInput) {
+                contentInput.value = link;
+                
+                // Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                
+                // Highlight the input briefly
+                contentInput.focus();
+                contentInput.style.backgroundColor = 'rgba(40, 167, 69, 0.2)';
+                setTimeout(() => {
+                    contentInput.style.backgroundColor = '';
+                }, 2000);
+            }
+        }
+        
+        // Function to delete suggestion
+        function deleteSuggestion(suggestionId) {
+            if (confirm('Are you sure you want to delete this suggestion?')) {
+                fetch('', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `action=delete_suggestion&suggestion_id=${suggestionId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('Suggestion deleted successfully', 'success');
+                        // Reload page to refresh suggestions list
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        showToast(data.error || 'Failed to delete suggestion', 'danger');
+                    }
+                })
+                .catch(error => {
+                    showToast('Error deleting suggestion', 'danger');
                 });
             }
         }

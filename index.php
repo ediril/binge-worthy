@@ -104,6 +104,10 @@ switch ($page_to_load) {
         break;
         
     case 'admin':
+        require_once 'common.php';
+        require_once 'database.php';
+        $page_title = 'Admin - BingeWorthy';
+        $current_page = 'admin';
         include 'templates/admin.php';
         break;
         
