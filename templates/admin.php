@@ -327,7 +327,11 @@ if ($_POST) {
                                 }
                                 
                                 if (!empty($category_ids) && !$error) {
-                                    $channel_id = add_channel_with_categories($db, $channel_metadata['name'], $channel_metadata['description'], $channel_metadata['youtube_url'], $category_ids, $channel_metadata['thumbnail_url']);
+                                    // Use description from form field instead of fetched metadata
+                                    $form_description = trim($_POST['new_category_description'] ?? '');
+                                    $final_description = !empty($form_description) ? $form_description : $channel_metadata['description'];
+                                    
+                                    $channel_id = add_channel_with_categories($db, $channel_metadata['name'], $final_description, $channel_metadata['youtube_url'], $category_ids, $channel_metadata['thumbnail_url']);
                                     if ($channel_id) {
                                         // Redirect to prevent form resubmission
                                         $_SESSION['admin_message'] = "Channel '{$channel_metadata['name']}' added successfully with " . count($category_ids) . " categories!";
@@ -513,9 +517,28 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                 </div>
                                 <div class="col-md-9 mb-3">
                                     <label for="content-input" class="form-label">YouTube URL or ID</label>
-                                    <input type="text" class="form-control" id="content-input" name="content_input" required 
-                                           placeholder="@username, channelname, or full URL">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="content-input" name="content_input" required 
+                                               placeholder="@username, channelname, or full URL">
+                                        <button type="button" class="btn btn-outline-secondary" id="clear-content-btn" 
+                                                title="Clear URL and Description" style="display: none;">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
                                 </div>
+                            </div>
+                            
+                            <!-- Description Field -->
+                            <div class="mb-3">
+                                <label for="new-category-description" class="form-label">Description</label>
+                                <textarea class="form-control" id="new-category-description" name="new_category_description" 
+                                          rows="3" placeholder="Brief description of the category"></textarea>
+                            </div>
+                            
+                            <!-- Content Type Info -->
+                            <div id="content-info" class="mb-3 p-3 text-info bg-info bg-opacity-10 border border-info rounded">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <span id="content-info-text">Select content type above to see relevant information.</span>
                             </div>
                             
                             <!-- Multiple Category Selection (only for channels) -->
@@ -619,13 +642,6 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                                 <?php endforeach; ?>
                                             </div>
                                         </div>
-                                    </div>
-                                    
-                                    <!-- Optional Description for New Categories -->
-                                    <div class="mb-3">
-                                        <label for="new-category-description" class="form-label">Description (optional)</label>
-                                        <textarea class="form-control" id="new-category-description" name="new_category_description" 
-                                                  rows="3" placeholder="Brief description of the category"></textarea>
                                     </div>
                                 </div>
                             </div>
@@ -1044,6 +1060,20 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                 const value = this.getAttribute('data-value');
                 const text = this.textContent;
                 
+                // Check if form has content before changing type
+                const contentInput = document.getElementById('content-input');
+                const descriptionField = document.getElementById('new-category-description');
+                const newCategoryField = document.getElementById('new-category');
+                const hasContent = (contentInput && contentInput.value.trim()) || 
+                                 (descriptionField && descriptionField.value.trim()) ||
+                                 (newCategoryField && newCategoryField.value.trim()) ||
+                                 document.querySelector('input[name="existing_categories[]"]:checked');
+                
+                // If form has content, clear it first
+                if (hasContent) {
+                    clearAddNewContentForm();
+                }
+                
                 // Update button text and hidden input
                 document.getElementById('content-type-text').textContent = text;
                 document.getElementById('content-type').value = value;
@@ -1058,15 +1088,56 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             const input = document.getElementById('content-input');
             const submitText = document.getElementById('submit-text');
             const categorySection = document.getElementById('category-section');
+            const contentInfo = document.getElementById('content-info');
+            const contentInfoText = document.getElementById('content-info-text');
             
             if (contentType === 'channel') {
                 input.placeholder = '@username, channelname, or full URL';
                 submitText.textContent = 'Add Channel';
                 categorySection.style.display = 'block';
+                contentInfo.style.display = 'none';
             } else if (contentType === 'video') {
                 input.placeholder = 'dQw4w9WgXcQ or full URL';
                 submitText.textContent = 'Add Video';
                 categorySection.style.display = 'none';
+                contentInfo.style.display = 'block';
+                contentInfoText.textContent = 'Videos will be automatically added to their channel\'s categories. You don\'t need to select categories for individual videos.';
+            }
+            
+            console.log('Updated UI for content type:', contentType);
+        }
+        
+        // Function to clear the Add New Content form completely
+        function clearAddNewContentForm() {
+            // Clear URL input
+            const contentInput = document.getElementById('content-input');
+            if (contentInput) contentInput.value = '';
+            
+            // Clear description
+            const descriptionField = document.getElementById('new-category-description');
+            if (descriptionField) descriptionField.value = '';
+            
+            // Clear new category input
+            const newCategoryField = document.getElementById('new-category');
+            if (newCategoryField) newCategoryField.value = '';
+            
+            // Uncheck all existing category checkboxes
+            const categoryCheckboxes = document.querySelectorAll('input[name="existing_categories[]"]');
+            categoryCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            
+            // Hide clear button
+            const clearButton = document.getElementById('clear-content-btn');
+            if (clearButton) clearButton.style.display = 'none';
+            
+            // Reset to default content type (channel)
+            const contentTypeField = document.getElementById('content-type');
+            const contentTypeText = document.getElementById('content-type-text');
+            if (contentTypeField && contentTypeText) {
+                contentTypeField.value = 'channel';
+                contentTypeText.textContent = 'Channel';
+                updateUIForContentType('channel');
             }
         }
         
@@ -1083,12 +1154,141 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             });
         }
         
+        // Clear button functionality
+        function initializeClearButton() {
+            const contentInput = document.getElementById('content-input');
+            const clearButton = document.getElementById('clear-content-btn');
+            const descriptionField = document.getElementById('new-category-description');
+            
+            // Show/hide clear button based on input content
+            function toggleClearButton() {
+                const hasContent = contentInput.value.trim() || descriptionField.value.trim();
+                clearButton.style.display = hasContent ? 'block' : 'none';
+            }
+            
+            // Listen for input changes
+            contentInput.addEventListener('input', toggleClearButton);
+            descriptionField.addEventListener('input', toggleClearButton);
+            
+            // Clear button click handler
+            clearButton.addEventListener('click', function() {
+                contentInput.value = '';
+                descriptionField.value = '';
+                toggleClearButton();
+                contentInput.focus();
+            });
+            
+            // Initial state
+            toggleClearButton();
+        }
+        
+        // Auto-fetch functionality with debouncing
+        function initializeAutoFetch() {
+            const contentInput = document.getElementById('content-input');
+            const contentType = document.getElementById('content-type');
+            let fetchTimeout;
+            
+            contentInput.addEventListener('input', function() {
+                // Clear previous timeout
+                clearTimeout(fetchTimeout);
+                
+                // Set new timeout (500ms delay)
+                fetchTimeout = setTimeout(() => {
+                    const url = contentInput.value.trim();
+                    const descriptionField = document.getElementById('new-category-description');
+                    
+                    // Only fetch if URL is valid and description field is empty
+                    if (url && isValidYouTubeURL(url) && !descriptionField.value.trim()) {
+                        fetchContentDescription(url, contentType.value);
+                    }
+                }, 500);
+            });
+        }
+        
+        // Validate YouTube URL or identifier
+        function isValidYouTubeURL(input) {
+            // First check if it's a handle
+            if (input.startsWith('@')) {
+                return true;
+            }
+            
+            // Check if it's just a video ID (11 characters)
+            if (/^[a-zA-Z0-9_-]{11}$/.test(input)) {
+                return true;
+            }
+            
+            // Check if it's a channel name (alphanumeric)
+            if (/^[a-zA-Z0-9_-]+$/.test(input) && input.length > 3 && input.length < 50) {
+                return true;
+            }
+            
+            // Check URL patterns
+            const patterns = [
+                /youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,           // Video
+                /youtube\.com\/channel\/([a-zA-Z0-9_-]+)/,              // Channel ID
+                /youtube\.com\/c\/([a-zA-Z0-9_-]+)/,                    // Custom channel
+                /youtube\.com\/user\/([a-zA-Z0-9_-]+)/,                 // User channel
+                /youtube\.com\/@([a-zA-Z0-9_.-]+)/,                     // Handle
+                /youtu\.be\/([a-zA-Z0-9_-]{11})/,                       // Short video URL
+            ];
+            
+            return patterns.some(pattern => pattern.test(input));
+        }
+        
+        // Fetch content description from YouTube
+        function fetchContentDescription(url, type) {
+            // Show loading indicator
+            const descriptionField = document.getElementById('new-category-description');
+            const originalPlaceholder = descriptionField.placeholder;
+            descriptionField.placeholder = 'Fetching description...';
+            descriptionField.disabled = true;
+            
+            // Create a simple endpoint to fetch YouTube metadata
+            fetch('fetch_youtube_metadata.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    url: url,
+                    type: type
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.description) {
+                    descriptionField.value = data.description;
+                }
+                console.log('Auto-fetch completed:', data);
+            })
+            .catch(error => {
+                console.error('Error fetching description:', error);
+                // Make sure field is restored even on error
+                descriptionField.placeholder = originalPlaceholder;
+                descriptionField.disabled = false;
+            })
+            .finally(() => {
+                // Restore field state
+                descriptionField.placeholder = originalPlaceholder;
+                descriptionField.disabled = false;
+            });
+        }
+        
         // Initialize UI on page load
         document.addEventListener('DOMContentLoaded', function() {
-            updateUIForContentType('channel'); // Default to channel
+            // Check initial content type
+            const contentType = document.getElementById('content-type').value || 'channel';
+            updateUIForContentType(contentType);
             
             // Initialize Bootstrap tooltips
             initializeTooltips();
+            
+            // Initialize auto-fetch functionality
+            initializeAutoFetch();
+            
+            // Initialize clear button functionality
+            initializeClearButton();
+            
             
             // Add event listener for pagination dropdown items
             document.addEventListener('click', function(e) {
@@ -1387,7 +1587,33 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
         function addSuggestionToForm(link) {
             const contentInput = document.getElementById('content-input');
             if (contentInput) {
+                // Clear the entire form first
+                clearAddNewContentForm();
+                
+                // Now add the new content
                 contentInput.value = link;
+                
+                // Detect content type and update UI
+                const contentType = detectContentType(link);
+                const contentTypeField = document.getElementById('content-type');
+                const contentTypeText = document.getElementById('content-type-text');
+                
+                if (contentType) {
+                    contentTypeField.value = contentType;
+                    contentTypeText.textContent = contentType === 'video' ? 'Video' : 'Channel';
+                    updateUIForContentType(contentType);
+                }
+                
+                // Auto-fetch description if valid URL
+                if (isValidYouTubeURL(link)) {
+                    fetchContentDescription(link, contentType);
+                }
+                
+                // Update clear button visibility
+                const clearButton = document.getElementById('clear-content-btn');
+                if (clearButton) {
+                    clearButton.style.display = 'block';
+                }
                 
                 // Scroll to top
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1399,6 +1625,16 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                     contentInput.style.backgroundColor = '';
                 }, 2000);
             }
+        }
+        
+        // Detect content type from URL
+        function detectContentType(url) {
+            if (/watch\?v=|youtu\.be\//.test(url)) {
+                return 'video';
+            } else if (/channel\/|@|\/c\/|\/user\//.test(url)) {
+                return 'channel';
+            }
+            return 'channel'; // Default to channel
         }
         
         // Function to delete suggestion
