@@ -39,19 +39,70 @@ function get_new_channels($db) {
  * Get suggested videos from the database
  */
 function get_suggested_videos($db, $limit) {
+    // Get recent videos from the last 30 days
     $stmt = $db->prepare("
         SELECT v.*, c.name as channel_name, GROUP_CONCAT(cat.name, ', ') as category 
         FROM videos v 
         JOIN channels c ON v.channel_id = c.id 
         LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
         LEFT JOIN categories cat ON cc.category_id = cat.id
-        WHERE 1=1
+        WHERE v.created_at >= datetime('now', '-30 days')
         GROUP BY v.id
-        ORDER BY v.created_at DESC, RANDOM() 
-        LIMIT ?
+        ORDER BY v.created_at DESC 
     ");
-    $stmt->execute([$limit]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->execute();
+    $all_videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Group videos by channel to ensure diversity
+    $videos_by_channel = [];
+    foreach ($all_videos as $video) {
+        $channel_id = $video['channel_id'];
+        if (!isset($videos_by_channel[$channel_id])) {
+            $videos_by_channel[$channel_id] = [];
+        }
+        $videos_by_channel[$channel_id][] = $video;
+    }
+    
+    // Shuffle channels to randomize selection order
+    $channel_ids = array_keys($videos_by_channel);
+    shuffle($channel_ids);
+    
+    // Build diverse video list: max 2 videos per channel
+    $suggested_videos = [];
+    $max_per_channel = 2;
+    $rounds = 0;
+    
+    while (count($suggested_videos) < $limit && $rounds < 10) {
+        $added_this_round = false;
+        
+        foreach ($channel_ids as $channel_id) {
+            if (count($suggested_videos) >= $limit) break;
+            
+            // Count how many videos we already have from this channel
+            $channel_count = 0;
+            foreach ($suggested_videos as $video) {
+                if ($video['channel_id'] == $channel_id) {
+                    $channel_count++;
+                }
+            }
+            
+            // Add a video if we haven't hit the per-channel limit
+            if ($channel_count < $max_per_channel && !empty($videos_by_channel[$channel_id])) {
+                $video = array_shift($videos_by_channel[$channel_id]);
+                $suggested_videos[] = $video;
+                $added_this_round = true;
+            }
+        }
+        
+        // If we didn't add any videos this round, break to avoid infinite loop
+        if (!$added_this_round) break;
+        $rounds++;
+    }
+    
+    // Final shuffle to mix up the order
+    shuffle($suggested_videos);
+    
+    return array_slice($suggested_videos, 0, $limit);
 }
 
 /**
