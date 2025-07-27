@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once 'common.php';
 require_once 'database.php';
 
@@ -50,6 +51,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_channel_categories' && is
 // Handle form submissions
 $message = '';
 $error = '';
+
+// Check for session messages (from redirects)
+if (isset($_SESSION['admin_message'])) {
+    $message = $_SESSION['admin_message'];
+    unset($_SESSION['admin_message']);
+}
+if (isset($_SESSION['admin_error'])) {
+    $error = $_SESSION['admin_error'];
+    unset($_SESSION['admin_error']);
+}
 
 if ($_POST) {
     // Handle editing channel
@@ -297,7 +308,10 @@ if ($_POST) {
                                 if (!empty($category_ids) && !$error) {
                                     $channel_id = add_channel_with_categories($db, $channel_metadata['name'], $channel_metadata['description'], $channel_metadata['youtube_url'], $category_ids, $channel_metadata['thumbnail_url']);
                                     if ($channel_id) {
-                                        $message = "Channel '{$channel_metadata['name']}' added successfully with " . count($category_ids) . " categories!";
+                                        // Redirect to prevent form resubmission
+                                        $_SESSION['admin_message'] = "Channel '{$channel_metadata['name']}' added successfully with " . count($category_ids) . " categories!";
+                                        header('Location: admin.php');
+                                        exit;
                                     } else {
                                         $error = "Failed to add channel to database.";
                                     }
@@ -334,7 +348,10 @@ if ($_POST) {
                             
                             if ($channel_id) {
                                 if (add_video($db, $channel_id, $video_metadata['title'], $video_metadata['description'], $video_url, $video_metadata['thumbnail_url'], 1)) {
-                                    $message = "Video '{$video_metadata['title']}' added successfully!";
+                                    // Redirect to prevent form resubmission
+                                    $_SESSION['admin_message'] = "Video '{$video_metadata['title']}' added successfully!";
+                                    header('Location: admin.php');
+                                    exit;
                                 } else {
                                     $error = "Failed to add video to database.";
                                 }
@@ -390,22 +407,13 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
 <body>
     <?php include 'templates/partials/navbar.php'; ?>
 
+    <!-- Toast Container -->
+    <div class="position-fixed start-50 translate-middle-x p-3" style="z-index: 1050; top: 70px;">
+        <div id="toastContainer"></div>
+    </div>
+
     <div class="container mt-4">
         <h1>Admin Panel</h1>
-        
-        <?php if ($message): ?>
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <?php echo htmlspecialchars($message); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        <?php endif; ?>
-        
-        <?php if ($error): ?>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <?php echo htmlspecialchars($error); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        <?php endif; ?>
         
         <div class="row">
             <div class="col-md-8 mx-auto">
@@ -549,6 +557,7 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                 <table class="table table-dark table-striped">
                                     <thead>
                                         <tr>
+                                            <th class="text-light">ID</th>
                                             <th class="text-light">Name</th>
                                             <th class="text-light">Description</th>
                                             <th class="text-light">Category</th>
@@ -559,6 +568,7 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                     <tbody>
                                         <?php foreach ($all_channels as $channel): ?>
                                             <tr>
+                                                <td class="text-light"><?php echo $channel['id']; ?></td>
                                                 <td class="text-light"><?php echo htmlspecialchars($channel['name']); ?></td>
                                                 <td class="text-light">
                                                     <?php 
@@ -849,6 +859,45 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
         window.addEventListener('load', function() {
             setTimeout(initializeTooltips, 100);
         });
+        
+        // Function to show toast
+        function showToast(message, type = 'success') {
+            const toastHTML = `
+                <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            
+            const toastContainer = document.getElementById('toastContainer');
+            toastContainer.innerHTML = toastHTML;
+            
+            const toastElement = toastContainer.querySelector('.toast');
+            const toast = new bootstrap.Toast(toastElement, {
+                animation: true,
+                autohide: true,
+                delay: 5000
+            });
+            
+            toast.show();
+        }
+        
+        // Show toast if there's a message or error
+        <?php if ($message): ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            showToast(<?php echo json_encode($message); ?>, 'success');
+        });
+        <?php endif; ?>
+        
+        <?php if ($error): ?>
+        document.addEventListener('DOMContentLoaded', function() {
+            showToast(<?php echo json_encode($error); ?>, 'danger');
+        });
+        <?php endif; ?>
         
         // No longer needed - categories are always visible in the new interface
         
