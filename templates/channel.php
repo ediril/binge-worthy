@@ -103,9 +103,6 @@ $current_page = 'channel';
                                             ?>
                                         </div>
                                     <?php endif; ?>
-                                    <small class="video-date text-muted">
-                                        <?php echo $video['created_at'] ? 'Added ' . date('M j, Y', strtotime($video['created_at'])) : 'Date unknown'; ?>
-                                    </small>
                                 </div>
                             </div>
                         </div>
