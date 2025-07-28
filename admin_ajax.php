@@ -104,11 +104,17 @@ if (isset($input['action']) && $input['action'] === 'check_content_exists') {
     try {
         $db = get_database();
         
-        // Clean up the URL first for exact matching
-        $cleaned_url = cleanup_youtube_url($url);
+        // For content existence check, normalize bare video IDs to full URLs
+        // but don't clean video URLs as cleanup_youtube_url removes the video ID
+        $url_to_check = $url;
+        
+        // If it's just a video ID (11 characters, alphanumeric), convert to full URL
+        if (preg_match('/^[a-zA-Z0-9_-]{11}$/', trim($url))) {
+            $url_to_check = 'https://www.youtube.com/watch?v=' . trim($url);
+        }
         
         // First check if it looks like a video URL pattern (regardless of ID length)
-        if (preg_match('/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/', $cleaned_url, $matches)) {
+        if (preg_match('/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/', $url_to_check, $matches)) {
             $video_id = $matches[1];
             
             // Check if the video ID has the correct length (11 characters)
@@ -123,9 +129,19 @@ if (isset($input['action']) && $input['action'] === 'check_content_exists') {
                 exit;
             }
             
-            // Check videos table
-            $stmt = $db->prepare("SELECT id, title FROM videos WHERE video_url = ?");
-            $stmt->execute([$cleaned_url]);
+            // Check videos table by extracting video ID from all stored URLs
+            // This handles different URL formats (youtube.com, www.youtube.com, youtu.be, etc.)
+            $stmt = $db->prepare("
+                SELECT id, title, video_url FROM videos 
+                WHERE video_url LIKE ? 
+                OR video_url LIKE ? 
+                OR video_url LIKE ?
+            ");
+            $video_id_pattern1 = "%watch?v=" . $video_id . "%";
+            $video_id_pattern2 = "%youtu.be/" . $video_id . "%";
+            $video_id_pattern3 = "%embed/" . $video_id . "%";
+            
+            $stmt->execute([$video_id_pattern1, $video_id_pattern2, $video_id_pattern3]);
             $video = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($video) {
@@ -140,7 +156,7 @@ if (isset($input['action']) && $input['action'] === 'check_content_exists') {
             }
             
             // Video not in our database - check if it actually exists on YouTube
-            $video_metadata = fetch_youtube_video_metadata($cleaned_url);
+            $video_metadata = fetch_youtube_video_metadata($url_to_check);
             
             if ($video_metadata === null) {
                 // Video URL doesn't exist on YouTube
@@ -149,20 +165,19 @@ if (isset($input['action']) && $input['action'] === 'check_content_exists') {
                     'exists' => false,
                     'error' => 'url_not_found',
                     'message' => 'This YouTube video URL does not exist or is not accessible.',
-                    'debug' => "Video check failed for: $cleaned_url"
                 ]);
                 exit;
             } else {
                 echo json_encode([
                     'success' => true,
-                    'exists' => false,
-                    'debug' => "Video exists on YouTube but not in our DB: $cleaned_url"
+                    'exists' => false
                 ]);
                 exit;
             }
         } else {
             // For channels, we need to check multiple possible URL formats
             // First try exact URL match
+            $cleaned_url = cleanup_youtube_url($url);  // Only clean for channel URLs
             $stmt = $db->prepare("SELECT id, name, youtube_url FROM channels WHERE youtube_url = ?");
             $stmt->execute([$cleaned_url]);
             $channel = $stmt->fetch(PDO::FETCH_ASSOC);

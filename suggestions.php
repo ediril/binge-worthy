@@ -92,8 +92,15 @@ if (!isValidYouTubeURL($link)) {
     exit;
 }
 
-// Clean up the URL before saving
-$link = cleanup_youtube_url($link);
+// Clean up the URL before saving (only for channel URLs, not video URLs)
+if (preg_match('/watch\?v=|youtu\.be\//', $link)) {
+    // This is a video URL - don't clean it, keep the video ID
+    // Just ensure it's properly formatted
+    $link = $link;
+} else {
+    // This is a channel URL - clean it
+    $link = cleanup_youtube_url($link);
+}
 
 // File-based locking as fallback for servers without semaphore support
 $lock_file = 'suggestions.lock';

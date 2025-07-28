@@ -363,6 +363,16 @@ body {
     font-size: 0.875rem;
 }
 
+/* Disabled buttons - dark styling */
+.btn:disabled,
+.btn.disabled {
+    background-color: #343a40 !important;
+    border-color: #343a40 !important;
+    color: #6c757d !important;
+    opacity: 0.8;
+    cursor: not-allowed;
+}
+
 /* Alerts */
 .alert-success {
     background-color: #155724;
