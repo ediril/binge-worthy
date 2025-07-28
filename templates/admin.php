@@ -38,135 +38,7 @@ if (!$is_localhost) {
 
 $db = get_database();
 
-/**
- * Clean up YouTube URLs to their base form
- */
-function cleanup_youtube_url($url) {
-    $url = trim($url);
-    
-    // If it's not a YouTube URL, return as is
-    if (strpos($url, 'youtube.com') === false && strpos($url, 'youtu.be') === false) {
-        return $url;
-    }
-    
-    // Handle video URLs - extract video ID and create clean URL
-    if (preg_match('/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/', $url, $matches)) {
-        $video_id = $matches[1];
-        return "https://youtube.com/watch?v=" . $video_id;
-    }
-    
-    // For youtu.be short URLs without video ID pattern, remove query parameters
-    if (strpos($url, 'youtu.be') !== false) {
-        return strtok($url, '?');
-    }
-    
-    // For channel URLs, remove query parameters and trailing paths
-    $base_url = strtok($url, '?'); // Remove query parameters first
-    
-    // Normalize domain to include www for consistency
-    $base_url = str_replace('https://youtube.com/', 'https://www.youtube.com/', $base_url);
-    
-    // Remove common trailing paths from channel URLs
-    $paths_to_remove = [
-        '/videos',
-        '/playlists', 
-        '/community',
-        '/channels',
-        '/about',
-        '/search',
-        '/shorts',
-        '/live',
-        '/streams',
-        '/releases',
-        '/podcasts'
-    ];
-    
-    foreach ($paths_to_remove as $path) {
-        if (substr($base_url, -strlen($path)) === $path) {
-            $base_url = substr($base_url, 0, -strlen($path));
-            break; // Only remove one trailing path
-        }
-    }
-    
-    return $base_url;
-}
-
-/**
- * Auto-remove matching suggestions from the suggestions database
- */
-function auto_remove_matching_suggestions($content_url) {
-    try {
-        // Connect to suggestions database
-        $suggestions_db = new PDO('sqlite:suggestions.db');
-        $suggestions_db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        
-        // Clean up and normalize the input URL
-        $normalized_url = cleanup_youtube_url($content_url);
-        
-        // Remove suggestions that match the cleaned URL exactly
-        $delete_stmt = $suggestions_db->prepare("DELETE FROM suggestions WHERE TRIM(link) = ?");
-        $deleted_count = 0;
-        
-        if ($delete_stmt->execute([$normalized_url])) {
-            $deleted_count = $delete_stmt->rowCount();
-        }
-        
-        // Also check for uncleaned versions that might match the cleaned URL
-        $cleanup_stmt = $suggestions_db->prepare("SELECT id, link FROM suggestions");
-        $cleanup_stmt->execute();
-        $suggestions = $cleanup_stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        foreach ($suggestions as $suggestion) {
-            $cleaned_suggestion = cleanup_youtube_url($suggestion['link']);
-            if ($cleaned_suggestion === $normalized_url) {
-                $delete_specific = $suggestions_db->prepare("DELETE FROM suggestions WHERE id = ?");
-                if ($delete_specific->execute([$suggestion['id']])) {
-                    $deleted_count += $delete_specific->rowCount();
-                }
-            }
-        }
-        
-        // Also try to match different URL formats for the same content
-        if (strpos($normalized_url, 'youtube.com') !== false || strpos($normalized_url, 'youtu.be') !== false) {
-            // Extract video/channel ID and try to match other formats
-            if (preg_match('/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/', $normalized_url, $matches)) {
-                // Video ID found - remove all formats of this video
-                $video_id = $matches[1];
-                $patterns = [
-                    "https://youtube.com/watch?v={$video_id}",
-                    "https://www.youtube.com/watch?v={$video_id}",
-                    "https://youtu.be/{$video_id}",
-                    "https://www.youtu.be/{$video_id}"
-                ];
-                
-                foreach ($patterns as $pattern) {
-                    $delete_stmt->execute([$pattern]);
-                    $deleted_count += $delete_stmt->rowCount();
-                }
-            } elseif (preg_match('/youtube\.com\/(@[a-zA-Z0-9_-]+|channel\/[a-zA-Z0-9_-]+|c\/[a-zA-Z0-9_-]+|user\/[a-zA-Z0-9_-]+)/', $normalized_url, $matches)) {
-                // Channel URL - try to match different channel URL formats
-                $channel_part = $matches[1];
-                $base_patterns = [
-                    "https://youtube.com/{$channel_part}",
-                    "https://www.youtube.com/{$channel_part}"
-                ];
-                
-                foreach ($base_patterns as $pattern) {
-                    $delete_stmt->execute([$pattern]);
-                    $deleted_count += $delete_stmt->rowCount();
-                }
-            }
-        }
-        
-        if ($deleted_count > 0) {
-            error_log("Auto-removed {$deleted_count} matching suggestion(s) for: {$normalized_url}");
-        }
-        
-    } catch (Exception $e) {
-        // Don't break the main flow if suggestion removal fails
-        error_log("Failed to auto-remove suggestions: " . $e->getMessage());
-    }
-}
+// Functions moved to common.php: cleanup_youtube_url, auto_remove_matching_suggestions
 
 // Handle AJAX request for getting channel categories
 if (isset($_GET['action']) && $_GET['action'] === 'get_channel_categories' && isset($_GET['channel_id'])) {
@@ -543,16 +415,15 @@ $suggestions_page = max(1, intval($_GET['suggestions_page'] ?? 1));
 $channels_count_stmt = $db->prepare("SELECT COUNT(*) as total FROM channels");
 $channels_count_stmt->execute();
 $total_channels = $channels_count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
-$total_channels_pages = max(1, ceil($total_channels / $channels_per_page));
+$channels_pagination = generate_pagination_data($total_channels, $channels_page, $channels_per_page);
 
 // Get total count of videos
 $videos_count_stmt = $db->prepare("SELECT COUNT(*) as total FROM videos");
 $videos_count_stmt->execute();
 $total_videos = $videos_count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
-$total_videos_pages = max(1, ceil($total_videos / $videos_per_page));
+$videos_pagination = generate_pagination_data($total_videos, $videos_page, $videos_per_page);
 
 // Get channels for current page
-$channels_offset = ($channels_page - 1) * $channels_per_page;
 $all_channels = $db->prepare("
     SELECT c.*, GROUP_CONCAT(cat.name, ', ') as category_names
     FROM channels c 
@@ -562,8 +433,8 @@ $all_channels = $db->prepare("
     ORDER BY c.created_at DESC
     LIMIT :limit OFFSET :offset
 ");
-$all_channels->bindValue(':limit', $channels_per_page, PDO::PARAM_INT);
-$all_channels->bindValue(':offset', $channels_offset, PDO::PARAM_INT);
+$all_channels->bindValue(':limit', $channels_pagination['items_per_page'], PDO::PARAM_INT);
+$all_channels->bindValue(':offset', $channels_pagination['offset'], PDO::PARAM_INT);
 $all_channels->execute();
 $all_channels = $all_channels->fetchAll(PDO::FETCH_ASSOC);
 
@@ -572,8 +443,7 @@ $all_categories = get_display_categories($db);
 
 // Get suggestions from suggestions database with pagination
 $suggestions = [];
-$total_suggestions = 0;
-$total_suggestions_pages = 1;
+$suggestions_pagination = generate_pagination_data(0, $suggestions_page, $suggestions_per_page);
 try {
     $suggestions_db = new PDO('sqlite:suggestions.db');
     $suggestions_db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -582,13 +452,14 @@ try {
     $suggestions_count_stmt = $suggestions_db->prepare("SELECT COUNT(*) as total FROM suggestions");
     $suggestions_count_stmt->execute();
     $total_suggestions = $suggestions_count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
-    $total_suggestions_pages = max(1, ceil($total_suggestions / $suggestions_per_page));
+    
+    // Generate pagination data
+    $suggestions_pagination = generate_pagination_data($total_suggestions, $suggestions_page, $suggestions_per_page);
     
     // Get suggestions for current page
-    $suggestions_offset = ($suggestions_page - 1) * $suggestions_per_page;
     $suggestions_stmt = $suggestions_db->prepare("SELECT * FROM suggestions ORDER BY timestamp DESC LIMIT :limit OFFSET :offset");
-    $suggestions_stmt->bindValue(':limit', $suggestions_per_page, PDO::PARAM_INT);
-    $suggestions_stmt->bindValue(':offset', $suggestions_offset, PDO::PARAM_INT);
+    $suggestions_stmt->bindValue(':limit', $suggestions_pagination['items_per_page'], PDO::PARAM_INT);
+    $suggestions_stmt->bindValue(':offset', $suggestions_pagination['offset'], PDO::PARAM_INT);
     $suggestions_stmt->execute();
     $suggestions = $suggestions_stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
@@ -596,7 +467,6 @@ try {
 }
 
 // Get videos for current page
-$videos_offset = ($videos_page - 1) * $videos_per_page;
 $all_videos = $db->prepare("
     SELECT v.*, c.name as channel_name, GROUP_CONCAT(cat.name, ', ') as category 
     FROM videos v 
@@ -607,8 +477,8 @@ $all_videos = $db->prepare("
     ORDER BY v.created_at DESC
     LIMIT :limit OFFSET :offset
 ");
-$all_videos->bindValue(':limit', $videos_per_page, PDO::PARAM_INT);
-$all_videos->bindValue(':offset', $videos_offset, PDO::PARAM_INT);
+$all_videos->bindValue(':limit', $videos_pagination['items_per_page'], PDO::PARAM_INT);
+$all_videos->bindValue(':offset', $videos_pagination['offset'], PDO::PARAM_INT);
 $all_videos->execute();
 $all_videos = $all_videos->fetchAll(PDO::FETCH_ASSOC);
 
@@ -801,105 +671,62 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                         <h3>User Suggestions</h3>
                     </div>
                     <div class="card-body">
-                        <?php if (empty($suggestions)): ?>
-                            <p class="text-light">No suggestions submitted yet.</p>
-                        <?php else: ?>
-                            <!-- Top Pagination Controls -->
-                            <?php if ($total_suggestions_pages > 1): ?>
-                                <div class="top-pagination d-flex justify-content-center align-items-center mb-3" style="gap: 8px;">
-                                    <button class="btn btn-outline-light btn-sm" <?php echo $suggestions_page <= 1 ? 'disabled' : ''; ?>
-                                            onclick="loadTableDataNoScroll('suggestions', <?php echo $suggestions_page - 1; ?>)" style="margin-right: 10px; min-width: 80px;">
-                                        <i class="fas fa-chevron-left"></i> Previous
-                                    </button>
-                                    <div class="dropdown" style="margin-right: 10px;">
-                                        <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" 
-                                                data-bs-toggle="dropdown" aria-expanded="false" style="min-width: 160px;">
-                                            Page <?php echo $suggestions_page; ?> of <?php echo $total_suggestions_pages; ?>
-                                        </button>
-                                        <ul class="dropdown-menu" style="max-height: 300px; overflow-y: auto;">
-                                            <?php for ($i = 1; $i <= $total_suggestions_pages; $i++): ?>
-                                                <li><a class="dropdown-item <?php echo $i == $suggestions_page ? 'active' : ''; ?>" href="#" data-page="<?php echo $i; ?>" data-table="suggestions">Page <?php echo $i; ?> of <?php echo $total_suggestions_pages; ?></a></li>
-                                            <?php endfor; ?>
-                                        </ul>
-                                    </div>
-                                    <button class="btn btn-outline-light btn-sm" <?php echo $suggestions_page >= $total_suggestions_pages ? 'disabled' : ''; ?>
-                                            onclick="loadTableDataNoScroll('suggestions', <?php echo $suggestions_page + 1; ?>)" style="min-width: 70px;">
-                                        Next <i class="fas fa-chevron-right"></i>
-                                    </button>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <div class="table-responsive">
-                                <table class="table table-dark table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th class="text-light">ID</th>
-                                            <th class="text-light">Link</th>
-                                            <th class="text-light">Type</th>
-                                            <th class="text-light">Submitted</th>
-                                            <th class="text-light">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($suggestions as $suggestion): ?>
-                                            <tr>
-                                                <td class="text-light"><?php echo $suggestion['id']; ?></td>
-                                                <td class="text-light">
-                                                    <a href="<?php echo htmlspecialchars($suggestion['link']); ?>" 
-                                                       target="_blank" 
-                                                       class="text-info text-decoration-none">
-                                                        <?php 
-                                                        $display_link = htmlspecialchars($suggestion['link']);
-                                                        echo strlen($display_link) > 60 ? substr($display_link, 0, 60) . '...' : $display_link;
-                                                        ?>
-                                                        <i class="fas fa-external-link-alt ms-1" style="font-size: 0.8rem;"></i>
-                                                    </a>
-                                                </td>
-                                                <td class="text-light">
-                                                    <?php
-                                                    $link = $suggestion['link'];
-                                                    if (preg_match('/watch\?v=|youtu\.be\//', $link)) {
-                                                        echo '<span class="badge bg-danger">Video</span>';
-                                                    } elseif (preg_match('/channel\/|@|\/c\/|\/user\//', $link)) {
-                                                        echo '<span class="badge bg-primary">Channel</span>';
-                                                    } else {
-                                                        echo '<span class="badge bg-secondary">Unknown</span>';
-                                                    }
-                                                    ?>
-                                                </td>
-                                                <td class="text-light">
-                                                    <?php 
-                                                    $timestamp = strtotime($suggestion['timestamp']);
-                                                    echo date('M j, Y g:i A', $timestamp);
-                                                    ?>
-                                                </td>
-                                                <td>
-                                                    <div class="btn-group btn-group-sm" role="group">
-                                                        <button type="button" 
-                                                                class="btn btn-outline-success" 
-                                                                onclick="addSuggestionToForm('<?php echo htmlspecialchars($suggestion['link']); ?>')"
-                                                                title="Add to Form">
-                                                            <i class="fas fa-plus"></i>
-                                                        </button>
-                                                        <button type="button" 
-                                                                class="btn btn-outline-danger" 
-                                                                onclick="deleteSuggestion(<?php echo $suggestion['id']; ?>)"
-                                                                title="Delete Suggestion">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                            
-                            <!-- Bottom Item Count -->
-                            <div class="bottom-item-count text-center text-light mt-3">
-                                Showing <?php echo (($suggestions_page - 1) * $suggestions_per_page) + 1; ?>-<?php echo min($suggestions_page * $suggestions_per_page, $total_suggestions); ?> of <?php echo $total_suggestions; ?> suggestions
-                            </div>
-                        <?php endif; ?>
+                        <?php
+                        // Configure suggestions table
+                        echo render_admin_table([
+                            'data' => $suggestions,
+                            'pagination_data' => $suggestions_pagination,
+                            'table_name' => 'suggestions',
+                            'empty_message' => 'No suggestions submitted yet.',
+                            'columns' => [
+                                ['title' => 'ID', 'key' => 'id', 'type' => 'text'],
+                                ['title' => 'Link', 'key' => 'link', 'type' => 'external_link', 'truncate' => 60],
+                                [
+                                    'title' => 'Type', 
+                                    'render' => function($row) {
+                                        $link = $row['link'];
+                                        if (preg_match('/watch\?v=|youtu\.be\//', $link)) {
+                                            return '<span class="badge bg-danger">Video</span>';
+                                        } elseif (preg_match('/channel\/|@|\/c\/|\/user\//', $link)) {
+                                            return '<span class="badge bg-primary">Channel</span>';
+                                        } else {
+                                            return '<span class="badge bg-secondary">Unknown</span>';
+                                        }
+                                    }
+                                ],
+                                [
+                                    'title' => 'Submitted', 
+                                    'render' => function($row) {
+                                        $timestamp = strtotime($row['timestamp']);
+                                        return date('M j, Y g:i A', $timestamp);
+                                    }
+                                ],
+                                [
+                                    'title' => 'Actions',
+                                    'render' => function($row) {
+                                        return sprintf(
+                                            '<div class="btn-group btn-group-sm" role="group">
+                                                <button type="button" 
+                                                        class="btn btn-outline-success" 
+                                                        onclick="addSuggestionToForm(\'%s\')"
+                                                        title="Add to Form">
+                                                    <i class="fas fa-plus"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-outline-danger" 
+                                                        onclick="deleteSuggestion(%d)"
+                                                        title="Delete Suggestion">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>',
+                                            htmlspecialchars($row['link']),
+                                            $row['id']
+                                        );
+                                    }
+                                ]
+                            ]
+                        ]);
+                        ?>
                     </div>
                 </div>
             </div>
@@ -912,110 +739,69 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                         <h3>All Channels</h3>
                     </div>
                     <div class="card-body">
-                        <?php if (empty($all_channels)): ?>
-                            <p class="text-light">No channels added yet. Add your first channel above!</p>
-                        <?php else: ?>
-                            <!-- Top Pagination Controls -->
-                            <?php if ($total_channels_pages > 1): ?>
-                                <div class="top-pagination d-flex justify-content-center align-items-center mb-3" style="gap: 8px;">
-                                    <button class="btn btn-outline-light btn-sm" <?php echo $channels_page <= 1 ? 'disabled' : ''; ?>
-                                            onclick="loadTableDataNoScroll('channels', <?php echo $channels_page - 1; ?>)" style="margin-right: 10px; min-width: 80px;">
-                                        <i class="fas fa-chevron-left"></i> Previous
-                                    </button>
-                                    <div class="dropdown" style="margin-right: 10px;">
-                                        <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" 
-                                                data-bs-toggle="dropdown" aria-expanded="false" style="min-width: 160px;">
-                                            Page <?php echo $channels_page; ?> of <?php echo $total_channels_pages; ?>
-                                        </button>
-                                        <ul class="dropdown-menu" style="max-height: 300px; overflow-y: auto;">
-                                            <?php for ($i = 1; $i <= $total_channels_pages; $i++): ?>
-                                                <li><a class="dropdown-item <?php echo $i == $channels_page ? 'active' : ''; ?>" href="#" data-page="<?php echo $i; ?>" data-table="channels">Page <?php echo $i; ?> of <?php echo $total_channels_pages; ?></a></li>
-                                            <?php endfor; ?>
-                                        </ul>
-                                    </div>
-                                    <button class="btn btn-outline-light btn-sm" <?php echo $channels_page >= $total_channels_pages ? 'disabled' : ''; ?>
-                                            onclick="loadTableDataNoScroll('channels', <?php echo $channels_page + 1; ?>)" style="min-width: 70px;">
-                                        Next <i class="fas fa-chevron-right"></i>
-                                    </button>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <div class="table-responsive">
-                                <table class="table table-dark table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th class="text-light">ID</th>
-                                            <th class="text-light">Name</th>
-                                            <th class="text-light">Description</th>
-                                            <th class="text-light">Category</th>
-                                            <th class="text-light">Created</th>
-                                            <th class="text-light">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($all_channels as $channel): ?>
-                                            <tr>
-                                                <td class="text-light"><?php echo $channel['id']; ?></td>
-                                                <td class="text-light">
-                                                    <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" target="_blank" class="text-info text-decoration-underline">
-                                                        <?php echo htmlspecialchars($channel['name']); ?>
-                                                    </a>
-                                                </td>
-                                                <td class="text-light">
-                                                    <?php 
-                                                    $description = htmlspecialchars($channel['description']); 
-                                                    echo strlen($description) > 200 ? substr($description, 0, 200) . '...' : $description;
-                                                    ?>
-                                                </td>
-                                                <td>
-                                                    <?php if ($channel['category_names']): ?>
-                                                        <?php
-                                                        $categories = explode(', ', $channel['category_names']);
-                                                        foreach ($categories as $cat):
-                                                            if (trim($cat)):
-                                                        ?>
-                                                            <span class="badge bg-secondary me-1"><?php echo htmlspecialchars(trim($cat)); ?></span>
-                                                        <?php
-                                                            endif;
-                                                        endforeach;
-                                                        ?>
-                                                    <?php else: ?>
-                                                        <span class="badge bg-light text-dark">No categories</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td class="text-light"><?php echo date('Y-m-d', strtotime($channel['created_at'])); ?></td>
-                                                <td>
-                                                    <div class="row g-1">
-                                                        <div class="col-6">
-                                                            <button type="button" class="btn btn-sm btn-outline-warning w-100 d-flex justify-content-center align-items-center edit-channel-btn" 
-                                                                    data-channel-id="<?php echo $channel['id']; ?>"
-                                                                    data-channel-name="<?php echo htmlspecialchars($channel['name'], ENT_QUOTES); ?>"
-                                                                    data-channel-description="<?php echo htmlspecialchars($channel['description'] ?? '', ENT_QUOTES); ?>"
-                                                                    title="Edit channel" data-bs-toggle="tooltip" data-bs-placement="top">
-                                                                <i class="fas fa-edit"></i>
-                                                            </button>
-                                                        </div>
-                                                        <div class="col-6">
-                                                            <button type="button" class="btn btn-sm btn-outline-danger w-100 d-flex justify-content-center align-items-center delete-channel-btn" 
-                                                                    data-channel-id="<?php echo $channel['id']; ?>"
-                                                                    data-channel-name="<?php echo htmlspecialchars($channel['name'], ENT_QUOTES); ?>"
-                                                                    title="Delete channel and all its videos" data-bs-toggle="tooltip" data-bs-placement="top">
-                                                                <i class="fas fa-trash"></i>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                            
-                            <!-- Bottom Item Count -->
-                            <div class="bottom-item-count text-center text-light mt-3">
-                                Showing <?php echo (($channels_page - 1) * $channels_per_page) + 1; ?>-<?php echo min($channels_page * $channels_per_page, $total_channels); ?> of <?php echo $total_channels; ?> channels
-                            </div>
-                        <?php endif; ?>
+                        <?php
+                        // Configure channels table
+                        echo render_admin_table([
+                            'data' => $all_channels,
+                            'pagination_data' => $channels_pagination,
+                            'table_name' => 'channels',
+                            'empty_message' => 'No channels added yet. Add your first channel above!',
+                            'columns' => [
+                                ['title' => 'ID', 'key' => 'id', 'type' => 'text'],
+                                ['title' => 'Name', 'key' => 'name', 'type' => 'link', 'url_key' => 'youtube_url'],
+                                ['title' => 'Description', 'key' => 'description', 'type' => 'truncated_text', 'truncate' => 200],
+                                [
+                                    'title' => 'Category',
+                                    'render' => function($row) {
+                                        if ($row['category_names']) {
+                                            $categories = explode(', ', $row['category_names']);
+                                            $badges = '';
+                                            foreach ($categories as $cat) {
+                                                if (trim($cat)) {
+                                                    $badges .= '<span class="badge bg-secondary me-1">' . htmlspecialchars(trim($cat)) . '</span>';
+                                                }
+                                            }
+                                            return $badges;
+                                        } else {
+                                            return '<span class="badge bg-light text-dark">No categories</span>';
+                                        }
+                                    }
+                                ],
+                                ['title' => 'Created', 'key' => 'created_at', 'type' => 'date'],
+                                [
+                                    'title' => 'Actions',
+                                    'render' => function($row) {
+                                        return sprintf(
+                                            '<div class="row g-1">
+                                                <div class="col-6">
+                                                    <button type="button" class="btn btn-sm btn-outline-warning w-100 d-flex justify-content-center align-items-center edit-channel-btn" 
+                                                            data-channel-id="%d"
+                                                            data-channel-name="%s"
+                                                            data-channel-description="%s"
+                                                            title="Edit channel" data-bs-toggle="tooltip" data-bs-placement="top">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="col-6">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger w-100 d-flex justify-content-center align-items-center delete-channel-btn" 
+                                                            data-channel-id="%d"
+                                                            data-channel-name="%s"
+                                                            title="Delete channel and all its videos" data-bs-toggle="tooltip" data-bs-placement="top">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>',
+                                            $row['id'],
+                                            htmlspecialchars($row['name'], ENT_QUOTES),
+                                            htmlspecialchars($row['description'] ?? '', ENT_QUOTES),
+                                            $row['id'],
+                                            htmlspecialchars($row['name'], ENT_QUOTES)
+                                        );
+                                    }
+                                ]
+                            ]
+                        ]);
+                        ?>
                     </div>
                 </div>
             </div>
@@ -1028,66 +814,21 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                         <h3>All Videos</h3>
                     </div>
                     <div class="card-body">
-                        <?php if (empty($all_videos)): ?>
-                            <p class="text-light">No videos added yet. Add your first video above!</p>
-                        <?php else: ?>
-                            <!-- Top Pagination Controls -->
-                            <?php if ($total_videos_pages > 1): ?>
-                                <div class="top-pagination d-flex justify-content-center align-items-center mb-3" style="gap: 8px;">
-                                    <button class="btn btn-outline-light btn-sm" <?php echo $videos_page <= 1 ? 'disabled' : ''; ?>
-                                            onclick="loadTableDataNoScroll('videos', <?php echo $videos_page - 1; ?>)" style="margin-right: 10px; min-width: 80px;">
-                                        <i class="fas fa-chevron-left"></i> Previous
-                                    </button>
-                                    <div class="dropdown" style="margin-right: 10px;">
-                                        <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" 
-                                                data-bs-toggle="dropdown" aria-expanded="false" style="min-width: 160px;">
-                                            Page <?php echo $videos_page; ?> of <?php echo $total_videos_pages; ?>
-                                        </button>
-                                        <ul class="dropdown-menu" style="max-height: 300px; overflow-y: auto;">
-                                            <?php for ($i = 1; $i <= $total_videos_pages; $i++): ?>
-                                                <li><a class="dropdown-item <?php echo $i == $videos_page ? 'active' : ''; ?>" href="#" data-page="<?php echo $i; ?>" data-table="videos">Page <?php echo $i; ?> of <?php echo $total_videos_pages; ?></a></li>
-                                            <?php endfor; ?>
-                                        </ul>
-                                    </div>
-                                    <button class="btn btn-outline-light btn-sm" <?php echo $videos_page >= $total_videos_pages ? 'disabled' : ''; ?>
-                                            onclick="loadTableDataNoScroll('videos', <?php echo $videos_page + 1; ?>)" style="min-width: 70px;">
-                                        Next <i class="fas fa-chevron-right"></i>
-                                    </button>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <div class="table-responsive">
-                                <table class="table table-dark table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th class="text-light">ID</th>
-                                            <th class="text-light">Title</th>
-                                            <th class="text-light">Channel</th>
-                                            <th class="text-light">Added</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($all_videos as $video): ?>
-                                            <tr>
-                                                <td class="text-light"><?php echo $video['id']; ?></td>
-                                                <td class="text-light">
-                                                    <a href="<?php echo htmlspecialchars($video['video_url']); ?>" target="_blank" class="text-info text-decoration-underline">
-                                                        <?php echo htmlspecialchars($video['title']); ?>
-                                                    </a>
-                                                </td>
-                                                <td class="text-light"><?php echo htmlspecialchars($video['channel_name']); ?></td>
-                                                <td class="text-light"><?php echo $video['created_at'] ? date('Y-m-d H:i', strtotime($video['created_at'])) : 'Unknown'; ?></td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                            
-                            <!-- Bottom Item Count -->
-                            <div class="bottom-item-count text-center text-light mt-3">
-                                Showing <?php echo (($videos_page - 1) * $videos_per_page) + 1; ?>-<?php echo min($videos_page * $videos_per_page, $total_videos); ?> of <?php echo $total_videos; ?> videos
-                            </div>
-                        <?php endif; ?>
+                        <?php
+                        // Configure videos table
+                        echo render_admin_table([
+                            'data' => $all_videos,
+                            'pagination_data' => $videos_pagination,
+                            'table_name' => 'videos',
+                            'empty_message' => 'No videos added yet. Add your first video above!',
+                            'columns' => [
+                                ['title' => 'ID', 'key' => 'id', 'type' => 'text'],
+                                ['title' => 'Title', 'key' => 'title', 'type' => 'link', 'url_key' => 'video_url'],
+                                ['title' => 'Channel', 'key' => 'channel_name', 'type' => 'text'],
+                                ['title' => 'Added', 'key' => 'created_at', 'type' => 'date']
+                            ]
+                        ]);
+                        ?>
                     </div>
                 </div>
             </div>
@@ -1125,36 +866,8 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                         <!-- Category Selection -->
                         <div class="mb-3">
                             <label class="form-label">Select Categories (select multiple):</label>
-                            <div class="row" id="edit-categories-checkboxes">
-                                <?php 
-                                // Split categories into two columns for vertical ordering (same as add form)
-                                $total_categories_edit = count($all_categories);
-                                $per_column_edit = ceil($total_categories_edit / 2);
-                                $first_column_edit = array_slice($all_categories, 0, $per_column_edit);
-                                $second_column_edit = array_slice($all_categories, $per_column_edit);
-                                ?>
-                                <div class="col-md-6">
-                                    <?php foreach ($first_column_edit as $category): ?>
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input" type="checkbox" name="edit_existing_categories[]" 
-                                                   id="edit-category-<?php echo $category['id']; ?>" value="<?php echo $category['id']; ?>">
-                                            <label class="form-check-label" for="edit-category-<?php echo $category['id']; ?>">
-                                                <?php echo htmlspecialchars($category['name']); ?>
-                                            </label>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                                <div class="col-md-6">
-                                    <?php foreach ($second_column_edit as $category): ?>
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input" type="checkbox" name="edit_existing_categories[]" 
-                                                   id="edit-category-<?php echo $category['id']; ?>" value="<?php echo $category['id']; ?>">
-                                            <label class="form-check-label" for="edit-category-<?php echo $category['id']; ?>">
-                                                <?php echo htmlspecialchars($category['name']); ?>
-                                            </label>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
+                            <div id="edit-categories-checkboxes">
+                                <?php echo render_category_checkboxes($all_categories, 'edit_existing_categories[]', 'edit-category'); ?>
                             </div>
                         </div>
                         

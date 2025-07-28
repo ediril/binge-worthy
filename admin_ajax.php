@@ -6,64 +6,7 @@
 require_once 'common.php';
 require_once 'database.php';
 
-/**
- * Clean up YouTube URLs to their base form
- */
-function cleanup_youtube_url($url) {
-    $url = trim($url);
-    
-    // Handle bare handles like "@StarTalk" or "StarTalk"
-    if (preg_match('/^@?([a-zA-Z0-9_.-]+)$/', $url, $matches)) {
-        $handle = $matches[1];
-        return "https://www.youtube.com/@" . $handle;
-    }
-    
-    // If it's not a YouTube URL, return as is
-    if (strpos($url, 'youtube.com') === false && strpos($url, 'youtu.be') === false) {
-        return $url;
-    }
-    
-    // Handle video URLs - extract video ID and create clean URL (only for valid 11-character IDs)
-    if (preg_match('/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/', $url, $matches)) {
-        $video_id = $matches[1];
-        return "https://youtube.com/watch?v=" . $video_id;
-    }
-    
-    // For youtu.be short URLs without video ID pattern, remove query parameters
-    if (strpos($url, 'youtu.be') !== false) {
-        return strtok($url, '?');
-    }
-    
-    // For channel URLs, remove query parameters and trailing paths
-    $base_url = strtok($url, '?'); // Remove query parameters first
-    
-    // Normalize domain to include www for consistency
-    $base_url = str_replace('https://youtube.com/', 'https://www.youtube.com/', $base_url);
-    
-    // Remove common trailing paths from channel URLs
-    $paths_to_remove = [
-        '/videos',
-        '/playlists', 
-        '/community',
-        '/channels',
-        '/about',
-        '/search',
-        '/shorts',
-        '/live',
-        '/streams',
-        '/releases',
-        '/podcasts'
-    ];
-    
-    foreach ($paths_to_remove as $path) {
-        if (substr($base_url, -strlen($path)) === $path) {
-            $base_url = substr($base_url, 0, -strlen($path));
-            break; // Only remove one trailing path
-        }
-    }
-    
-    return $base_url;
-}
+// Function moved to common.php
 
 /**
  * Generate possible URL variations for a YouTube channel

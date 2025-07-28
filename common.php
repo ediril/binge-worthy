@@ -651,4 +651,443 @@ function get_videos_by_category($db, $category_id, $limit = null) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+/**
+ * Clean up YouTube URLs to their base form
+ */
+function cleanup_youtube_url($url) {
+    $url = trim($url);
+    
+    // If it's not a YouTube URL, return as is
+    if (strpos($url, 'youtube.com') === false && strpos($url, 'youtu.be') === false) {
+        return $url;
+    }
+    
+    // For youtu.be short URLs, they're already clean
+    if (strpos($url, 'youtu.be') !== false) {
+        // Remove any query parameters
+        return strtok($url, '?');
+    }
+    
+    // For regular YouTube URLs, remove common trailing paths
+    $base_url = strtok($url, '?'); // Remove query parameters first
+    
+    // Remove common trailing paths from channel URLs
+    $paths_to_remove = [
+        '/videos',
+        '/playlists', 
+        '/community',
+        '/channels',
+        '/about',
+        '/search',
+        '/shorts',
+        '/live',
+        '/streams',
+        '/releases',
+        '/podcasts'
+    ];
+    
+    foreach ($paths_to_remove as $path) {
+        if (substr($base_url, -strlen($path)) === $path) {
+            $base_url = substr($base_url, 0, -strlen($path));
+            break; // Only remove one trailing path
+        }
+    }
+    
+    return $base_url;
+}
+
+/**
+ * Auto-remove matching suggestions from the suggestions database
+ */
+function auto_remove_matching_suggestions($content_url) {
+    try {
+        // Connect to suggestions database
+        $suggestions_db = new PDO('sqlite:suggestions.db');
+        $suggestions_db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+        // Clean up and normalize the input URL
+        $normalized_url = cleanup_youtube_url($content_url);
+        
+        // Remove suggestions that match the cleaned URL exactly
+        $delete_stmt = $suggestions_db->prepare("DELETE FROM suggestions WHERE TRIM(link) = ?");
+        $deleted_count = 0;
+        
+        if ($delete_stmt->execute([$normalized_url])) {
+            $deleted_count = $delete_stmt->rowCount();
+        }
+        
+        // Also check existing suggestions and clean them for comparison
+        $all_suggestions_stmt = $suggestions_db->prepare("SELECT id, link FROM suggestions");
+        $all_suggestions_stmt->execute();
+        $all_suggestions = $all_suggestions_stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($all_suggestions as $suggestion) {
+            $cleaned_suggestion = cleanup_youtube_url($suggestion['link']);
+            if ($cleaned_suggestion === $normalized_url) {
+                $delete_specific = $suggestions_db->prepare("DELETE FROM suggestions WHERE id = ?");
+                if ($delete_specific->execute([$suggestion['id']])) {
+                    $deleted_count += $delete_specific->rowCount();
+                }
+            }
+        }
+        
+        // Also try to match different URL formats for the same content
+        $url_patterns = [];
+        
+        // For video URLs, check all variations
+        if (preg_match('/youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/', $normalized_url, $matches) ||
+            preg_match('/youtu\.be\/([a-zA-Z0-9_-]{11})/', $normalized_url, $matches)) {
+            $video_id = $matches[1];
+            $url_patterns[] = "youtube.com/watch?v={$video_id}";
+            $url_patterns[] = "youtu.be/{$video_id}";
+            $url_patterns[] = "m.youtube.com/watch?v={$video_id}";
+            $url_patterns[] = "www.youtube.com/watch?v={$video_id}";
+        }
+        
+        // For channel URLs, check all variations
+        if (preg_match('/youtube\.com\/(channel|c|user|@)\/([a-zA-Z0-9_.-]+)/', $normalized_url, $matches)) {
+            $channel_type = $matches[1];
+            $channel_id = $matches[2];
+            if ($channel_type === '@') {
+                $url_patterns[] = "youtube.com/@{$channel_id}";
+                $url_patterns[] = "www.youtube.com/@{$channel_id}";
+            } else {
+                $url_patterns[] = "youtube.com/{$channel_type}/{$channel_id}";
+                $url_patterns[] = "www.youtube.com/{$channel_type}/{$channel_id}";
+            }
+        }
+        
+        // Delete any matching patterns
+        foreach ($url_patterns as $pattern) {
+            $delete_stmt = $suggestions_db->prepare("DELETE FROM suggestions WHERE link LIKE ?");
+            if ($delete_stmt->execute(["%{$pattern}%"])) {
+                $deleted_count += $delete_stmt->rowCount();
+            }
+        }
+        
+        if ($deleted_count > 0) {
+            error_log("Auto-removed {$deleted_count} matching suggestion(s) for: {$normalized_url}");
+        }
+        
+    } catch (Exception $e) {
+        // Don't break the main flow if suggestion removal fails
+        error_log("Failed to auto-remove suggestions: " . $e->getMessage());
+    }
+}
+
+/**
+ * Generate pagination data for any paginated list
+ */
+function generate_pagination_data($total_items, $current_page, $items_per_page) {
+    $total_pages = max(1, ceil($total_items / $items_per_page));
+    $current_page = max(1, min($current_page, $total_pages));
+    
+    return [
+        'total_items' => $total_items,
+        'total_pages' => $total_pages,
+        'current_page' => $current_page,
+        'items_per_page' => $items_per_page,
+        'offset' => ($current_page - 1) * $items_per_page,
+        'showing_start' => (($current_page - 1) * $items_per_page) + 1,
+        'showing_end' => min($current_page * $items_per_page, $total_items)
+    ];
+}
+
+/**
+ * Render category checkboxes in two columns
+ */
+function render_category_checkboxes($categories, $input_name = 'existing_categories[]', $id_prefix = 'category', $selected_ids = []) {
+    if (empty($categories)) {
+        return '';
+    }
+    
+    $total = count($categories);
+    $per_column = ceil($total / 2);
+    $first_column = array_slice($categories, 0, $per_column);
+    $second_column = array_slice($categories, $per_column);
+    
+    $html = '<div class="row">';
+    
+    // First column
+    $html .= '<div class="col-md-6">';
+    foreach ($first_column as $category) {
+        $checked = in_array($category['id'], $selected_ids) ? 'checked' : '';
+        $html .= sprintf(
+            '<div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="%s" id="%s-%d" value="%d" %s>
+                <label class="form-check-label" for="%s-%d">%s</label>
+            </div>',
+            htmlspecialchars($input_name),
+            htmlspecialchars($id_prefix),
+            $category['id'],
+            $category['id'],
+            $checked,
+            htmlspecialchars($id_prefix),
+            $category['id'],
+            htmlspecialchars($category['name'])
+        );
+    }
+    $html .= '</div>';
+    
+    // Second column
+    $html .= '<div class="col-md-6">';
+    foreach ($second_column as $category) {
+        $checked = in_array($category['id'], $selected_ids) ? 'checked' : '';
+        $html .= sprintf(
+            '<div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="%s" id="%s-%d" value="%d" %s>
+                <label class="form-check-label" for="%s-%d">%s</label>
+            </div>',
+            htmlspecialchars($input_name),
+            htmlspecialchars($id_prefix),
+            $category['id'],
+            $category['id'],
+            $checked,
+            htmlspecialchars($id_prefix),
+            $category['id'],
+            htmlspecialchars($category['name'])
+        );
+    }
+    $html .= '</div>';
+    
+    $html .= '</div>';
+    
+    return $html;
+}
+
+/**
+ * Render pagination controls
+ */
+function render_pagination_controls($pagination_data, $base_url, $page_param = 'page', $additional_params = []) {
+    if ($pagination_data['total_pages'] <= 1) {
+        return '';
+    }
+    
+    $html = '<div class="top-pagination d-flex justify-content-center align-items-center mb-3" style="gap: 8px;">';
+    
+    // Previous button
+    $prev_disabled = $pagination_data['current_page'] <= 1 ? 'disabled' : '';
+    $prev_url = $pagination_data['current_page'] > 1 
+        ? $base_url . '?' . http_build_query(array_merge([$page_param => $pagination_data['current_page'] - 1], $additional_params)) 
+        : '#';
+    
+    $html .= sprintf(
+        '<a href="%s" class="btn btn-sm btn-secondary %s" %s>&laquo; Previous</a>',
+        htmlspecialchars($prev_url),
+        $prev_disabled,
+        $prev_disabled ? 'onclick="return false;"' : ''
+    );
+    
+    // Page selector
+    $html .= sprintf(
+        '<select class="form-select form-select-sm" style="width: auto;" onchange="window.location.href=\'%s?\' + \'%s=\' + this.value + \'%s\'">',
+        htmlspecialchars($base_url),
+        htmlspecialchars($page_param),
+        $additional_params ? '&' . http_build_query($additional_params) : ''
+    );
+    
+    for ($i = 1; $i <= $pagination_data['total_pages']; $i++) {
+        $selected = $i == $pagination_data['current_page'] ? 'selected' : '';
+        $html .= sprintf(
+            '<option value="%d" %s>Page %d of %d</option>',
+            $i,
+            $selected,
+            $i,
+            $pagination_data['total_pages']
+        );
+    }
+    $html .= '</select>';
+    
+    // Next button
+    $next_disabled = $pagination_data['current_page'] >= $pagination_data['total_pages'] ? 'disabled' : '';
+    $next_url = $pagination_data['current_page'] < $pagination_data['total_pages']
+        ? $base_url . '?' . http_build_query(array_merge([$page_param => $pagination_data['current_page'] + 1], $additional_params))
+        : '#';
+    
+    $html .= sprintf(
+        '<a href="%s" class="btn btn-sm btn-secondary %s" %s>Next &raquo;</a>',
+        htmlspecialchars($next_url),
+        $next_disabled,
+        $next_disabled ? 'onclick="return false;"' : ''
+    );
+    
+    $html .= '</div>';
+    
+    return $html;
+}
+
+/**
+ * Render item count display
+ */
+function render_item_count($pagination_data, $item_name) {
+    return sprintf(
+        '<div class="bottom-item-count text-center text-light mt-3">
+            Showing %d-%d of %d %s
+        </div>',
+        $pagination_data['showing_start'],
+        $pagination_data['showing_end'],
+        $pagination_data['total_items'],
+        htmlspecialchars($item_name)
+    );
+}
+
+/**
+ * Render admin pagination controls with JavaScript integration
+ */
+function render_admin_pagination($pagination_data, $table_name) {
+    if ($pagination_data['total_pages'] <= 1) {
+        return '';
+    }
+    
+    $html = '<!-- Top Pagination Controls -->
+                            <div class="top-pagination d-flex justify-content-center align-items-center mb-3" style="gap: 8px;">
+                                <button class="btn btn-outline-light btn-sm" ' . ($pagination_data['current_page'] <= 1 ? 'disabled' : '') . '
+                                        onclick="loadTableDataNoScroll(\'' . htmlspecialchars($table_name) . '\', ' . ($pagination_data['current_page'] - 1) . ')" style="margin-right: 10px; min-width: 80px;">
+                                    <i class="fas fa-chevron-left"></i> Previous
+                                </button>
+                                <div class="dropdown" style="margin-right: 10px;">
+                                    <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" 
+                                            data-bs-toggle="dropdown" aria-expanded="false" style="min-width: 160px;">
+                                        Page ' . $pagination_data['current_page'] . ' of ' . $pagination_data['total_pages'] . '
+                                    </button>
+                                    <ul class="dropdown-menu" style="max-height: 300px; overflow-y: auto;">';
+    
+    for ($i = 1; $i <= $pagination_data['total_pages']; $i++) {
+        $active_class = $i == $pagination_data['current_page'] ? 'active' : '';
+        $html .= sprintf(
+            '<li><a class="dropdown-item %s" href="#" data-page="%d" data-table="%s">Page %d of %d</a></li>',
+            $active_class,
+            $i,
+            htmlspecialchars($table_name),
+            $i,
+            $pagination_data['total_pages']
+        );
+    }
+    
+    $html .= '                    </ul>
+                                </div>
+                                <button class="btn btn-outline-light btn-sm" ' . ($pagination_data['current_page'] >= $pagination_data['total_pages'] ? 'disabled' : '') . '
+                                        onclick="loadTableDataNoScroll(\'' . htmlspecialchars($table_name) . '\', ' . ($pagination_data['current_page'] + 1) . ')" style="min-width: 70px;">
+                                    Next <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>';
+    
+    return $html;
+}
+
+/**
+ * Render admin table with pagination
+ */
+function render_admin_table($config) {
+    // Extract configuration
+    $data = $config['data'] ?? [];
+    $columns = $config['columns'] ?? [];
+    $pagination_data = $config['pagination_data'] ?? null;
+    $table_name = $config['table_name'] ?? '';
+    $empty_message = $config['empty_message'] ?? 'No items found.';
+    
+    $html = '';
+    
+    // If no data, show empty message
+    if (empty($data)) {
+        return '<p class="text-light">' . htmlspecialchars($empty_message) . '</p>';
+    }
+    
+    // Render pagination controls if needed
+    if ($pagination_data && $pagination_data['total_pages'] > 1) {
+        $html .= render_admin_pagination($pagination_data, $table_name);
+    }
+    
+    // Start table
+    $html .= '<div class="table-responsive">
+                <table class="table table-dark table-striped">
+                    <thead>
+                        <tr>';
+    
+    // Render column headers
+    foreach ($columns as $column) {
+        $html .= '<th class="text-light">' . htmlspecialchars($column['title']) . '</th>';
+    }
+    
+    $html .= '      </tr>
+                    </thead>
+                    <tbody>';
+    
+    // Render data rows
+    foreach ($data as $row) {
+        $html .= '<tr>';
+        
+        foreach ($columns as $column) {
+            $html .= '<td class="text-light">';
+            
+            // Handle different column types
+            if (isset($column['render']) && is_callable($column['render'])) {
+                // Custom render function
+                $html .= $column['render']($row);
+            } elseif (isset($column['key'])) {
+                // Simple field display
+                $value = $row[$column['key']] ?? '';
+                
+                // Apply formatting based on column type
+                switch ($column['type'] ?? 'text') {
+                    case 'link':
+                        $url = $row[$column['url_key'] ?? $column['key']] ?? '';
+                        $text = $value;
+                        if (isset($column['truncate']) && strlen($text) > $column['truncate']) {
+                            $text = substr($text, 0, $column['truncate']) . '...';
+                        }
+                        $html .= sprintf(
+                            '<a href="%s" target="_blank" class="text-info text-decoration-underline">%s</a>',
+                            htmlspecialchars($url),
+                            htmlspecialchars($text)
+                        );
+                        break;
+                        
+                    case 'external_link':
+                        $url = $row[$column['url_key'] ?? $column['key']] ?? '';
+                        $text = $value;
+                        if (isset($column['truncate']) && strlen($text) > $column['truncate']) {
+                            $text = substr($text, 0, $column['truncate']) . '...';
+                        }
+                        $html .= sprintf(
+                            '<a href="%s" target="_blank" class="text-info text-decoration-none">%s <i class="fas fa-external-link-alt ms-1" style="font-size: 0.8rem;"></i></a>',
+                            htmlspecialchars($url),
+                            htmlspecialchars($text)
+                        );
+                        break;
+                        
+                    case 'date':
+                        $date = $value ? date('Y-m-d H:i', strtotime($value)) : 'Unknown';
+                        $html .= htmlspecialchars($date);
+                        break;
+                        
+                    case 'truncated_text':
+                        $truncate_length = $column['truncate'] ?? 200;
+                        $text = strlen($value) > $truncate_length ? substr($value, 0, $truncate_length) . '...' : $value;
+                        $html .= htmlspecialchars($text);
+                        break;
+                        
+                    default:
+                        $html .= htmlspecialchars($value);
+                }
+            }
+            
+            $html .= '</td>';
+        }
+        
+        $html .= '</tr>';
+    }
+    
+    $html .= '    </tbody>
+                </table>
+            </div>';
+    
+    // Render bottom item count
+    if ($pagination_data) {
+        $html .= render_item_count($pagination_data, $table_name);
+    }
+    
+    return $html;
+}
+
 ?> 

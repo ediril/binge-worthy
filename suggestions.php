@@ -3,6 +3,8 @@
  * Handle suggestion submissions with semaphore locking
  */
 
+require_once 'common.php';
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'error' => 'Method not allowed']);
@@ -39,51 +41,6 @@ if (empty($link)) {
         header('Location: /?error=' . urlencode('Please enter a link'));
     }
     exit;
-}
-
-/**
- * Clean up YouTube URLs to their base form
- */
-function cleanup_youtube_url($url) {
-    $url = trim($url);
-    
-    // If it's not a YouTube URL, return as is
-    if (strpos($url, 'youtube.com') === false && strpos($url, 'youtu.be') === false) {
-        return $url;
-    }
-    
-    // For youtu.be short URLs, they're already clean
-    if (strpos($url, 'youtu.be') !== false) {
-        // Remove any query parameters
-        return strtok($url, '?');
-    }
-    
-    // For regular YouTube URLs, remove common trailing paths
-    $base_url = strtok($url, '?'); // Remove query parameters first
-    
-    // Remove common trailing paths from channel URLs
-    $paths_to_remove = [
-        '/videos',
-        '/playlists', 
-        '/community',
-        '/channels',
-        '/about',
-        '/search',
-        '/shorts',
-        '/live',
-        '/streams',
-        '/releases',
-        '/podcasts'
-    ];
-    
-    foreach ($paths_to_remove as $path) {
-        if (substr($base_url, -strlen($path)) === $path) {
-            $base_url = substr($base_url, 0, -strlen($path));
-            break; // Only remove one trailing path
-        }
-    }
-    
-    return $base_url;
 }
 
 // Validate YouTube URL
