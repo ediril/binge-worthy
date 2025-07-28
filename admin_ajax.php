@@ -176,8 +176,18 @@ if (isset($input['action']) && $input['action'] === 'check_content_exists') {
             }
         } else {
             // For channels, we need to check multiple possible URL formats
-            // First try exact URL match
-            $cleaned_url = cleanup_youtube_url($url);  // Only clean for channel URLs
+            // First normalize the input, then clean it
+            $normalized_url = normalize_channel_input($url);
+            if (!$normalized_url) {
+                echo json_encode([
+                    'success' => true,
+                    'exists' => false,
+                    'error' => 'url_not_found',
+                    'message' => 'Invalid channel format. Please provide a valid YouTube channel URL, handle, or name.'
+                ]);
+                exit;
+            }
+            $cleaned_url = cleanup_youtube_url($normalized_url);
             $stmt = $db->prepare("SELECT id, name, youtube_url FROM channels WHERE youtube_url = ?");
             $stmt->execute([$cleaned_url]);
             $channel = $stmt->fetch(PDO::FETCH_ASSOC);
