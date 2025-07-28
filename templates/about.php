@@ -40,8 +40,11 @@ $current_page = 'about';
                             Don't fret! We curated videos from all the "best" lists across to web, designed to help you binge without the guilt. Our inventory is full of edutainment
                             videos you will love watching or simply leave running in the background while you get your work done.
                         </p>
-                                                
-                        <h3 class="mt-4 mb-3">Our Collection</h3>
+
+                        <h3 class="mt-5 mb-3">Get Started</h3>
+                        <p>
+                            Browse our <a href="/categories" class="text-decoration-none">categories</a> to discover videos in your areas of interest, or check out our <a href="/" class="text-decoration-none">homepage</a> for the latest additions and suggested videos.
+                        </p>
                         <div class="row text-center mb-4">
                             <div class="col-md-6">
                                 <div class="stat-card p-4 mb-3 h-100">
@@ -57,15 +60,36 @@ $current_page = 'about';
                             </div>
                         </div>
 
-                        <h3 class="mt-4 mb-3">Get Started</h3>
-                        <p>
-                            Browse our <a href="/categories" class="text-decoration-none">categories</a> to discover videos in your areas of interest, or check out our <a href="/" class="text-decoration-none">homepage</a> for the latest additions and suggested content.
-                        </p>
 
-                        <div class="text-center mt-5">
-                            <a href="/categories" class="btn btn-primary btn-lg me-3">Browse Categories</a>
-                            <a href="/" class="btn btn-outline-primary btn-lg">Back to Home</a>
+                        <h3 class="mt-5 mb-3">The Team</h3>
+                        <div class="row justify-content-center">
+                            <div class="col-lg-12 col-xl-10">
+                                <div class="d-flex justify-content-center align-items-start">
+                                    <div class="team-member text-center">
+                                        <h5 class="mb-2">CEO</h5>
+                                        <img src="static/IMG_7312.png" alt="Team member 3" class="team-member__image">
+                                    </div>
+                                    <div class="team-member text-center">
+                                        <h5 class="mb-2">COO</h5>
+                                        <img src="static/IMG_7106.png" alt="Team member 2" class="team-member__image">
+                                    </div>
+                                    <div class="team-member text-center">
+                                        <h5 class="mb-2">CFO</h5>
+                                        <img src="static/IMG_7561.png" alt="Team member 4" class="team-member__image">
+                                    </div>
+                                        <div class="team-member text-center">
+                                        <h5 class="mb-2">Developer</h5>
+                                        <img src="static/IMG_3598.png" alt="Team member 1" class="team-member__image">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+
+                        <h3 class="mt-5 mb-3">Feedback</h3>
+                        <p>
+                            Your feedback is very valuable! If you have any suggestions or comments, please feel free to <a href="https://x.com/emrahdma" class="text-decoration-none">reach out</a>.
+                        </p>
+                        <br><br>
                     </div>
                 </div>
             </div>
