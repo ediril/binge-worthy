@@ -515,12 +515,12 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                         <h3>Add New Content</h3>
                     </div>
                     <div class="card-body">
-                        <div class="d-grid gap-3 d-md-flex justify-content-md-center">
-                            <button type="button" class="btn btn-primary btn-lg" onclick="openChannelModal('add')">
-                                <i class="fas fa-tv me-2"></i>Add New Channel
+                        <div class="d-grid gap-3 d-md-flex justify-content-md-start">
+                            <button type="button" class="btn btn-info btn-lg" onclick="openChannelModal('add')">
+                                <i class="fas fa-tv me-2"></i>Add Channel
                             </button>
-                            <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#addVideoModal">
-                                <i class="fas fa-video me-2"></i>Add New Video
+                            <button type="button" class="btn btn-info btn-lg" data-bs-toggle="modal" data-bs-target="#addVideoModal">
+                                <i class="fas fa-video me-2"></i>Add Video
                             </button>
                         </div>
                     </div>
