@@ -1311,6 +1311,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
+        // Make loadTableDataNoScroll globally accessible for onclick handlers
+        window.loadTableDataNoScroll = loadTableDataNoScroll;
+        
         function showLoadingState(table) {
             const tbody = document.querySelector(`#${table}-section tbody`);
             if (tbody) {
