@@ -21,7 +21,7 @@ $current_url = $site_url . $_SERVER['REQUEST_URI'];
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($page_title); ?></title>
+    <title><?php echo $page_title; ?></title>
     
     <!-- Primary Meta Tags -->
     <meta name="title" content="<?php echo htmlspecialchars($page_title); ?>">

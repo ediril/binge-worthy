@@ -23,7 +23,7 @@ if (!$channel) {
 // Get videos for this channel
 $videos = get_videos_by_channel($db, $channel_id);
 
-$page_title = htmlspecialchars($channel['name']) . ' - Binge-Worthy';
+$page_title = $channel['name'] . ' - Binge-Worthy';
 $current_page = 'channel';
 ?>
 
