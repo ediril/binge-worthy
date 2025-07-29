@@ -942,6 +942,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('current-categories-section').style.display = 'none';
                 document.getElementById('channel-url').required = true;
                 
+                // Show refetch button in add mode too
+                document.getElementById('refetch-description-btn').style.display = 'inline-block';
+                
                 // Reset field names for add mode
                 document.getElementById('new-category').name = 'new_category';
                 
@@ -963,6 +966,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('channel-name-display').style.display = 'block';
                 document.getElementById('current-categories-section').style.display = 'block';
                 document.getElementById('channel-url').required = false;
+                
+                // Show refetch button in edit mode
+                document.getElementById('refetch-description-btn').style.display = 'inline-block';
                 
                 // Change field names for edit mode to match PHP expectations
                 document.getElementById('new-category').name = 'edit_new_category';
@@ -1787,4 +1793,69 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Make functions globally accessible
         window.createChannelFromVideo = createChannelFromVideo;
+        
+        // Handle refetch description button
+        const refetchBtn = document.getElementById('refetch-description-btn');
+        if (refetchBtn) {
+            refetchBtn.addEventListener('click', function() {
+                const channelId = document.getElementById('channel-id').value;
+                const channelUrl = document.getElementById('channel-url').value;
+                
+                // Determine if we're in add or edit mode
+                const isEditMode = channelId && channelId !== '';
+                
+                if (!isEditMode && !channelUrl) {
+                    showToast('Please enter a channel URL first', 'danger');
+                    return;
+                }
+                
+                // Show loading state
+                const descriptionField = document.getElementById('channel-description');
+                const originalValue = descriptionField.value;
+                descriptionField.disabled = true;
+                refetchBtn.disabled = true;
+                refetchBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Fetching...';
+                
+                // Prepare request data based on mode
+                const requestData = {
+                    action: 'refetch_channel_description'
+                };
+                
+                if (isEditMode) {
+                    requestData.channel_id = channelId;
+                } else {
+                    requestData.channel_url = channelUrl;
+                }
+                
+                // Fetch channel description
+                fetch('/admin_ajax.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.description) {
+                        descriptionField.value = data.description;
+                        showToast('Description updated from YouTube', 'success');
+                    } else {
+                        showToast(data.error || 'Could not fetch description', 'danger');
+                        descriptionField.value = originalValue;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching description:', error);
+                    showToast('Error fetching description', 'danger');
+                    descriptionField.value = originalValue;
+                })
+                .finally(() => {
+                    // Restore button state
+                    descriptionField.disabled = false;
+                    refetchBtn.disabled = false;
+                    refetchBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Refetch from YouTube';
+                });
+            });
+        }
 });

@@ -368,6 +368,64 @@ if (isset($input['action']) && $input['action'] === 'fetch_metadata') {
     exit;
 }
 
+// Handle refetch channel description
+if (isset($input['action']) && $input['action'] === 'refetch_channel_description') {
+    if (!isset($input['channel_id']) && !isset($input['channel_url'])) {
+        echo json_encode(['success' => false, 'error' => 'Invalid input']);
+        exit;
+    }
+    
+    try {
+        $db = get_database();
+        $channel_url = null;
+        
+        if (isset($input['channel_id'])) {
+            // Edit mode - get URL from database
+            $channel_id = intval($input['channel_id']);
+            $stmt = $db->prepare("SELECT youtube_url FROM channels WHERE id = ?");
+            $stmt->execute([$channel_id]);
+            $channel = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$channel) {
+                echo json_encode(['success' => false, 'error' => 'Channel not found']);
+                exit;
+            }
+            $channel_url = $channel['youtube_url'];
+        } else {
+            // Add mode - use provided URL
+            $channel_url = trim($input['channel_url']);
+            $channel_url = normalize_channel_input($channel_url);
+            
+            if (!$channel_url) {
+                echo json_encode(['success' => false, 'error' => 'Invalid channel URL']);
+                exit;
+            }
+        }
+        
+        // Fetch latest metadata from YouTube
+        $metadata = fetch_youtube_channel_metadata($channel_url);
+        
+        if ($metadata && isset($metadata['description']) && !empty($metadata['description'])) {
+            echo json_encode([
+                'success' => true,
+                'description' => $metadata['description']
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'error' => 'Could not fetch channel description from YouTube'
+            ]);
+        }
+        
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Failed to fetch channel description'
+        ]);
+    }
+    exit;
+}
+
 // Handle pagination requests
 if (!isset($input['table']) || !isset($input['page'])) {
     echo json_encode(['error' => 'Invalid input']);

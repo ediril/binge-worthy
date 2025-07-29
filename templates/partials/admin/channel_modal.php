@@ -35,7 +35,12 @@
                     
                     <!-- Channel Description -->
                     <div class="mb-3">
-                        <label for="channel-description" class="form-label">Channel Description</label>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label for="channel-description" class="form-label mb-0">Channel Description</label>
+                            <button type="button" class="btn btn-sm btn-outline-info" id="refetch-description-btn">
+                                <i class="fas fa-sync-alt me-1"></i>Refetch
+                            </button>
+                        </div>
                         <textarea class="form-control" id="channel-description" name="channel_description" rows="3"
                                   placeholder="Brief description of the channel"></textarea>
                     </div>
