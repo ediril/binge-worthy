@@ -74,8 +74,7 @@ function create_tables($db) {
         ('Business'),
         ('Science'),
         ('DIY'),
-        ('AI'),
-        ('Not Categorized')
+        ('AI')
     ");
     
     // Migration of existing channel categories to junction table is handled separately

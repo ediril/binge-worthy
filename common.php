@@ -131,10 +131,10 @@ function get_all_categories($db) {
 }
 
 /**
- * Get all categories excluding "Not Categorized" (for display on categories page)
+ * Get all categories (for display on categories page)
  */
 function get_display_categories($db) {
-    $stmt = $db->prepare("SELECT * FROM categories WHERE name != 'Not Categorized' ORDER BY name");
+    $stmt = $db->prepare("SELECT * FROM categories ORDER BY name");
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -517,6 +517,11 @@ function get_or_create_channel_from_video($db, $video_metadata, $category_id) {
     // Try to get channel thumbnail
     $thumbnail_url = generate_youtube_channel_thumbnail($video_metadata['channel_url']);
     
+    // Don't create channel without categories
+    if (!$category_id) {
+        return null;
+    }
+    
     // Create new channel using the multi-category function
     return add_channel_with_categories(
         $db, 
@@ -570,11 +575,8 @@ function get_category_id_by_name($db, $category_name) {
         return $result['id'];
     }
     
-    // Default to 'Not Categorized' category ID if category not found
-    $stmt = $db->prepare("SELECT id FROM categories WHERE name = 'Not Categorized'");
-    $stmt->execute();
-    $fallback = $stmt->fetch(PDO::FETCH_ASSOC);
-    return $fallback ? $fallback['id'] : 1; // Fallback to ID 1 if 'Not Categorized' doesn't exist
+    // Return null if category not found
+    return null;
 }
 
 /**

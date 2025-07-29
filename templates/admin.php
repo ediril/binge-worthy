@@ -375,13 +375,13 @@ if ($_POST) {
                         $video_metadata = fetch_youtube_video_metadata($video_url);
                         
                         if ($video_metadata) {
-                            // Use "Not Categorized" for channels created from videos
-                            $category_id = get_category_id_by_name($db, 'Not Categorized');
+                            // Check if channel exists
+                            $stmt = $db->prepare("SELECT id FROM channels WHERE youtube_url = ? OR name = ?");
+                            $stmt->execute([$video_metadata['channel_url'], $video_metadata['channel_name']]);
+                            $channel = $stmt->fetch(PDO::FETCH_ASSOC);
                             
-                            // Get or create channel for this video
-                            $channel_id = get_or_create_channel_from_video($db, $video_metadata, $category_id);
-                            
-                            if ($channel_id) {
+                            if ($channel) {
+                                $channel_id = $channel['id'];
                                 if (add_video($db, $channel_id, $video_metadata['title'], $video_url, $video_metadata['thumbnail_url'], 1)) {
                                     // Auto-remove matching suggestions
                                     auto_remove_matching_suggestions($video_url);
@@ -394,7 +394,7 @@ if ($_POST) {
                                     $error = "Failed to add video to database.";
                                 }
                             } else {
-                                $error = "Could not create or find channel for this video.";
+                                $error = "Channel '{$video_metadata['channel_name']}' does not exist. Please add the channel first before adding videos.";
                             }
                         } else {
                             $error = "Could not fetch video information. Please check the input and try again.";
@@ -441,7 +441,7 @@ $all_channels->bindValue(':offset', $channels_pagination['offset'], PDO::PARAM_I
 $all_channels->execute();
 $all_channels = $all_channels->fetchAll(PDO::FETCH_ASSOC);
 
-// Get all categories for dropdown (excluding "Not Categorized")
+// Get all categories for dropdown
 $all_categories = get_display_categories($db);
 
 // Get suggestions from suggestions database with pagination

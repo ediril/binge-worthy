@@ -89,7 +89,7 @@ $current_page = 'channel';
                                 <div class="video-info p-3">
                                     <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
                                     <p class="video-channel"><?php echo htmlspecialchars($video['channel_name']); ?></p>
-                                    <?php if ($video['category'] && $video['category'] !== 'Not Categorized'): ?>
+                                    <?php if ($video['category']): ?>
                                         <div class="video-categories mb-2">
                                             <?php
                                             $categories = explode(', ', $video['category']);

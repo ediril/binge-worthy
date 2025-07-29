@@ -5,7 +5,7 @@ require_once 'database.php';
 // Get database connection
 $db = get_database();
 
-// Get all categories excluding "Not Categorized"
+// Get all categories
 $categories = get_display_categories($db);
 
 // Get selected category from URL parameter
@@ -86,7 +86,7 @@ $current_page = 'categories';
                                             <?php echo htmlspecialchars($video['channel_name']); ?>
                                         </a>
                                     </p>
-                                    <?php if ($video['category'] !== 'Not Categorized'): ?>
+                                    <?php if ($video['category']): ?>
                                         <div class="video-categories mb-2">
                                             <span class="badge bg-secondary"><?php echo htmlspecialchars($video['category']); ?></span>
                                         </div>
