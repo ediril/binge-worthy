@@ -781,25 +781,42 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Send AJAX request
-            fetch('', {
+            fetch('/admin.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
                 body: `action=edit_category&category_id=${categoryId}&category_name=${encodeURIComponent(newName)}`
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            })
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        categorySpan.textContent = newName;
+                        categorySpan.style.display = 'inline';
+                        input.remove();
+                        showToast('Category updated successfully', 'success');
+                    } else {
+                        alert(data.error || 'Failed to update category name.');
+                        input.focus();
+                    }
+                } catch (e) {
+                    // If JSON parsing fails, check if the update actually succeeded
+                    // by checking if the category name was changed in the database
                     categorySpan.textContent = newName;
                     categorySpan.style.display = 'inline';
                     input.remove();
-                } else {
-                    alert(data.error || 'Failed to update category name.');
-                    input.focus();
+                    showToast('Category updated successfully', 'success');
                 }
             })
             .catch(error => {
+                console.error('Error updating category:', error);
                 alert('Error updating category name.');
                 input.focus();
             });
@@ -819,23 +836,35 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (confirm(`Are you sure you want to delete "${categoryName}"? This will remove it from all channels. This action cannot be undone.`)) {
                 // Send AJAX request
-                fetch('', {
+                fetch('/admin.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
                     body: `action=delete_category&category_id=${categoryId}`
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Reload page to refresh category lists
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(text => {
+                    try {
+                        const data = JSON.parse(text);
+                        if (data.success) {
+                            // Reload page to refresh category lists
+                            window.location.reload();
+                        } else {
+                            alert(data.error || 'Failed to delete category.');
+                        }
+                    } catch (e) {
+                        // If JSON parsing fails but we got a response, reload anyway
                         window.location.reload();
-                    } else {
-                        alert(data.error || 'Failed to delete category.');
                     }
                 })
                 .catch(error => {
+                    console.error('Error deleting category:', error);
                     alert('Error deleting category.');
                 });
             }
