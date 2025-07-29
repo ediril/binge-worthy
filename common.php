@@ -436,23 +436,43 @@ function fetch_youtube_channel_metadata($channel_url) {
     // Extract description - try multiple methods to get full description
     $description = '';
     
-    // Method 1: Try to extract from JSON-LD structured data (most complete)
-    if (preg_match('/<script type="application\/ld\+json"[^>]*>(.*?)<\/script>/s', $html, $matches)) {
+    // Method 1: Try Open Graph description first (often has full description) - handle multiline content
+    if (preg_match('/<meta property="og:description" content="(.*?)"(?:[^>]*)>/s', $html, $matches)) {
+        $description = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+    
+    // Method 2: Try schema.org itemprop description - handle multiline content
+    if (empty($description) && preg_match('/<meta itemprop="description" content="(.*?)"(?:[^>]*)>/s', $html, $matches)) {
+        $description = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+    
+    // Method 3: Try to extract from JSON-LD structured data (most complete)
+    if (empty($description) && preg_match('/<script type="application\/ld\+json"[^>]*>(.*?)<\/script>/s', $html, $matches)) {
         $json_data = json_decode($matches[1], true);
         if (isset($json_data['description'])) {
             $description = html_entity_decode($json_data['description'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
         }
     }
     
-    // Method 2: Try to extract from YouTube's internal JSON data
-    if (empty($description) && preg_match('/"description":"([^"]*(?:\\.[^"]*)*)"/', $html, $matches)) {
-        $decoded_json = json_decode('"' . $matches[1] . '"');
-        if ($decoded_json !== null) {
-            $description = html_entity_decode($decoded_json, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    // Method 4: Try to extract from YouTube's internal JSON data - improved pattern
+    if (empty($description)) {
+        // Find all "description" fields and get the longest one (likely the full description)
+        preg_match_all('/"description":"([^"]*(?:\\.[^"]*)*)"/', $html, $matches);
+        if (!empty($matches[1])) {
+            $longest_desc = '';
+            foreach ($matches[1] as $match) {
+                $decoded_json = json_decode('"' . $match . '"');
+                if ($decoded_json !== null && strlen($decoded_json) > strlen($longest_desc)) {
+                    $longest_desc = $decoded_json;
+                }
+            }
+            if (!empty($longest_desc)) {
+                $description = html_entity_decode($longest_desc, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            }
         }
     }
     
-    // Method 3: Fallback to meta description (usually truncated)
+    // Method 5: Fallback to meta description (usually truncated)
     if (empty($description) && preg_match('/<meta name="description" content="([^"]*)"/', $html, $matches)) {
         $description = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
