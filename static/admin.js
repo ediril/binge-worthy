@@ -33,7 +33,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('Content exists! Hiding form elements...');
                     // Content already exists - hide form elements and show alert
                     const categorySection = document.getElementById('category-section');
-                    const descriptionField = document.getElementById('new-category-description').parentElement;
                     const submitButton = document.querySelector('#add-content-form button[type="submit"]');
                     
                     console.log('Elements found:', {
@@ -45,7 +44,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Hide form sections
                     if (categorySection) categorySection.style.display = 'none';
-                    if (descriptionField) descriptionField.style.display = 'none';
                     if (submitButton) submitButton.style.display = 'none';
                     
                     // Show alert
@@ -65,12 +63,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('URL not found on YouTube!');
                     // URL doesn't exist on YouTube - show error alert
                     const categorySection = document.getElementById('category-section');
-                    const descriptionField = document.getElementById('new-category-description').parentElement;
                     const submitButton = document.querySelector('#add-content-form button[type="submit"]');
                     
                     // Hide form sections
                     if (categorySection) categorySection.style.display = 'none';
-                    if (descriptionField) descriptionField.style.display = 'none';
                     if (submitButton) submitButton.style.display = 'none';
                     
                     // Show error alert
@@ -85,12 +81,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (data.success && !data.exists) {
                     // Content doesn't exist - show form elements and proceed with normal flow
                     const categorySection = document.getElementById('category-section');
-                    const descriptionField = document.getElementById('new-category-description').parentElement;
                     const submitButton = document.querySelector('#add-content-form button[type="submit"]');
                     const contentType = document.getElementById('content-type');
                     
                     // Show form sections
-                    descriptionField.style.display = 'block';
                     submitButton.style.display = 'block';
                     
                     if (contentType.value === 'video') {
@@ -293,17 +287,14 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    const descriptionField = document.getElementById('new-category-description').parentElement;
                     
                     if (data.channel_exists) {
-                        // Channel exists - hide both category section and description field
+                        // Channel exists - hide category section
                         categorySection.style.display = 'none';
-                        descriptionField.style.display = 'none';
                         contentInfoText.textContent = `Channel "${data.channel_name}" already exists. Video will be added to this channel with its existing categories.`;
                     } else {
-                        // Channel doesn't exist - show both category section and description field
+                        // Channel doesn't exist - show category section
                         categorySection.style.display = 'block';
-                        descriptionField.style.display = 'block';
                         contentInfoText.textContent = `Channel "${data.channel_name}" doesn't exist yet. It will be created with the categories you select below.`;
                     }
                 } else {
@@ -953,7 +944,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Reset field names for add mode
                 document.getElementById('new-category').name = 'new_category';
-                document.getElementById('new-category-description').name = 'new_category_description';
                 
                 // Reset category checkbox names for add mode
                 document.querySelectorAll('#channelModal input[name="edit_existing_categories[]"]').forEach(checkbox => {
@@ -976,7 +966,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Change field names for edit mode to match PHP expectations
                 document.getElementById('new-category').name = 'edit_new_category';
-                document.getElementById('new-category-description').name = 'edit_new_category_description';
                 
                 // Update category checkbox names for edit mode
                 document.querySelectorAll('#channelModal input[name="existing_categories[]"]').forEach(checkbox => {
@@ -1032,7 +1021,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('channel-url').value = '';
             document.getElementById('channel-description').value = '';
             document.getElementById('new-category').value = '';
-            document.getElementById('new-category-description').value = '';
             document.getElementById('channel-id').value = '';
             
             // Clear all category checkboxes

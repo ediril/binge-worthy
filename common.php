@@ -580,12 +580,12 @@ function get_category_id_by_name($db, $category_name) {
 /**
  * Add a new category
  */
-function add_category($db, $name, $description = null) {
+function add_category($db, $name) {
     $stmt = $db->prepare("
-        INSERT INTO categories (name, description, created_at) 
-        VALUES (?, ?, datetime('now'))
+        INSERT INTO categories (name, created_at) 
+        VALUES (?, datetime('now'))
     ");
-    return $stmt->execute([$name, $description]);
+    return $stmt->execute([$name]);
 }
 
 /**

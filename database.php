@@ -23,7 +23,6 @@ function create_tables($db) {
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
-            description TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ");
@@ -70,13 +69,13 @@ function create_tables($db) {
     
     // Insert default categories
     $db->exec("
-        INSERT OR IGNORE INTO categories (name, description) VALUES
-        ('Tech', 'Technology, programming, and software development'),
-        ('Business', 'Business, entrepreneurship, and marketing'),
-        ('Science', 'Science, research, and educational content'),
-        ('DIY', ''),
-        ('AI', 'Artificial Intelligence'),
-        ('Not Categorized', 'Channels that have not been categorized yet')
+        INSERT OR IGNORE INTO categories (name) VALUES
+        ('Tech'),
+        ('Business'),
+        ('Science'),
+        ('DIY'),
+        ('AI'),
+        ('Not Categorized')
     ");
     
     // Migration of existing channel categories to junction table is handled separately

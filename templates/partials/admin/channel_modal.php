@@ -59,12 +59,6 @@
                             </div>
                         </div>
                         
-                        <!-- New Category Description -->
-                        <div class="mb-3">
-                            <label for="new-category-description" class="form-label">New Category Description (optional)</label>
-                            <textarea class="form-control" id="new-category-description" name="new_category_description" 
-                                      rows="2" placeholder="Brief description of the new category"></textarea>
-                        </div>
                         
                         <!-- Existing Categories as Checkboxes -->
                         <div class="mb-3">
@@ -155,17 +149,6 @@
                             </div>
                         </div>
                         
-                        <!-- New Category Description (for edit mode compatibility) -->
-                        <div class="border-top pt-3" id="new-category-description-section" style="display: none;">
-                            <h6>New Category Description:</h6>
-                            <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <label for="new-category-description" class="form-label">Description (optional)</label>
-                                    <textarea class="form-control" id="new-category-description" name="new_category_description" 
-                                              rows="3" placeholder="Brief description of the new category"></textarea>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

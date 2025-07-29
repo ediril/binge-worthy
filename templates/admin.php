@@ -83,7 +83,6 @@ if ($_POST) {
         // Handle new category creation (supports comma-separated names)
         if (!empty($_POST['edit_new_category'])) {
             $new_category_input = trim($_POST['edit_new_category']);
-            $new_category_description = trim($_POST['edit_new_category_description'] ?? '');
             
             // Split by comma and process each category name
             $category_names = array_map('trim', explode(',', $new_category_input));
@@ -101,7 +100,7 @@ if ($_POST) {
                         $category_ids[] = $existing_cat['id'];
                     }
                 } else {
-                    if (add_category($db, $new_category_name, $new_category_description)) {
+                    if (add_category($db, $new_category_name)) {
                         $category_ids[] = $db->lastInsertId();
                     } else {
                         $error = "Failed to create new category: " . htmlspecialchars($new_category_name);
@@ -305,7 +304,6 @@ if ($_POST) {
                                 // Handle new category creation (supports comma-separated names)
                                 if (!empty($_POST['new_category'])) {
                                     $new_category_input = trim($_POST['new_category']);
-                                    $new_category_description = trim($_POST['new_category_description'] ?? '');
                                     
                                     // Split by comma and process each category name
                                     $category_names = array_map('trim', explode(',', $new_category_input));
@@ -323,7 +321,7 @@ if ($_POST) {
                                                 $category_ids[] = $existing_cat['id'];
                                             }
                                         } else {
-                                            if (add_category($db, $new_category_name, $new_category_description)) {
+                                            if (add_category($db, $new_category_name)) {
                                                 $category_ids[] = $db->lastInsertId();
                                             } else {
                                                 $error = "Failed to create new category: " . htmlspecialchars($new_category_name);
@@ -339,11 +337,7 @@ if ($_POST) {
                                 }
                                 
                                 if (!empty($category_ids) && !$error) {
-                                    // Use description from form field instead of fetched metadata
-                                    $form_description = trim($_POST['new_category_description'] ?? '');
-                                    $final_description = !empty($form_description) ? $form_description : $channel_metadata['description'];
-                                    
-                                    $channel_id = add_channel_with_categories($db, $channel_metadata['name'], $final_description, $channel_metadata['youtube_url'], $category_ids, $channel_metadata['thumbnail_url']);
+                                    $channel_id = add_channel_with_categories($db, $channel_metadata['name'], $channel_metadata['description'], $channel_metadata['youtube_url'], $category_ids, $channel_metadata['thumbnail_url']);
                                     if ($channel_id) {
                                         // Auto-remove matching suggestions
                                         auto_remove_matching_suggestions($channel_metadata['youtube_url']);
