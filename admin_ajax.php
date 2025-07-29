@@ -348,11 +348,8 @@ if (isset($input['action']) && $input['action'] === 'fetch_metadata') {
             // Fetch channel metadata
             $metadata = fetch_youtube_channel_metadata($url);
             if ($metadata && isset($metadata['description']) && !empty($metadata['description'])) {
-                // Truncate description if too long
+                // Use full description without truncation
                 $description = $metadata['description'];
-                if (strlen($description) > 500) {
-                    $description = substr($description, 0, 500) . '...';
-                }
             }
         }
         
