@@ -756,6 +756,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Save on Enter key
             input.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
+                    e.preventDefault(); // Prevent form submission
                     saveCategoryName(categoryId, input.value.trim(), categorySpan, input);
                 }
             });
