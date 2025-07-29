@@ -66,6 +66,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const videoCards = document.querySelectorAll('.video-card');
     videoCards.forEach(card => {
         card.addEventListener('click', function(e) {
+            // Don't do anything if the click was on a link or button
+            if (e.target.tagName === 'A' || e.target.closest('a') || 
+                e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                return;
+            }
+            
             // Check if this is a video card with an onclick handler
             const img = this.querySelector('.video-thumbnail img');
             if (img && img.onclick) {
