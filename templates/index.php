@@ -23,7 +23,11 @@
                             </div>
                             <div class="video-info p-3">
                                 <h3 class="video-title mb-2"><?php echo htmlspecialchars($video['title']); ?></h3>
-                                <p class="video-channel mb-2"><?php echo htmlspecialchars($video['channel_name']); ?></p>
+                                <p class="video-channel mb-2">
+                                    <a href="/channel?id=<?php echo $video['channel_id']; ?>" class="channel-link">
+                                        <?php echo htmlspecialchars($video['channel_name']); ?>
+                                    </a>
+                                </p>
                                 <?php if ($video['category']): ?>
                                     <div class="video-categories mb-2">
                                         <?php
