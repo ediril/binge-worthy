@@ -661,7 +661,13 @@ function get_videos_by_category($db, $category_id, $limit = null) {
         JOIN channels c ON v.channel_id = c.id 
         JOIN channel_categories cc ON c.id = cc.channel_id 
         LEFT JOIN categories cat ON cc.category_id = cat.id
-        WHERE cc.category_id = ?
+        WHERE v.id IN (
+            SELECT DISTINCT v2.id 
+            FROM videos v2 
+            JOIN channels c2 ON v2.channel_id = c2.id 
+            JOIN channel_categories cc2 ON c2.id = cc2.channel_id 
+            WHERE cc2.category_id = ?
+        )
         GROUP BY v.id
         ORDER BY v.created_at DESC
     ";
