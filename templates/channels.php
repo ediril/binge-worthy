@@ -135,10 +135,6 @@ $current_page = 'channels';
                                             View Videos
                                         </a>
                                     </div>
-                                    
-                                    <small class="channel-date text-muted">
-                                        Added <?php echo date('M j, Y', strtotime($channel['created_at'])); ?>
-                                    </small>
                                 </div>
                             </div>
                         </div>
