@@ -31,12 +31,17 @@ function get_new_videos($db, $limit) {
  */
 function get_new_channels($db) {
     $stmt = $db->prepare("
-        SELECT c.*, COUNT(v.id) as video_count
+        SELECT c.*, 
+               COUNT(v.id) as video_count,
+               GROUP_CONCAT(cat.name, ', ') as category_names
         FROM channels c 
         LEFT JOIN videos v ON c.id = v.channel_id
+        LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
+        LEFT JOIN categories cat ON cc.category_id = cat.id
         WHERE c.created_at >= datetime('now', '-7 days')
         GROUP BY c.id
         ORDER BY RANDOM() 
+        LIMIT 10
     ");
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1110,6 +1115,115 @@ function render_admin_table($config) {
     }
     
     return $html;
+}
+
+/**
+ * Render a channel card
+ */
+function render_channel_card($channel) {
+    ?>
+    <div class="channel-card h-100 d-flex flex-column">
+        <div class="channel-thumbnail">
+            <?php if (!empty($channel['thumbnail_url'])): ?>
+                <img src="<?php echo htmlspecialchars($channel['thumbnail_url']); ?>" 
+                     alt="<?php echo htmlspecialchars($channel['name']); ?>"
+                     onclick="window.location.href='channel?id=<?php echo $channel['id']; ?>'">
+            <?php else: ?>
+                <div class="channel-thumbnail-placeholder d-flex justify-content-center align-items-center" 
+                     onclick="window.location.href='channel?id=<?php echo $channel['id']; ?>'">
+                    <span class="placeholder-icon">📺</span>
+                </div>
+            <?php endif; ?>
+        </div>
+        <div class="channel-info p-3 d-flex flex-column flex-grow-1">
+            <h3 class="channel-title mb-2">
+                <a href="channel?id=<?php echo $channel['id']; ?>" class="text-decoration-none text-light">
+                    <?php echo htmlspecialchars($channel['name']); ?>
+                </a>
+            </h3>
+            <?php if (!empty($channel['description'])): ?>
+                <p class="channel-description mb-2">
+                    <?php 
+                        $description = htmlspecialchars($channel['description']);
+                        echo strlen($description) > 200 ? substr($description, 0, 200) . '...' : $description;
+                    ?>
+                </p>
+            <?php endif; ?>
+            
+            <!-- Channel Categories -->
+            <?php if (!empty($channel['category_names'])): ?>
+                <div class="channel-categories mb-2 mt-auto">
+                    <?php
+                    $categories = explode(', ', $channel['category_names']);
+                    $unique_categories = array_unique(array_map('trim', $categories));
+                    foreach ($unique_categories as $cat):
+                        if (!empty($cat)):
+                    ?>
+                        <span class="badge bg-secondary me-1"><?php echo htmlspecialchars($cat); ?></span>
+                    <?php
+                        endif;
+                    endforeach;
+                    ?>
+                </div>
+            <?php endif; ?>
+            
+            <!-- Channel Stats -->
+            <div class="channel-stats mb-2">
+                <span class="badge bg-primary"><?php echo $channel['video_count']; ?> videos</span>
+            </div>
+            
+            <!-- External Link -->
+            <div class="channel-actions">
+                <a href="channel?id=<?php echo $channel['id']; ?>" 
+                   class="btn btn-primary btn-sm me-2">
+                    View Videos
+                </a>
+                <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" 
+                   target="_blank" 
+                   class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-external-link-alt"></i> YouTube
+                </a>
+            </div>
+        </div>
+    </div>
+    <?php
+}
+
+/**
+ * Render a video card
+ */
+function render_video_card($video) {
+    ?>
+    <div class="video-card d-flex flex-column">
+        <div class="video-thumbnail">
+            <img src="<?php echo htmlspecialchars($video['thumbnail_url']); ?>" 
+                 alt="<?php echo htmlspecialchars($video['title']); ?>"
+                 onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>')">
+        </div>
+        <div class="video-info p-3 d-flex flex-column flex-grow-1">
+            <h3 class="video-title mb-2"><?php echo htmlspecialchars($video['title']); ?></h3>
+            <p class="video-channel mb-2">
+                <a href="channel?id=<?php echo $video['channel_id']; ?>" class="channel-link">
+                    <?php echo htmlspecialchars($video['channel_name']); ?>
+                </a>
+            </p>
+            <?php if ($video['category']): ?>
+                <div class="video-categories mb-2 mt-auto">
+                    <?php
+                    $categories = explode(', ', $video['category']);
+                    foreach ($categories as $cat):
+                        if (trim($cat)):
+                    ?>
+                        <span class="badge bg-secondary me-1"><?php echo htmlspecialchars(trim($cat)); ?></span>
+                    <?php
+                        endif;
+                    endforeach;
+                    ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php
 }
 
 ?> 

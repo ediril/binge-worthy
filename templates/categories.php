@@ -73,26 +73,7 @@ $current_page = 'categories';
                 <?php else: ?>
                     <div class="videos-grid">
                         <?php foreach ($videos as $video): ?>
-                            <div class="video-card">
-                                <div class="video-thumbnail">
-                                    <img src="<?php echo htmlspecialchars($video['thumbnail_url']); ?>" 
-                                         alt="<?php echo htmlspecialchars($video['title']); ?>"
-                                         onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>')">
-                                </div>
-                                <div class="video-info p-3">
-                                    <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
-                                    <p class="video-channel">
-                                        <a href="/channel?id=<?php echo $video['channel_id']; ?>" class="channel-link">
-                                            <?php echo htmlspecialchars($video['channel_name']); ?>
-                                        </a>
-                                    </p>
-                                    <?php if ($video['category']): ?>
-                                        <div class="video-categories mb-2">
-                                            <span class="badge bg-secondary"><?php echo htmlspecialchars($video['category']); ?></span>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
+                            <?php render_video_card($video); ?>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>

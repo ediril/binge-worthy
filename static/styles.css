@@ -57,6 +57,8 @@ body {
 .video-row {
     gap: 1rem;
     overflow-x: auto;
+    align-items: stretch;
+    display: flex;
 }
 
 .video-row::-webkit-scrollbar {
@@ -206,6 +208,38 @@ body {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     cursor: pointer;
     border: none;
+}
+
+/* Make Bootstrap row behave like horizontal scrolling row for new channels section */
+.video-section .row.g-4 {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 1rem;
+}
+
+/* Make the columns in horizontal row have fixed width and equal height */
+.video-section .row.g-4 > .col-lg-3 {
+    flex: 0 0 300px;
+    max-width: 300px;
+}
+
+/* Custom scrollbar for horizontal channel rows */
+.video-section .row.g-4::-webkit-scrollbar {
+    height: 8px;
+}
+
+.video-section .row.g-4::-webkit-scrollbar-track {
+    background: #2d2d2d;
+    border-radius: 4px;
+}
+
+.video-section .row.g-4::-webkit-scrollbar-thumb {
+    background: #e50914;
+    border-radius: 4px;
+}
+
+.video-section .row.g-4::-webkit-scrollbar-thumb:hover {
+    background: #b20710;
 }
 
 .channel-card:hover {

@@ -73,70 +73,7 @@ $current_page = 'channels';
                 <div class="row g-4">
                     <?php foreach ($channels as $channel): ?>
                         <div class="col-lg-3 col-md-4 col-sm-6 col-12 mb-4">
-                            <div class="channel-card h-100">
-                                <div class="channel-thumbnail">
-                                    <?php if (!empty($channel['thumbnail_url'])): ?>
-                                        <img src="<?php echo htmlspecialchars($channel['thumbnail_url']); ?>" 
-                                             alt="<?php echo htmlspecialchars($channel['name']); ?>"
-                                             onclick="window.location.href='channel?id=<?php echo $channel['id']; ?>'">
-                                    <?php else: ?>
-                                        <div class="channel-thumbnail-placeholder d-flex justify-content-center align-items-center" 
-                                             onclick="window.location.href='channel?id=<?php echo $channel['id']; ?>'">
-                                            <span class="placeholder-icon">📺</span>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="channel-info p-3">
-                                    <h3 class="channel-title mb-2">
-                                        <a href="channel?id=<?php echo $channel['id']; ?>" class="text-decoration-none text-light">
-                                            <?php echo htmlspecialchars($channel['name']); ?>
-                                        </a>
-                                    </h3>
-                                    <?php if (!empty($channel['description'])): ?>
-                                        <p class="channel-description mb-2">
-                                            <?php 
-                                                $description = htmlspecialchars($channel['description']);
-                                                echo strlen($description) > 200 ? substr($description, 0, 200) . '...' : $description;
-                                            ?>
-                                        </p>
-                                    <?php endif; ?>
-                                    
-                                    <!-- Channel Categories -->
-                                    <?php if ($channel['category_names']): ?>
-                                        <div class="channel-categories mb-2">
-                                            <?php
-                                            $categories = explode(', ', $channel['category_names']);
-                                            $unique_categories = array_unique(array_map('trim', $categories));
-                                            foreach ($unique_categories as $cat):
-                                                if (!empty($cat)):
-                                            ?>
-                                                <span class="badge bg-secondary me-1"><?php echo htmlspecialchars($cat); ?></span>
-                                            <?php
-                                                endif;
-                                            endforeach;
-                                            ?>
-                                        </div>
-                                    <?php endif; ?>
-                                    
-                                    <!-- Channel Stats -->
-                                    <div class="channel-stats mb-2">
-                                        <span class="badge bg-primary"><?php echo $channel['video_count']; ?> videos</span>
-                                    </div>
-                                    
-                                    <!-- External Link -->
-                                    <div class="channel-actions">
-                                        <a href="channel?id=<?php echo $channel['id']; ?>" 
-                                           class="btn btn-primary btn-sm me-2">
-                                            View Videos
-                                        </a>
-                                        <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" 
-                                           target="_blank" 
-                                           class="btn btn-outline-light btn-sm">
-                                            <i class="fas fa-external-link-alt"></i> YouTube
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
+                            <?php render_channel_card($channel); ?>
                         </div>
                     <?php endforeach; ?>
                 </div>
