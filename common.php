@@ -1147,6 +1147,12 @@ function render_channel_card($channel) {
                     <?php echo htmlspecialchars($channel['name']); ?>
                 </a>
             </h3>
+            
+            <!-- Channel Stats -->
+            <div class="channel-stats mb-2">
+                <span class="badge bg-primary"><?php echo $channel['video_count']; ?> videos</span>
+            </div>
+            
             <?php if (!empty($channel['description'])): ?>
                 <p class="channel-description mb-2">
                     <?php 
@@ -1172,11 +1178,6 @@ function render_channel_card($channel) {
                     ?>
                 </div>
             <?php endif; ?>
-            
-            <!-- Channel Stats -->
-            <div class="channel-stats mb-2">
-                <span class="badge bg-primary"><?php echo $channel['video_count']; ?> videos</span>
-            </div>
             
             <!-- External Link -->
             <div class="channel-actions">
