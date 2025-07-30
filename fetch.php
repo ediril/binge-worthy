@@ -32,17 +32,21 @@ require_once __DIR__ . '/common.php';
 // Parse command line arguments
 $options = [
     'chan-id' => null,
-    'limit' => 15,
+    'limit' => null,  // Will be set based on backfill mode
     'dry-run' => false,
     'backfill' => false,
     'help' => false
 ];
+
+// Track if limit was explicitly set
+$limit_explicitly_set = false;
 
 foreach ($argv as $arg) {
     if (strpos($arg, '--chan-id=') === 0) {
         $options['chan-id'] = (int)substr($arg, 10);
     } elseif (strpos($arg, '--limit=') === 0) {
         $options['limit'] = (int)substr($arg, 8);
+        $limit_explicitly_set = true;
     } elseif ($arg === '--dry-run') {
         $options['dry-run'] = true;
     } elseif ($arg === '--backfill') {
@@ -52,15 +56,22 @@ foreach ($argv as $arg) {
     }
 }
 
+// Set default limit based on mode
+if (!$limit_explicitly_set) {
+    $options['limit'] = $options['backfill'] ? 30 : 15;
+}
+
 // Show help
 if ($options['help']) {
     echo "Fetch Videos Script - Terminal Only\n\n";
     echo "Usage: php fetch.php [OPTIONS]\n\n";
     echo "Options:\n";
     echo "  --chan-id=ID       Fetch videos for specific channel ID only\n";
-    echo "  --limit=N          Maximum number of videos to fetch per channel (default: 15)\n";
-    echo "  --backfill         Use web scraping to fetch older videos (requires --chan-id)\n";
-    echo "                     Automatically finds earliest video and fetches older ones\n";
+    echo "  --limit=N          Maximum number of videos to fetch per channel\n";
+    echo "                     (default: 15 for RSS mode, 30 for backfill mode)\n";
+    echo "  --backfill         Use web scraping to fetch older videos\n";
+    echo "                     Works with or without --chan-id (all channels if not specified)\n";
+    echo "                     Note: Limited to ~30 videos per channel due to YouTube's page structure\n";
     echo "  --dry-run          Show what would be added without actually adding videos\n";
     echo "  --help, -h         Show this help message\n\n";
     echo "Examples:\n";
@@ -69,23 +80,20 @@ if ($options['help']) {
     echo "  php fetch_videos.php --chan-id=3            # Fetch videos only from channel ID 3\n";
     echo "  php fetch_videos.php --backfill --chan-id=3 # Backfill older videos for channel ID 3\n";
     echo "  php fetch_videos.php --backfill --chan-id=3 --limit=10  # Backfill up to 10 older videos\n";
+    echo "  php fetch_videos.php --backfill             # Backfill older videos for all channels (default: 30)\n";
     echo "  php fetch_videos.php --dry-run              # Preview what would be fetched\n";
     exit(0);
 }
 
-// Validate --backfill requires --chan-id
-if ($options['backfill'] && ($options['chan-id'] === null || $options['chan-id'] <= 0)) {
-    echo "ERROR: --backfill option requires --chan-id to be specified.\n";
-    echo "Usage: php fetch_videos.php --backfill --chan-id=ID [--limit=N]\n";
-    exit(1);
-}
+// No validation needed - backfill now works with or without --chan-id
 
 echo "Starting video fetch process...\n";
 if ($options['dry-run']) {
     echo "DRY RUN MODE - No videos will be added to database\n";
 }
 echo "Method: " . ($options['backfill'] ? 'Web scraping (backfill)' : 'RSS feed') . "\n";
-echo "Limit: {$options['limit']} videos per channel\n";
+$limit_message = $limit_explicitly_set ? "{$options['limit']} videos per channel" : "{$options['limit']} videos per channel (default)";
+echo "Limit: {$limit_message}\n";
 if ($options['chan-id'] !== null && $options['chan-id'] > 0) {
     echo "Targeting channel ID: {$options['chan-id']}\n";
 }
@@ -146,68 +154,55 @@ try {
         $added_count = 0;
         $skipped_count = 0;
         
-        // For backfill mode, we need to fetch more videos until we reach the limit
+        // For backfill mode, fetch from YouTube's video page (limited to ~30 videos)
         if ($options['backfill']) {
-            $max_fetch_attempts = 5; // Maximum number of fetch attempts
-            $fetch_multiplier = 2; // Start by fetching 2x the limit
+            echo "  Backfill mode: Fetching from YouTube (limit: ~30 videos per channel)\n";
             
-            for ($attempt = 1; $attempt <= $max_fetch_attempts && $added_count < $options['limit']; $attempt++) {
-                $fetch_limit = $options['limit'] * $fetch_multiplier;
-                echo "  Backfill attempt {$attempt}: Fetching up to {$fetch_limit} videos...\n";
-                
-                $more_videos = fetch_channel_videos($channel['youtube_url'], $fetch_limit, false);
-                
-                if (!$more_videos || empty($more_videos)) {
-                    echo "  No more videos available\n";
+            // Since YouTube only provides ~30 videos, just fetch once
+            $backfill_videos = fetch_channel_videos($channel['youtube_url'], 50, false);
+            
+            if (!$backfill_videos || empty($backfill_videos)) {
+                echo "  No videos could be fetched\n";
+                continue;
+            }
+            
+            echo "  Received " . count($backfill_videos) . " videos from YouTube\n";
+            
+            foreach ($backfill_videos as $video) {
+                if ($added_count >= $options['limit']) {
                     break;
                 }
                 
-                $videos_found_this_round = 0;
-                foreach ($more_videos as $video) {
-                    if ($added_count >= $options['limit']) {
-                        break;
-                    }
-                    
-                    // Check if video already exists
-                    $stmt = $db->prepare("SELECT id FROM videos WHERE video_url = ?");
-                    $stmt->execute([$video['url']]);
-                    
-                    if ($stmt->fetch()) {
-                        $skipped_count++;
-                        continue;
-                    }
-                    
-                    $videos_found_this_round++;
-                    
-                    if ($options['dry-run']) {
-                        echo "  [DRY RUN] {$video['title']} {$video['url']}\n";
-                        $added_count++;
-                    } else {
-                        // Add video to database
-                        $success = add_video(
-                            $db,
-                            $channel['id'],
-                            $video['title'],
-                            $video['url'],
-                            $video['thumbnail'],
-                            0 // is_featured
-                        );
-                        
-                        if ($success) {
-                            echo "  ✓ Added: {$video['title']}\n";
-                            $added_count++;
-                        } else {
-                            echo "  ✗ Failed to add: {$video['title']}\n";
-                            $total_errors++;
-                        }
-                    }
+                // Check if video already exists
+                $stmt = $db->prepare("SELECT id FROM videos WHERE video_url = ?");
+                $stmt->execute([$video['url']]);
+                
+                if ($stmt->fetch()) {
+                    $skipped_count++;
+                    continue;
                 }
                 
-                if ($videos_found_this_round == 0) {
-                    echo "  No new videos found in this batch\n";
-                    $fetch_multiplier++; // Try fetching even more videos next time
+                if ($options['dry-run']) {
+                    echo "  [DRY RUN] {$video['title']} {$video['url']}\n";
+                    $added_count++;
                 } else {
-                    break; // Found new videos, we're done
+                    // Add video to database
+                    $success = add_video(
+                        $db,
+                        $channel['id'],
+                        $video['title'],
+                        $video['url'],
+                        $video['thumbnail'],
+                        0 // is_featured
+                    );
+                    
+                    if ($success) {
+                        echo "  ✓ Added: {$video['title']}\n";
+                        $added_count++;
+                    } else {
+                        echo "  ✗ Failed to add: {$video['title']}\n";
+                        $total_errors++;
+                    }
                 }
             }
         } else {
