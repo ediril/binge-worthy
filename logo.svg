@@ -1,0 +1,29 @@
+<svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <!-- Background -->
+  <rect width="400" height="400" rx="40" fill="#1F2235"/>
+
+  <!-- Couch Base -->
+  <rect x="80" y="260" width="240" height="70" rx="20" fill="#FF7F50"/>
+  <!-- Couch Arms -->
+  <rect x="65" y="240" width="30" height="40" rx="8" fill="#FF7F50"/>
+  <rect x="305" y="240" width="30" height="40" rx="8" fill="#FF7F50"/>
+
+  <!-- Monitor Screen -->
+  <rect x="110" y="90" width="180" height="120" rx="10" fill="#2E3148" stroke="#6C63FF" stroke-width="4"/>
+  
+  <!-- Monitor Stand -->
+  <rect x="185" y="210" width="30" height="10" rx="2" fill="#6C63FF"/>
+  <rect x="170" y="220" width="60" height="10" rx="5" fill="#6C63FF"/>
+
+  <!-- Power Dot / Bezel Detail -->
+  <circle cx="280" cy="200" r="4" fill="#5CE1E6"/>
+
+  <!-- Show Grid inside Monitor -->
+  <rect x="125" y="105" width="35" height="25" rx="4" fill="#6C63FF"/>
+  <rect x="170" y="105" width="35" height="25" rx="4" fill="#6C63FF"/>
+  <rect x="215" y="105" width="35" height="25" rx="4" fill="#6C63FF"/>
+
+  <rect x="125" y="140" width="35" height="25" rx="4" fill="#6C63FF"/>
+  <rect x="170" y="140" width="35" height="25" rx="4" fill="#6C63FF"/>
+  <rect x="215" y="140" width="35" height="25" rx="4" fill="#6C63FF"/>
+</svg>
