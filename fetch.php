@@ -35,6 +35,7 @@ $options = [
     'limit' => null,  // Will be set based on backfill mode
     'dry-run' => false,
     'backfill' => false,
+    'recent' => false,
     'help' => false
 ];
 
@@ -51,6 +52,8 @@ foreach ($argv as $arg) {
         $options['dry-run'] = true;
     } elseif ($arg === '--backfill') {
         $options['backfill'] = true;
+    } elseif ($arg === '--recent') {
+        $options['recent'] = true;
     } elseif ($arg === '--help' || $arg === '-h') {
         $options['help'] = true;
     }
@@ -72,6 +75,8 @@ if ($options['help']) {
     echo "  --backfill         Use web scraping to fetch older videos\n";
     echo "                     Works with or without --chan-id (all channels if not specified)\n";
     echo "                     Note: Limited to ~30 videos per channel due to YouTube's page structure\n";
+    echo "  --recent           Fetch videos only from channels created in the last 2 hours\n";
+    echo "                     Cannot be used with --chan-id\n";
     echo "  --dry-run          Show what would be added without actually adding videos\n";
     echo "  --help, -h         Show this help message\n\n";
     echo "Examples:\n";
@@ -81,11 +86,17 @@ if ($options['help']) {
     echo "  php fetch_videos.php --backfill --chan-id=3 # Backfill older videos for channel ID 3\n";
     echo "  php fetch_videos.php --backfill --chan-id=3 --limit=10  # Backfill up to 10 older videos\n";
     echo "  php fetch_videos.php --backfill             # Backfill older videos for all channels (default: 30)\n";
+    echo "  php fetch_videos.php --recent               # Fetch videos from channels added in the last hour\n";
     echo "  php fetch_videos.php --dry-run              # Preview what would be fetched\n";
     exit(0);
 }
 
-// No validation needed - backfill now works with or without --chan-id
+// Validation: --recent and --chan-id cannot be used together
+if ($options['recent'] && $options['chan-id'] !== null) {
+    echo "ERROR: --recent and --chan-id cannot be used together\n";
+    echo "Use --help for usage information\n";
+    exit(1);
+}
 
 echo "Starting video fetch process...\n";
 if ($options['dry-run']) {
@@ -96,6 +107,9 @@ $limit_message = $limit_explicitly_set ? "{$options['limit']} videos per channel
 echo "Limit: {$limit_message}\n";
 if ($options['chan-id'] !== null && $options['chan-id'] > 0) {
     echo "Targeting channel ID: {$options['chan-id']}\n";
+}
+if ($options['recent']) {
+    echo "Targeting channels created in the last 2 hour\n";
 }
 echo "\n";
 
@@ -111,6 +125,17 @@ try {
         if (empty($channels)) {
             echo "Channel with ID {$options['chan-id']} not found or inactive.\n";
             exit(1);
+        }
+    } elseif ($options['recent']) {
+        // Get channels created in the last hour
+        $one_hour_ago = date('Y-m-d H:i:s', strtotime('-2 hour'));
+        $stmt = $db->prepare("SELECT * FROM channels WHERE created_at >= ? ORDER BY created_at DESC");
+        $stmt->execute([$one_hour_ago]);
+        $channels = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (empty($channels)) {
+            echo "No channels found that were created in the last hour.\n";
+            exit(0);
         }
     } else {
         $stmt = $db->prepare("SELECT * FROM channels ORDER BY name");
