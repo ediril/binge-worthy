@@ -6,10 +6,10 @@ require_once 'database.php';
 $db = get_database();
 
 // Get sorting parameter
-$sort = isset($_GET['sort']) ? $_GET['sort'] : 'alphabetical';
+$sort = isset($_GET['sort']) ? $_GET['sort'] : 'newest';
 $valid_sorts = ['newest', 'alphabetical'];
 if (!in_array($sort, $valid_sorts)) {
-    $sort = 'alphabetical';
+    $sort = 'newest';
 }
 
 // Determine ORDER BY clause based on sort parameter
@@ -51,11 +51,11 @@ $current_page = 'channels';
                 </div>
                 <div class="sort-controls">
                     <div class="btn-group" role="group" aria-label="Sort channels">
-                        <a href="?sort=alphabetical" class="btn <?php echo $sort === 'alphabetical' ? 'btn-primary' : 'btn-outline-primary'; ?> btn-sm">
-                            <i class="fas fa-sort-alpha-down"></i> <span class="d-none d-sm-inline">Alphabetical</span>
-                        </a>
                         <a href="?sort=newest" class="btn <?php echo $sort === 'newest' ? 'btn-primary' : 'btn-outline-primary'; ?> btn-sm">
                             <i class="fas fa-clock"></i> <span class="d-none d-sm-inline">Newest</span>
+                        </a>
+                        <a href="?sort=alphabetical" class="btn <?php echo $sort === 'alphabetical' ? 'btn-primary' : 'btn-outline-primary'; ?> btn-sm">
+                            <i class="fas fa-sort-alpha-down"></i> <span class="d-none d-sm-inline">Alphabetical</span>
                         </a>
                     </div>
                 </div>
