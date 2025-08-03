@@ -188,7 +188,7 @@ try {
             
             if ($time_since_fetch < $min_interval_seconds) {
                 $hours_remaining = ceil(($min_interval_seconds - $time_since_fetch) / 3600);
-                echo "  Skipping: Last fetched " . format_time_ago($channel['last_fetched']) . " (less than " . FETCH_MIN_INTERVAL_DAYS . " days ago)\n";
+                echo "  Skipping: Last fetched " . format_upload_date($channel['last_fetched']) . " (less than " . FETCH_MIN_INTERVAL_DAYS . " days ago)\n";
                 echo "  Next eligible fetch in ~{$hours_remaining} hours\n\n";
                 continue;
             }
