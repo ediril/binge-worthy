@@ -68,9 +68,7 @@ $current_page = 'channel';
         </div>
 
         <!-- Videos Section -->
-        <section class="video-section">
-            <h2 class="section-title">Videos from <?php echo htmlspecialchars($channel['name']); ?></h2>
-            
+        <section class="video-section">            
             <?php if (empty($videos)): ?>
                 <div class="alert alert-info">
                     <h4>No videos found</h4>
