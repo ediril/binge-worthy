@@ -37,7 +37,7 @@ $current_page = 'channel';
         <br>
 
         <!-- Channel Header -->
-        <div class="channel-header mb-4">
+        <div class="channel-header mb-4 p-3">
             <div class="row align-items-center">
                 <div class="col-md-2">
                     <?php if (!empty($channel['thumbnail_url'])): ?>
