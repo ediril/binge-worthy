@@ -37,7 +37,7 @@ $current_page = 'about';
                         <p class="lead">
                             You are back from work, ready to relax a bit, maybe grab a bite, and need something to watch? Or you want something in the background while you work?
                         </p><p class="lead">
-                            Don't fret! We curated videos from all the best channels across YouTube, designed to help you binge without guilt. Our inventory is full of edutainment
+                            Don't fret! We curated videos from all the best channels across YouTube, designed to help you binge without guilt. It's easy to find healthy, "high-fiber"
                             videos you will love watching or simply leave running in the background while you get your work done.
                         </p>
 
