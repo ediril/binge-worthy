@@ -36,6 +36,7 @@ $options = [
     'dry-run' => false,
     'backfill' => false,
     'recent' => false,
+    'list-chans' => false,
     'help' => false
 ];
 
@@ -54,6 +55,8 @@ foreach ($argv as $arg) {
         $options['backfill'] = true;
     } elseif ($arg === '--recent') {
         $options['recent'] = true;
+    } elseif ($arg === '--list-chans') {
+        $options['list-chans'] = true;
     } elseif ($arg === '--help' || $arg === '-h') {
         $options['help'] = true;
     }
@@ -77,6 +80,7 @@ if ($options['help']) {
     echo "                     Note: Limited to ~30 videos per channel due to YouTube's page structure\n";
     echo "  --recent           Fetch videos only from channels created in the last 2 hours\n";
     echo "                     Cannot be used with --chan-id\n";
+    echo "  --list-chans       List all channels with IDs and video counts\n";
     echo "  --dry-run          Show what would be added without actually adding videos\n";
     echo "  --help, -h         Show this help message\n\n";
     echo "Examples:\n";
@@ -88,6 +92,19 @@ if ($options['help']) {
     echo "  php fetch_videos.php --backfill             # Backfill older videos for all channels (default: 30)\n";
     echo "  php fetch_videos.php --recent               # Fetch videos from channels added in the last hour\n";
     echo "  php fetch_videos.php --dry-run              # Preview what would be fetched\n";
+    echo "  php fetch.php --list-chans                  # List all channels with IDs and video counts\n";
+    exit(0);
+}
+
+// Handle channel listing mode
+if ($options['list-chans']) {
+    try {
+        $db = get_database();
+        list_channels($db);
+    } catch (Exception $e) {
+        echo "ERROR: " . $e->getMessage() . "\n";
+        exit(1);
+    }
     exit(0);
 }
 
@@ -97,6 +114,7 @@ if ($options['recent'] && $options['chan-id'] !== null) {
     echo "Use --help for usage information\n";
     exit(1);
 }
+
 
 echo "Starting video fetch process...\n";
 if ($options['dry-run']) {
@@ -153,6 +171,7 @@ try {
     $total_added = 0;
     $total_skipped = 0;
     $total_errors = 0;
+    $total_timestamp_updates = 0;
     
     foreach ($channels as $channel) {
         echo "Processing: {$channel['name']} (ID: {$channel['id']})\n";
@@ -176,6 +195,7 @@ try {
         
         $added_count = 0;
         $skipped_count = 0;
+        $timestamp_updates = 0;
         
         // For backfill mode, fetch from YouTube's video page (limited to ~30 videos)
         if ($options['backfill']) {
@@ -197,10 +217,21 @@ try {
                 }
                 
                 // Check if video already exists
-                $stmt = $db->prepare("SELECT id FROM videos WHERE video_url = ?");
+                $stmt = $db->prepare("SELECT id, published_at FROM videos WHERE video_url = ?");
                 $stmt->execute([$video['url']]);
+                $existing_video = $stmt->fetch(PDO::FETCH_ASSOC);
                 
-                if ($stmt->fetch()) {
+                if ($existing_video) {
+                    // Check if we have a published date and it's different
+                    if (isset($video['published']) && $video['published'] && 
+                        $existing_video['published_at'] !== $video['published']) {
+                        
+                        if (!$options['dry-run']) {
+                            $update_stmt = $db->prepare("UPDATE videos SET published_at = ? WHERE id = ?");
+                            $update_stmt->execute([$video['published'], $existing_video['id']]);
+                        }
+                        $timestamp_updates++;
+                    }
                     $skipped_count++;
                     continue;
                 }
@@ -216,7 +247,8 @@ try {
                         $video['title'],
                         $video['url'],
                         $video['thumbnail'],
-                        0 // is_featured
+                        0, // is_featured
+                        isset($video['published']) ? $video['published'] : null // published_at
                     );
                     
                     if ($success) {
@@ -232,10 +264,21 @@ try {
             // Normal mode - process the videos we already fetched
             foreach ($videos as $video) {
                 // Check if video already exists
-                $stmt = $db->prepare("SELECT id FROM videos WHERE video_url = ?");
+                $stmt = $db->prepare("SELECT id, published_at FROM videos WHERE video_url = ?");
                 $stmt->execute([$video['url']]);
+                $existing_video = $stmt->fetch(PDO::FETCH_ASSOC);
                 
-                if ($stmt->fetch()) {
+                if ($existing_video) {
+                    // Check if we have a published date and it's different
+                    if (isset($video['published']) && $video['published'] && 
+                        $existing_video['published_at'] !== $video['published']) {
+                        
+                        if (!$options['dry-run']) {
+                            $update_stmt = $db->prepare("UPDATE videos SET published_at = ? WHERE id = ?");
+                            $update_stmt->execute([$video['published'], $existing_video['id']]);
+                        }
+                        $timestamp_updates++;
+                    }
                     $skipped_count++;
                     continue;
                 }
@@ -251,7 +294,8 @@ try {
                         $video['title'],
                         $video['url'],
                         $video['thumbnail'],
-                        0 // is_featured
+                        0, // is_featured
+                        isset($video['published']) ? $video['published'] : null // published_at
                     );
                     
                     if ($success) {
@@ -265,10 +309,15 @@ try {
             }
         }
         
-        echo "  Added: {$added_count} (Skipped: {$skipped_count})\n\n";
+        if ($timestamp_updates > 0) {
+            echo "  Added: {$added_count} (Skipped: {$skipped_count}) (Updated timestamps: {$timestamp_updates})\n\n";
+        } else {
+            echo "  Added: {$added_count} (Skipped: {$skipped_count})\n\n";
+        }
         
         $total_added += $added_count;
         $total_skipped += $skipped_count;
+        $total_timestamp_updates += $timestamp_updates;
         
         // Small delay to be respectful to YouTube's servers
         sleep(1);
@@ -277,6 +326,9 @@ try {
     echo "=== SUMMARY ===\n";
     echo "Total videos added: {$total_added}\n";
     echo "Total videos skipped: {$total_skipped}\n";
+    if ($total_timestamp_updates > 0) {
+        echo "Total timestamps updated: {$total_timestamp_updates}\n";
+    }
     echo "Total errors: {$total_errors}\n";
     
     if ($options['dry-run']) {
@@ -442,15 +494,19 @@ function fetch_channel_videos_scraping($channel_url, $limit = 10) {
     preg_match_all('/"videoId":"([^"]+)","thumbnail"/', $html, $video_ids_specific);
     preg_match_all('/"title":{"runs":\[{"text":"([^"]+)"}/', $html, $titles);
     
+    // Try to extract publish times - YouTube uses various formats
+    preg_match_all('/"publishedTimeText":{"simpleText":"([^"]+)"}/', $html, $publish_times);
+    
     $matches = [];
     if (!empty($video_ids_specific[1]) && !empty($titles[1])) {
         $count = min(count($video_ids_specific[1]), count($titles[1]));
         for ($i = 0; $i < $count; $i++) {
+            $published_text = isset($publish_times[1][$i]) ? $publish_times[1][$i] : null;
             $matches[] = [
                 '',
                 $video_ids_specific[1][$i],
                 $titles[1][$i],
-                '2 years ago' // Default date since we're not using dates anymore
+                $published_text
             ];
         }
     } else {
@@ -460,11 +516,12 @@ function fetch_channel_videos_scraping($channel_url, $limit = 10) {
         if (!empty($video_ids[1]) && !empty($titles[1])) {
             $count = min(count($video_ids[1]), count($titles[1]));
             for ($i = 0; $i < $count; $i++) {
+                $published_text = isset($publish_times[1][$i]) ? $publish_times[1][$i] : null;
                 $matches[] = [
                     '',
                     $video_ids[1][$i],
                     $titles[1][$i],
-                    ''
+                    $published_text
                 ];
             }
         }
@@ -486,7 +543,11 @@ function fetch_channel_videos_scraping($channel_url, $limit = 10) {
             continue;
         }
         
-        // No date filtering needed - we'll fetch videos in order and let the main loop handle duplicates
+        // Convert relative date to actual date if possible
+        $published_date = null;
+        if ($published_text) {
+            $published_date = parse_youtube_date($published_text);
+        }
         
         $video_url = "https://youtube.com/watch?v={$video_id}";
         $thumbnail_url = generate_youtube_thumbnail($video_url);
@@ -495,7 +556,7 @@ function fetch_channel_videos_scraping($channel_url, $limit = 10) {
             'title' => $title,
             'url' => $video_url,
             'thumbnail' => $thumbnail_url,
-            'published' => $published_text
+            'published' => $published_date
         ];
         
         $processed_count++;
@@ -536,9 +597,62 @@ function parse_youtube_date($date_text) {
         ];
         
         $interval = $interval_map[$unit] ?? $unit;
-        return strtotime("-{$number} {$interval}");
+        $timestamp = strtotime("-{$number} {$interval}");
+        return $timestamp ? date('Y-m-d H:i:s', $timestamp) : null;
     }
     
     // Try to parse as regular date
-    return strtotime($date_text);
+    $timestamp = strtotime($date_text);
+    return $timestamp ? date('Y-m-d H:i:s', $timestamp) : null;
+}
+
+
+/**
+ * List all channels with their IDs and video counts
+ */
+function list_channels($db) {
+    $stmt = $db->prepare("
+        SELECT 
+            c.id,
+            c.name,
+            c.youtube_url,
+            COUNT(v.id) as video_count,
+            GROUP_CONCAT(cat.name, ', ') as categories
+        FROM channels c
+        LEFT JOIN videos v ON c.id = v.channel_id
+        LEFT JOIN channel_categories cc ON c.id = cc.channel_id
+        LEFT JOIN categories cat ON cc.category_id = cat.id
+        GROUP BY c.id, c.name, c.youtube_url
+        ORDER BY c.name ASC
+    ");
+    
+    $stmt->execute();
+    $channels = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    if (empty($channels)) {
+        echo "No channels found in the database.\n";
+        return;
+    }
+    
+    echo "=== CHANNELS LIST ===\n\n";
+    echo sprintf("%-4s %-40s %-8s %s\n", "ID", "Channel Name", "Videos", "Categories");
+    echo str_repeat("-", 80) . "\n";
+    
+    foreach ($channels as $channel) {
+        $name = strlen($channel['name']) > 40 ? substr($channel['name'], 0, 37) . '...' : $channel['name'];
+        $categories = $channel['categories'] ?: 'None';
+        if (strlen($categories) > 30) {
+            $categories = substr($categories, 0, 27) . '...';
+        }
+        
+        echo sprintf("%-4d %-40s %-8d %s\n", 
+            $channel['id'], 
+            $name, 
+            $channel['video_count'],
+            $categories
+        );
+    }
+    
+    echo "\nTotal channels: " . count($channels) . "\n";
+    echo "Total videos: " . array_sum(array_column($channels, 'video_count')) . "\n";
 }

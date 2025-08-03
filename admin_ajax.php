@@ -492,7 +492,7 @@ try {
                 LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
                 LEFT JOIN categories cat ON cc.category_id = cat.id
                 GROUP BY v.id
-                ORDER BY v.created_at DESC
+                ORDER BY v.published_at DESC
                 LIMIT :limit OFFSET :offset
             ");
             $stmt->bindValue(':limit', $per_page, PDO::PARAM_INT);

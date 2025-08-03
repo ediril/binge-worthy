@@ -17,9 +17,9 @@ function get_new_videos($db, $limit) {
         JOIN channels c ON v.channel_id = c.id 
         LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
         LEFT JOIN categories cat ON cc.category_id = cat.id
-        WHERE v.created_at >= datetime('now', '-7 days')
+        WHERE v.published_at >= datetime('now', '-7 days')
         GROUP BY v.id
-        ORDER BY v.created_at DESC 
+        ORDER BY v.published_at DESC 
         LIMIT ?
     ");
     $stmt->execute([$limit]);
@@ -58,9 +58,9 @@ function get_suggested_videos($db, $limit) {
         JOIN channels c ON v.channel_id = c.id 
         LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
         LEFT JOIN categories cat ON cc.category_id = cat.id
-        WHERE v.created_at >= datetime('now', '-7 days')
+        WHERE v.published_at >= datetime('now', '-7 days')
         GROUP BY v.id
-        ORDER BY v.created_at DESC 
+        ORDER BY v.published_at DESC 
     ");
     $stmt->execute();
     $all_videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -210,12 +210,76 @@ function add_channel($db, $name, $description, $youtube_url, $category_id, $thum
 /**
  * Add a new video
  */
-function add_video($db, $channel_id, $title, $video_url, $thumbnail_url, $is_featured = 0) {
-    $stmt = $db->prepare("
-        INSERT INTO videos (channel_id, title, video_url, thumbnail_url, is_featured, view_count) 
-        VALUES (?, ?, ?, ?, ?, 0)
-    ");
-    return $stmt->execute([$channel_id, $title, $video_url, $thumbnail_url, $is_featured]);
+function add_video($db, $channel_id, $title, $video_url, $thumbnail_url, $is_featured = 0, $created_at = null) {
+    if ($created_at) {
+        $stmt = $db->prepare("
+            INSERT INTO videos (channel_id, title, video_url, thumbnail_url, is_featured, published_at) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        ");
+        return $stmt->execute([$channel_id, $title, $video_url, $thumbnail_url, $is_featured, $created_at]);
+    } else {
+        $stmt = $db->prepare("
+            INSERT INTO videos (channel_id, title, video_url, thumbnail_url, is_featured) 
+            VALUES (?, ?, ?, ?, ?)
+        ");
+        return $stmt->execute([$channel_id, $title, $video_url, $thumbnail_url, $is_featured]);
+    }
+}
+
+/**
+ * Format date for display
+ */
+function format_upload_date($date_string) {
+    if (!$date_string) {
+        return '';
+    }
+    
+    $timestamp = strtotime($date_string);
+    if (!$timestamp) {
+        return '';
+    }
+    
+    $now = time();
+    $diff = $now - $timestamp;
+    
+    // Less than a minute
+    if ($diff < 60) {
+        return 'just now';
+    }
+    
+    // Less than an hour
+    if ($diff < 3600) {
+        $minutes = floor($diff / 60);
+        return $minutes . ' minute' . ($minutes > 1 ? 's' : '') . ' ago';
+    }
+    
+    // Less than a day
+    if ($diff < 86400) {
+        $hours = floor($diff / 3600);
+        return $hours . ' hour' . ($hours > 1 ? 's' : '') . ' ago';
+    }
+    
+    // Less than a week
+    if ($diff < 604800) {
+        $days = floor($diff / 86400);
+        return $days . ' day' . ($days > 1 ? 's' : '') . ' ago';
+    }
+    
+    // Less than a month
+    if ($diff < 2592000) {
+        $weeks = floor($diff / 604800);
+        return $weeks . ' week' . ($weeks > 1 ? 's' : '') . ' ago';
+    }
+    
+    // Less than a year
+    if ($diff < 31536000) {
+        $months = floor($diff / 2592000);
+        return $months . ' month' . ($months > 1 ? 's' : '') . ' ago';
+    }
+    
+    // Years
+    $years = floor($diff / 31536000);
+    return $years . ' year' . ($years > 1 ? 's' : '') . ' ago';
 }
 
 /**
@@ -379,8 +443,6 @@ function fetch_youtube_video_metadata($video_url) {
     ]);
     
     $response = @file_get_contents($oembed_url, false, $context);
-    error_log("DEBUG: oEmbed URL: $oembed_url");
-    error_log("DEBUG: oEmbed response: " . ($response === false ? 'FALSE' : $response));
     
     if ($response === false) {
         error_log("DEBUG: Video doesn't exist - returning null");
@@ -393,12 +455,25 @@ function fetch_youtube_video_metadata($video_url) {
         return null;
     }
     
+    // Try to get upload date by fetching the video page
+    $published_at = null;
+    $video_page = @file_get_contents("https://www.youtube.com/watch?v=" . $video_id, false, $context);
+    if ($video_page !== false) {
+        // Look for upload date in the page - YouTube uses various formats
+        if (preg_match('/"uploadDate":"([^"]+)"/', $video_page, $matches)) {
+            $published_at = $matches[1];
+        } elseif (preg_match('/"datePublished":"([^"]+)"/', $video_page, $matches)) {
+            $published_at = $matches[1];
+        }
+    }
+    
     return [
         'title' => html_entity_decode($data['title'] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8'),
         'description' => '',
         'thumbnail_url' => generate_youtube_thumbnail($video_url),
         'channel_name' => html_entity_decode($data['author_name'] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8'),
-        'channel_url' => $data['author_url'] ?? ''
+        'channel_url' => $data['author_url'] ?? '',
+        'published_at' => $published_at
     ];
 }
 
@@ -636,7 +711,7 @@ function get_videos_by_channel($db, $channel_id, $limit = null) {
         LEFT JOIN categories cat ON cc.category_id = cat.id
         WHERE v.channel_id = ?
         GROUP BY v.id
-        ORDER BY v.created_at DESC
+        ORDER BY v.published_at DESC
     ";
     
     if ($limit) {
@@ -669,7 +744,7 @@ function get_videos_by_category($db, $category_id, $limit = null) {
             WHERE cc2.category_id = ?
         )
         GROUP BY v.id
-        ORDER BY v.created_at DESC
+        ORDER BY v.published_at DESC
     ";
     
     if ($limit) {
@@ -1150,7 +1225,7 @@ function render_channel_card($channel) {
             
             <!-- Channel Stats -->
             <div class="channel-stats mb-2">
-                <span class="badge bg-primary"><?php echo $channel['video_count']; ?> videos</span>
+                <span class="badge bg-secondary"><?php echo $channel['video_count']; ?> videos</span>
             </div>
             
             <?php if (!empty($channel['description'])): ?>
@@ -1183,7 +1258,7 @@ function render_channel_card($channel) {
             <div class="channel-actions">
                 <a href="channel?id=<?php echo $channel['id']; ?>" 
                    class="btn btn-primary btn-sm me-2">
-                    View Videos
+                    View Channel
                 </a>
                 <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" 
                    target="_blank" 
@@ -1214,6 +1289,7 @@ function render_video_card($video) {
                     <?php echo htmlspecialchars($video['channel_name']); ?>
                 </a>
             </p>
+            <p class="video-date text-muted small mb-2"><?php echo format_upload_date($video['published_at']); ?></p>
             <?php if ($video['category']): ?>
                 <div class="video-categories mb-2 mt-auto">
                     <?php

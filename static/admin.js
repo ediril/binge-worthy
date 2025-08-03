@@ -1402,7 +1402,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </a>
                             </td>
                             <td class="text-light">${escapeHtml(video.channel_name)}</td>
-                            <td class="text-light">${video.created_at ? formatDateTime(video.created_at) : 'Unknown'}</td>
+                            <td class="text-light">${video.published_at ? formatDateTime(video.published_at) : 'Unknown'}</td>
                         </tr>
                     `;
                 });

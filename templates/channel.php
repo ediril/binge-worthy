@@ -60,7 +60,7 @@ $current_page = 'channel';
                         <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" 
                            target="_blank" 
                            class="btn btn-outline-primary btn-sm ms-2">
-                            Visit YouTube Channel
+                            <i class="fas fa-external-link-alt"></i> Visit YouTube Channel
                         </a>
                     </div>
                 </div>
@@ -87,6 +87,7 @@ $current_page = 'channel';
                                 <div class="video-info p-3">
                                     <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>
                                     <p class="video-channel"><?php echo htmlspecialchars($video['channel_name']); ?></p>
+                                    <p class="video-date text-muted small"><?php echo format_upload_date($video['published_at']); ?></p>
                                     <?php if ($video['category']): ?>
                                         <div class="video-categories mb-2">
                                             <?php

@@ -382,7 +382,8 @@ if ($_POST) {
                             
                             if ($channel) {
                                 $channel_id = $channel['id'];
-                                if (add_video($db, $channel_id, $video_metadata['title'], $video_url, $video_metadata['thumbnail_url'], 1)) {
+                                $created_at = isset($video_metadata['published_at']) ? $video_metadata['published_at'] : null;
+                                if (add_video($db, $channel_id, $video_metadata['title'], $video_url, $video_metadata['thumbnail_url'], 1, $created_at)) {
                                     // Auto-remove matching suggestions
                                     auto_remove_matching_suggestions($video_url);
                                     
@@ -477,7 +478,7 @@ $all_videos = $db->prepare("
     LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
     LEFT JOIN categories cat ON cc.category_id = cat.id
     GROUP BY v.id
-    ORDER BY v.created_at DESC
+    ORDER BY v.published_at DESC
     LIMIT :limit OFFSET :offset
 ");
 $all_videos->bindValue(':limit', $videos_pagination['items_per_page'], PDO::PARAM_INT);
@@ -684,7 +685,7 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                 ['title' => 'ID', 'key' => 'id', 'type' => 'text'],
                                 ['title' => 'Title', 'key' => 'title', 'type' => 'link', 'url_key' => 'video_url'],
                                 ['title' => 'Channel', 'key' => 'channel_name', 'type' => 'text'],
-                                ['title' => 'Added', 'key' => 'created_at', 'type' => 'date']
+                                ['title' => 'Added', 'key' => 'published_at', 'type' => 'date']
                             ]
                         ]);
                         ?>
