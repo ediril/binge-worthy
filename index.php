@@ -4,6 +4,7 @@
  */
 
 require_once __DIR__ . '/banalytiq/banalytiq.php';
+require_once __DIR__ . '/common.php';
 
 // 404 function is now in common.php
 
@@ -56,7 +57,6 @@ record_visit();
 switch ($page_to_load) {
     case 'home':
         // Homepage logic
-        require_once 'common.php';
         require_once 'database.php';
 
         // Get featured videos for homepage
@@ -78,7 +78,6 @@ switch ($page_to_load) {
         break;
         
     case 'admin':
-        require_once 'common.php';
         require_once 'database.php';
         $page_title = 'Admin - BingeWorthy';
         $current_page = 'admin';
