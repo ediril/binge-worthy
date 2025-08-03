@@ -35,6 +35,7 @@ function create_tables($db) {
             description TEXT,
             youtube_url TEXT NOT NULL UNIQUE,
             thumbnail_url TEXT,
+            last_fetched DATETIME,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ");

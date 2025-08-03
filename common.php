@@ -7,6 +7,12 @@ define('ADMIN_CHANNELS_PER_PAGE', 10);
 define('ADMIN_VIDEOS_PER_PAGE', 10);
 define('ADMIN_SUGGESTIONS_PER_PAGE', 10);
 
+// ================================
+// Fetch Configuration
+// ================================
+define('FETCH_MIN_INTERVAL_DAYS', 2);    // Skip fetching if last_fetched is less than this many days old
+define('FETCH_FORCE_INTERVAL_DAYS', 3);  // Force fetch if last_fetched is null or older than this many days
+
 /**
  * Get new videos from the database (last 7 days)
  */
@@ -188,8 +194,8 @@ function add_channel_with_categories($db, $name, $description, $youtube_url, $ca
     
     // Add channel without category_id
     $stmt = $db->prepare("
-        INSERT INTO channels (name, description, youtube_url, thumbnail_url, created_at) 
-        VALUES (?, ?, ?, ?, datetime('now'))
+        INSERT INTO channels (name, description, youtube_url, thumbnail_url, last_fetched, created_at) 
+        VALUES (?, ?, ?, ?, NULL, datetime('now'))
     ");
     if ($stmt->execute([$name, $description, $youtube_url, $thumbnail_url])) {
         $channel_id = $db->lastInsertId();

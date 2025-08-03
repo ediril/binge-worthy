@@ -37,6 +37,7 @@ $options = [
     'backfill' => false,
     'recent' => false,
     'list-chans' => false,
+    'force' => false,
     'help' => false
 ];
 
@@ -57,6 +58,8 @@ foreach ($argv as $arg) {
         $options['recent'] = true;
     } elseif ($arg === '--list-chans') {
         $options['list-chans'] = true;
+    } elseif ($arg === '--force') {
+        $options['force'] = true;
     } elseif ($arg === '--help' || $arg === '-h') {
         $options['help'] = true;
     }
@@ -81,6 +84,7 @@ if ($options['help']) {
     echo "  --recent           Fetch videos only from channels created in the last 2 hours\n";
     echo "                     Cannot be used with --chan-id\n";
     echo "  --list-chans       List all channels with IDs and video counts\n";
+    echo "  --force            Force fetch regardless of last_fetched timestamp\n";
     echo "  --dry-run          Show what would be added without actually adding videos\n";
     echo "  --help, -h         Show this help message\n\n";
     echo "Examples:\n";
@@ -175,6 +179,20 @@ try {
     
     foreach ($channels as $channel) {
         echo "Processing: {$channel['name']} (ID: {$channel['id']})\n";
+        
+        // Check if we should skip this channel based on last_fetched timestamp
+        if (!$options['force'] && $channel['last_fetched']) {
+            $last_fetched_time = strtotime($channel['last_fetched']);
+            $min_interval_seconds = FETCH_MIN_INTERVAL_DAYS * 24 * 60 * 60;
+            $time_since_fetch = time() - $last_fetched_time;
+            
+            if ($time_since_fetch < $min_interval_seconds) {
+                $hours_remaining = ceil(($min_interval_seconds - $time_since_fetch) / 3600);
+                echo "  Skipping: Last fetched " . format_time_ago($channel['last_fetched']) . " (less than " . FETCH_MIN_INTERVAL_DAYS . " days ago)\n";
+                echo "  Next eligible fetch in ~{$hours_remaining} hours\n\n";
+                continue;
+            }
+        }
         
         if ($options['backfill']) {
             echo "  Backfill mode: Fetching additional videos beyond latest ones\n";
@@ -318,6 +336,12 @@ try {
         $total_added += $added_count;
         $total_skipped += $skipped_count;
         $total_timestamp_updates += $timestamp_updates;
+        
+        // Update last_fetched timestamp for this channel
+        if (!$options['dry-run']) {
+            $update_stmt = $db->prepare("UPDATE channels SET last_fetched = CURRENT_TIMESTAMP WHERE id = ?");
+            $update_stmt->execute([$channel['id']]);
+        }
         
         // Small delay to be respectful to YouTube's servers
         sleep(1);
