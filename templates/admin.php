@@ -2,6 +2,7 @@
 session_start();
 require_once 'common.php';
 require_once 'database.php';
+require_once __DIR__ . '/../fetch.php';
 
 // Prevent caching of admin page
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
@@ -63,6 +64,13 @@ $error = '';
 if (isset($_SESSION['admin_message'])) {
     $message = $_SESSION['admin_message'];
     unset($_SESSION['admin_message']);
+}
+
+// Check if we need to trigger background video fetch
+$fetch_channel_id = null;
+if (isset($_SESSION['fetch_channel_id'])) {
+    $fetch_channel_id = $_SESSION['fetch_channel_id'];
+    unset($_SESSION['fetch_channel_id']);
 }
 if (isset($_SESSION['admin_error'])) {
     $error = $_SESSION['admin_error'];
@@ -344,6 +352,7 @@ if ($_POST) {
                                         
                                         // Redirect to prevent form resubmission
                                         $_SESSION['admin_message'] = "Channel '{$channel_metadata['name']}' added successfully with " . count($category_ids) . " categories!";
+                                        $_SESSION['fetch_channel_id'] = $channel_id; // Store for background fetch
                                         header('Location: admin.php');
                                         exit;
                                     } else {
@@ -405,6 +414,47 @@ if ($_POST) {
             }
         }
     }
+}
+
+// Handle background video fetching
+if (isset($_POST['action']) && $_POST['action'] === 'fetch_channel_videos' && isset($_POST['channel_id'])) {
+    require_once __DIR__ . '/../fetch.php';
+    
+    $channel_id = intval($_POST['channel_id']);
+    
+    if ($channel_id > 0) {
+        try {
+            // Get channel info
+            $stmt = $db->prepare("SELECT * FROM channels WHERE id = ?");
+            $stmt->execute([$channel_id]);
+            $channel = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($channel) {
+                // Fetch videos using RSS method
+                $videos = fetch_channel_videos_rss($channel['youtube_url'], 15);
+                $videos_added = add_videos($db, $channel_id, $videos);
+                
+                if ($videos_added > 0) {
+                    // Update last_fetched timestamp
+                    $update_stmt = $db->prepare("UPDATE channels SET last_fetched = CURRENT_TIMESTAMP WHERE id = ?");
+                    $update_stmt->execute([$channel_id]);
+                    
+                    $_SESSION['admin_message'] = "Successfully fetched {$videos_added} videos for {$channel['name']}!";
+                } else {
+                    $_SESSION['admin_message'] = "No new videos found for {$channel['name']}.";
+                }
+            } else {
+                $_SESSION['admin_error'] = "Channel not found.";
+            }
+        } catch (Exception $e) {
+            $_SESSION['admin_error'] = "Failed to fetch videos: " . $e->getMessage();
+        }
+    } else {
+        $_SESSION['admin_error'] = "Invalid channel ID.";
+    }
+    
+    header('Location: admin.php');
+    exit;
 }
 
 // Pagination setup
@@ -726,6 +776,40 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             showToast(<?php echo json_encode($error); ?>, 'danger');
+        });
+    </script>
+    <?php endif; ?>
+    
+    <?php if ($fetch_channel_id): ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Fetch channel ID found:', <?php echo json_encode($fetch_channel_id); ?>);
+            
+            // Wait 2 seconds to let user see the "channel added" toast first
+            setTimeout(function() {
+                // Show fetching message
+                showToast('Fetching videos in the background...', 'info');
+                
+                // Submit a form to trigger video fetching
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.style.display = 'none';
+                
+                const actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.name = 'action';
+                actionInput.value = 'fetch_channel_videos';
+                
+                const channelIdInput = document.createElement('input');
+                channelIdInput.type = 'hidden';
+                channelIdInput.name = 'channel_id';
+                channelIdInput.value = <?php echo json_encode($fetch_channel_id); ?>;
+                
+                form.appendChild(actionInput);
+                form.appendChild(channelIdInput);
+                document.body.appendChild(form);
+                form.submit();
+            }, 2000); // 2 second delay
         });
     </script>
     <?php endif; ?>

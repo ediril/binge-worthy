@@ -674,7 +674,8 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(initializeTooltips, 100);
         });
         
-        // Function to show toast
+        // Function to show toast (DISABLED - using the global one below)
+        /*
         function showToast(message, type = 'success') {
             const toastHTML = `
                 <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
@@ -699,6 +700,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             toast.show();
         }
+        */
         
         // Show toast if there's a message or error
         // Messages are now handled via data attributes or global variables

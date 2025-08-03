@@ -8,26 +8,20 @@
  * Usage: php fetch.php [--chan-id=ID] [--limit=N] [--backfill] [--dry-run]
  */
 
-// CLI-only protection - return 404 if accessed via web server
-if (php_sapi_name() !== 'cli') {
-    http_response_code(404);
-    echo '<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 - Page Not Found</title>
-</head>
-<body>
-    <h1>404 - Page Not Found</h1>
-    <p>The page you are looking for does not exist.</p>
-</body>
-</html>';
-    exit;
+// Allow CLI or when included by admin.php specifically, block direct web access
+$calling_script = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]['file'] ?? '';
+$is_admin_include = basename($calling_script) === 'admin.php';
+
+if (php_sapi_name() !== 'cli' && !$is_admin_include) {
+    require_once __DIR__ . '/common.php';
+    show_404_page();
 }
 
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/common.php';
+
+// Only execute main logic when script is run directly, not when included
+if (php_sapi_name() === 'cli' && basename(__FILE__) === basename($_SERVER['SCRIPT_NAME'] ?? '')) {
 
 // Parse command line arguments
 $options = [
@@ -119,7 +113,6 @@ if ($options['recent'] && $options['chan-id'] !== null) {
     exit(1);
 }
 
-
 echo "Starting video fetch process...\n";
 if ($options['dry-run']) {
     echo "DRY RUN MODE - No videos will be added to database\n";
@@ -187,9 +180,7 @@ try {
             $time_since_fetch = time() - $last_fetched_time;
             
             if ($time_since_fetch < $min_interval_seconds) {
-                $hours_remaining = ceil(($min_interval_seconds - $time_since_fetch) / 3600);
                 echo "  Skipping: Last fetched " . format_upload_date($channel['last_fetched']) . " (less than " . FETCH_MIN_INTERVAL_DAYS . " days ago)\n";
-                echo "  Next eligible fetch in ~{$hours_remaining} hours\n\n";
                 continue;
             }
         }
@@ -229,102 +220,28 @@ try {
             
             echo "  Received " . count($backfill_videos) . " videos from YouTube\n";
             
-            foreach ($backfill_videos as $video) {
-                if ($added_count >= $options['limit']) {
-                    break;
-                }
-                
-                // Check if video already exists
-                $stmt = $db->prepare("SELECT id, published_at FROM videos WHERE video_url = ?");
-                $stmt->execute([$video['url']]);
-                $existing_video = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($existing_video) {
-                    // Check if we have a published date and it's different
-                    if (isset($video['published']) && $video['published'] && 
-                        $existing_video['published_at'] !== $video['published']) {
-                        
-                        if (!$options['dry-run']) {
-                            $update_stmt = $db->prepare("UPDATE videos SET published_at = ? WHERE id = ?");
-                            $update_stmt->execute([$video['published'], $existing_video['id']]);
-                        }
-                        $timestamp_updates++;
-                    }
-                    $skipped_count++;
-                    continue;
-                }
-                
-                if ($options['dry-run']) {
-                    echo "  [DRY RUN] {$video['title']} {$video['url']}\n";
-                    $added_count++;
-                } else {
-                    // Add video to database
-                    $success = add_video(
-                        $db,
-                        $channel['id'],
-                        $video['title'],
-                        $video['url'],
-                        $video['thumbnail'],
-                        0, // is_featured
-                        isset($video['published']) ? $video['published'] : null // published_at
-                    );
-                    
-                    if ($success) {
-                        echo "  ✓ Added: {$video['title']}\n";
-                        $added_count++;
-                    } else {
-                        echo "  ✗ Failed to add: {$video['title']}\n";
-                        $total_errors++;
-                    }
-                }
-            }
+            $stats = process_videos_for_fetch($db, $channel['id'], $backfill_videos, [
+                'dry_run' => $options['dry-run'],
+                'limit' => $options['limit'],
+                'verbose' => true
+            ]);
+            
+            $added_count = $stats['added'];
+            $skipped_count = $stats['skipped'];
+            $timestamp_updates = $stats['timestamp_updates'];
+            $total_errors += $stats['errors'];
         } else {
             // Normal mode - process the videos we already fetched
-            foreach ($videos as $video) {
-                // Check if video already exists
-                $stmt = $db->prepare("SELECT id, published_at FROM videos WHERE video_url = ?");
-                $stmt->execute([$video['url']]);
-                $existing_video = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($existing_video) {
-                    // Check if we have a published date and it's different
-                    if (isset($video['published']) && $video['published'] && 
-                        $existing_video['published_at'] !== $video['published']) {
-                        
-                        if (!$options['dry-run']) {
-                            $update_stmt = $db->prepare("UPDATE videos SET published_at = ? WHERE id = ?");
-                            $update_stmt->execute([$video['published'], $existing_video['id']]);
-                        }
-                        $timestamp_updates++;
-                    }
-                    $skipped_count++;
-                    continue;
-                }
-                
-                if ($options['dry-run']) {
-                    echo "  [DRY RUN] {$video['title']} {$video['url']}\n";
-                    $added_count++;
-                } else {
-                    // Add video to database
-                    $success = add_video(
-                        $db,
-                        $channel['id'],
-                        $video['title'],
-                        $video['url'],
-                        $video['thumbnail'],
-                        0, // is_featured
-                        isset($video['published']) ? $video['published'] : null // published_at
-                    );
-                    
-                    if ($success) {
-                        echo "  ✓ Added: {$video['title']}\n";
-                        $added_count++;
-                    } else {
-                        echo "  ✗ Failed to add: {$video['title']}\n";
-                        $total_errors++;
-                    }
-                }
-            }
+            $stats = process_videos_for_fetch($db, $channel['id'], $videos, [
+                'dry_run' => $options['dry-run'],
+                'limit' => null,
+                'verbose' => true
+            ]);
+            
+            $added_count = $stats['added'];
+            $skipped_count = $stats['skipped'];
+            $timestamp_updates = $stats['timestamp_updates'];
+            $total_errors += $stats['errors'];
         }
         
         if ($timestamp_updates > 0) {
@@ -347,7 +264,7 @@ try {
         sleep(1);
     }
     
-    echo "=== SUMMARY ===\n";
+    echo "\n=== SUMMARY ===\n";
     echo "Total videos added: {$total_added}\n";
     echo "Total videos skipped: {$total_skipped}\n";
     if ($total_timestamp_updates > 0) {
@@ -367,6 +284,8 @@ try {
     echo "ERROR: " . $e->getMessage() . "\n";
     exit(1);
 }
+
+} // End of main execution block
 
 /**
  * Fetch videos from a YouTube channel via RSS or web scraping

@@ -13,6 +13,41 @@ define('ADMIN_SUGGESTIONS_PER_PAGE', 10);
 define('FETCH_MIN_INTERVAL_DAYS', 2);    // Skip fetching if last_fetched is less than this many days old
 define('FETCH_FORCE_INTERVAL_DAYS', 3);  // Force fetch if last_fetched is null or older than this many days
 
+// ================================
+// 404 Error Handling
+// ================================
+
+/**
+ * Show standardized 404 error page
+ */
+function show_404_page() {
+    http_response_code(404);
+    record_visit(); // Record the 404 visit
+    echo '<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>404 - Page Not Found</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="static/styles.css?v=' . filemtime('static/styles.css') . '">
+    </head>
+    <body>
+        <div class="container mt-5">
+            <div class="row justify-content-center">
+                <div class="col-md-6 text-center">
+                    <h1 style="font-size: 4rem; color: #e50914;">404</h1>
+                    <h2>Page Not Found</h2>
+                    <p>The page you are looking for does not exist.</p>
+                    <a href="/" class="btn btn-primary">Go Home</a>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>';
+    exit;
+}
+
 /**
  * Get new videos from the database (last 7 days)
  */
@@ -38,14 +73,13 @@ function get_new_videos($db, $limit) {
 function get_new_channels($db) {
     $stmt = $db->prepare("
         SELECT c.*, 
-               COUNT(v.id) as video_count,
-               GROUP_CONCAT(cat.name, ', ') as category_names
+               (SELECT COUNT(*) FROM videos v WHERE v.channel_id = c.id) as video_count,
+               (SELECT GROUP_CONCAT(cat.name, ', ') 
+                FROM channel_categories cc 
+                JOIN categories cat ON cc.category_id = cat.id 
+                WHERE cc.channel_id = c.id) as category_names
         FROM channels c 
-        LEFT JOIN videos v ON c.id = v.channel_id
-        LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
-        LEFT JOIN categories cat ON cc.category_id = cat.id
         WHERE c.created_at >= datetime('now', '-7 days')
-        GROUP BY c.id
         ORDER BY RANDOM() 
         LIMIT 10
     ");
@@ -230,6 +264,122 @@ function add_video($db, $channel_id, $title, $video_url, $thumbnail_url, $is_fea
         ");
         return $stmt->execute([$channel_id, $title, $video_url, $thumbnail_url, $is_featured]);
     }
+}
+
+/**
+ * Add multiple videos for a channel (works with RSS, backfill, or any video array)
+ * Returns the number of videos successfully added
+ */
+function add_videos($db, $channel_id, $videos) {
+    if (empty($videos)) {
+        return 0;
+    }
+    
+    $videos_added = 0;
+    
+    foreach ($videos as $video) {
+        // Check if video already exists
+        $stmt = $db->prepare("SELECT id FROM videos WHERE video_url = ?");
+        $stmt->execute([$video['url']]);
+        if (!$stmt->fetch()) {
+            // Add video to database
+            $success = add_video(
+                $db,
+                $channel_id,
+                $video['title'],
+                $video['url'],
+                $video['thumbnail'],
+                0, // is_featured
+                isset($video['published']) ? $video['published'] : null
+            );
+            if ($success) {
+                $videos_added++;
+            }
+        }
+    }
+    
+    return $videos_added;
+}
+
+/**
+ * Process videos for fetch script with advanced options
+ * Returns array with stats: ['added' => int, 'skipped' => int, 'timestamp_updates' => int, 'errors' => int]
+ */
+function process_videos_for_fetch($db, $channel_id, $videos, $options = []) {
+    $default_options = [
+        'dry_run' => false,
+        'limit' => null,
+        'verbose' => false
+    ];
+    $options = array_merge($default_options, $options);
+    
+    if (empty($videos)) {
+        return ['added' => 0, 'skipped' => 0, 'timestamp_updates' => 0, 'errors' => 0];
+    }
+    
+    $added_count = 0;
+    $skipped_count = 0;
+    $timestamp_updates = 0;
+    $error_count = 0;
+    
+    foreach ($videos as $video) {
+        // Check limit
+        if ($options['limit'] && $added_count >= $options['limit']) {
+            break;
+        }
+        
+        // Check if video already exists
+        $stmt = $db->prepare("SELECT id, published_at FROM videos WHERE video_url = ?");
+        $stmt->execute([$video['url']]);
+        $existing_video = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existing_video) {
+            // Check if we have a published date and it's different
+            if (isset($video['published']) && $video['published'] && 
+                $existing_video['published_at'] !== $video['published']) {
+                
+                if (!$options['dry_run']) {
+                    $update_stmt = $db->prepare("UPDATE videos SET published_at = ? WHERE id = ?");
+                    $update_stmt->execute([$video['published'], $existing_video['id']]);
+                }
+                $timestamp_updates++;
+            }
+            $skipped_count++;
+            continue;
+        }
+        
+        if ($options['dry_run']) {
+            if ($options['verbose']) {
+                echo "  [DRY RUN] {$video['title']} {$video['url']}\n";
+            }
+            $added_count++;
+        } else {
+            // Add video to database
+            $success = add_video(
+                $db,
+                $channel_id,
+                $video['title'],
+                $video['url'],
+                $video['thumbnail'],
+                0, // is_featured
+                isset($video['published']) ? $video['published'] : null
+            );
+            
+            if ($success) {
+                if ($options['verbose']) {
+                    echo "  ✓ Added: {$video['title']}\n";
+                }
+                $added_count++;
+            } else {
+                if ($options['verbose']) {
+                    echo "  ✗ Failed to add: {$video['title']}\n";
+                }
+                $error_count++;
+            }
+        }
+    }
+    
+    return ['added' => $added_count, 'skipped' => $skipped_count, 'timestamp_updates' => $timestamp_updates, 'errors' => $error_count];
 }
 
 /**

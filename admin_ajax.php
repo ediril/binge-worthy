@@ -86,9 +86,70 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Get and validate input
-$input = json_decode(file_get_contents('php://input'), true);
+$raw_input = file_get_contents('php://input');
+$input = json_decode($raw_input, true);
 if (!$input) {
-    echo json_encode(['error' => 'Invalid input']);
+    // Debug info for invalid input
+    error_log("Invalid JSON input: " . $raw_input);
+    echo json_encode(['error' => 'Invalid input', 'debug' => 'Raw input: ' . substr($raw_input, 0, 100)]);
+    exit;
+}
+
+// Background video fetching endpoint  
+if (isset($input['action']) && $input['action'] === 'fetch_channel_videos') {
+    header('Content-Type: application/json');
+    
+    // Debug logging
+    error_log("Fetch endpoint reached. Action: " . ($input['action'] ?? 'none'));
+    error_log("Channel ID: " . ($input['channel_id'] ?? 'none'));
+    
+    try {
+        require_once __DIR__ . '/fetch.php';
+    } catch (Exception $e) {
+        echo json_encode(['error' => 'Failed to load fetch module: ' . $e->getMessage()]);
+        exit;
+    }
+    
+    $channel_id = $input['channel_id'] ?? null;
+    
+    if (!$channel_id) {
+        echo json_encode(['error' => 'Channel ID is required', 'debug' => 'Input received: ' . json_encode($input)]);
+        exit;
+    }
+    
+    try {
+        // Get database connection
+        $db = get_database();
+        
+        // Get channel info
+        $stmt = $db->prepare("SELECT * FROM channels WHERE id = ?");
+        $stmt->execute([$channel_id]);
+        $channel = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$channel) {
+            echo json_encode(['error' => 'Channel not found']);
+            exit;
+        }
+        
+        // Fetch videos using RSS method
+        $videos = fetch_channel_videos_rss($channel['youtube_url'], 15);
+        $videos_added = add_videos($db, $channel_id, $videos);
+        
+        if ($videos_added > 0) {
+            // Update last_fetched timestamp
+            $update_stmt = $db->prepare("UPDATE channels SET last_fetched = CURRENT_TIMESTAMP WHERE id = ?");
+            $update_stmt->execute([$channel_id]);
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'videos_added' => $videos_added,
+            'channel_name' => $channel['name']
+        ]);
+        
+    } catch (Exception $e) {
+        echo json_encode(['error' => 'Failed to fetch videos: ' . $e->getMessage()]);
+    }
     exit;
 }
 
