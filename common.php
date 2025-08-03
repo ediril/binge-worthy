@@ -58,7 +58,7 @@ function get_suggested_videos($db, $limit) {
         JOIN channels c ON v.channel_id = c.id 
         LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
         LEFT JOIN categories cat ON cc.category_id = cat.id
-        WHERE v.created_at >= datetime('now', '-30 days')
+        WHERE v.created_at >= datetime('now', '-7 days')
         GROUP BY v.id
         ORDER BY v.created_at DESC 
     ");

@@ -5,21 +5,6 @@
     <?php include 'templates/partials/navbar.php'; ?>
 
     <div class="container-fluid p-0">
-        <br>
-
-        <!-- Suggested Videos Section -->
-        <section class="video-section mb-4 px-4">
-            <h2 class="section-title mb-3">Suggested Videos</h2>
-            <div class="video-row d-flex pb-3">
-                <?php if (empty($suggested_videos)): ?>
-                    <p class="text-muted">No suggested videos available.</p>
-                <?php else: ?>
-                    <?php foreach ($suggested_videos as $video): ?>
-                        <?php render_video_card($video); ?>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-        </section>
 
         <!-- New Channels Section -->
         <br>
@@ -38,21 +23,36 @@
             </div>
         </section>
 
+        <!-- Suggested Videos Section -->
+        <br><br>
+        <section class="video-section mb-4 px-4">
+            <h2 class="section-title mb-3">Have you watched these videos?</h2>
+            <div class="video-row d-flex pb-3">
+                <?php if (empty($suggested_videos)): ?>
+                    <p class="text-muted">No suggested videos available.</p>
+                <?php else: ?>
+                    <?php foreach ($suggested_videos as $video): ?>
+                        <?php render_video_card($video); ?>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+        </section>
+
         <!-- Suggest Content Section -->
+         <br>
         <section class="suggestion-section mb-4 px-4">
             <div class="row justify-content-center">
                 <div class="col-lg-6 col-md-8">
                     <div class="suggestion-card p-4 rounded">
-                        <h3 class="section-title mb-3 text-center">Suggest a Channel or Video</h3>
-                        <p class="text-center text-muted mb-4">Know a great channel or video? Share it with us!</p>
-                        
+                        <h3 class="section-title mb-3 text-center">Know a great channel or video?</h3>
+                        <p class="text-center text-muted mb-4">Share it with us!</p>
                         <form id="suggestionForm" class="suggestion-form" action="/suggestions" method="post">
                             <div class="input-group mb-3">
                                 <input type="url" 
                                        id="suggestionLink" 
                                        name="link"
                                        class="form-control" 
-                                       placeholder="Paste YouTube channel or video URL here..." 
+                                       placeholder="Paste channel or video URL here..." 
                                        required>
                                 <button type="submit" class="btn btn-primary" id="submitSuggestion">
                                     <span class="submit-text">Submit</span>
