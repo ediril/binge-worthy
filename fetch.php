@@ -174,8 +174,6 @@ try {
             continue;
         }
         
-        echo "  Found " . count($videos) . " videos\n";
-        
         $added_count = 0;
         $skipped_count = 0;
         
@@ -267,7 +265,7 @@ try {
             }
         }
         
-        echo "  Added: {$added_count}, Skipped: {$skipped_count}\n\n";
+        echo "  Added: {$added_count} (Skipped: {$skipped_count})\n\n";
         
         $total_added += $added_count;
         $total_skipped += $skipped_count;
