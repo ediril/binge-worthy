@@ -51,17 +51,7 @@ $page_description = 'Watch ' . $video['title'] . ' on BingeWorthy';
             </div>
         </div>
         
-        <div class="video-player-wrapper">
-            <iframe 
-                id="video-player"
-                class="video-player-iframe"
-                src="https://www.youtube.com/embed/<?php echo htmlspecialchars($youtube_id); ?>?autoplay=1&rel=0&enablejsapi=1"
-                title="<?php echo htmlspecialchars($video['title']); ?>"
-                frameborder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowfullscreen>
-            </iframe>
-            
+        <div class="video-player-wrapper" id="video-player-wrapper">
             <!-- Video End Overlay -->
             <div id="video-end-overlay" class="video-end-overlay">
                 <button class="overlay-close" onclick="hideVideoOverlay()">&times;</button>
@@ -86,7 +76,7 @@ $page_description = 'Watch ' . $video['title'] . ' on BingeWorthy';
                                     $next_youtube_id = extractYouTubeId($next_video['video_url']);
                                     $next_thumbnail = getVideoThumbnail($next_youtube_id);
                                 ?>
-                                <div class="next-video-card" data-video-id="<?php echo $next_video['id']; ?>">
+                                <div class="next-video-card" data-video-id="<?php echo $next_video['id']; ?>" data-youtube-id="<?php echo htmlspecialchars($next_youtube_id); ?>">
                                     <div class="next-video-thumbnail-container">
                                         <img src="<?php echo htmlspecialchars($next_video['thumbnail_url'] ?: $next_thumbnail); ?>" 
                                              class="next-video-thumbnail" 
@@ -124,7 +114,7 @@ $page_description = 'Watch ' . $video['title'] . ' on BingeWorthy';
                                     $suggested_youtube_id = extractYouTubeId($suggested['video_url']);
                                     $suggested_thumbnail = getVideoThumbnail($suggested_youtube_id);
                                 ?>
-                                <div class="overlay-video-card" onclick="navigateToVideo(<?php echo $suggested['id']; ?>)">
+                                <div class="overlay-video-card" data-video-id="<?php echo $suggested['id']; ?>" data-youtube-id="<?php echo htmlspecialchars($suggested_youtube_id); ?>" onclick="navigateToVideo(<?php echo $suggested['id']; ?>)">
                                     <img src="<?php echo htmlspecialchars($suggested['thumbnail_url'] ?: $suggested_thumbnail); ?>" 
                                          class="overlay-video-thumbnail" 
                                          alt="<?php echo htmlspecialchars($suggested['title']); ?>">
@@ -143,6 +133,15 @@ $page_description = 'Watch ' . $video['title'] . ' on BingeWorthy';
                     </div>
                 </div>
             </div>
+            
+            <iframe 
+                id="video-player"
+                class="video-player-iframe"
+                src="https://www.youtube.com/embed/<?php echo htmlspecialchars($youtube_id); ?>?enablejsapi=1&fs=0&controls=1&rel=0&autoplay=1"
+                title="<?php echo htmlspecialchars($video['title']); ?>"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share">
+            </iframe>
         </div>
         
     </div>
