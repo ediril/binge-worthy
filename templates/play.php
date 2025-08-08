@@ -93,7 +93,7 @@ $page_description = 'Watch ' . $video['title'] . ' on BingeWorthy';
                                              alt="<?php echo htmlspecialchars($next_video['title']); ?>">
                                         <div class="countdown-overlay">
                                             <div class="countdown-circle">
-                                                <span id="countdown-number">5</span>
+                                                <span id="countdown-number">10</span>
                                             </div>
                                         </div>
                                     </div>
@@ -104,7 +104,7 @@ $page_description = 'Watch ' . $video['title'] . ' on BingeWorthy';
                                         <p class="next-video-channel">
                                             <?php echo htmlspecialchars($next_video['channel_title']); ?>
                                         </p>
-                                        <p class="next-video-countdown">Starting in <span id="countdown-text">5</span> seconds...</p>
+                                        <p class="next-video-countdown">Starting in <span id="countdown-text">10</span> seconds...</p>
                                     </div>
                                 </div>
                                 <?php else: ?>
@@ -153,5 +153,16 @@ $page_description = 'Watch ' . $video['title'] . ' on BingeWorthy';
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
     <script src="static/script.js"></script>
+    
+    <!-- Initialize countdown display after script loads -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update HTML countdown display to match JS constant
+            const countdownNumber = document.getElementById('countdown-number');
+            const countdownText = document.getElementById('countdown-text');
+            if (countdownNumber) countdownNumber.textContent = COUNTDOWN_SECONDS;
+            if (countdownText) countdownText.textContent = COUNTDOWN_SECONDS;
+        });
+    </script>
 </body>
 </html>

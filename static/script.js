@@ -1,5 +1,8 @@
 // JavaScript for Binge-Worthy platform
 
+// Configuration
+const COUNTDOWN_SECONDS = 10;
+
 /**
  * Open a video in the video player
  * @param {string} videoUrl - The URL of the video to open
@@ -459,8 +462,8 @@ function initializeVideoPlayer() {
     // Reset countdown display
     const countdownNumber = document.getElementById('countdown-number');
     const countdownText = document.getElementById('countdown-text');
-    if (countdownNumber) countdownNumber.textContent = '5';
-    if (countdownText) countdownText.textContent = '5';
+    if (countdownNumber) countdownNumber.textContent = COUNTDOWN_SECONDS;
+    if (countdownText) countdownText.textContent = COUNTDOWN_SECONDS;
     
     // Load YouTube IFrame API
     if (!window.YT) {
@@ -475,6 +478,37 @@ function initializeVideoPlayer() {
         // API already loaded
         onYouTubeIframeAPIReady();
     }
+    
+    // Handle page show event (back/forward cache)
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            console.log('Page loaded from cache - reinitializing player');
+            // Page was loaded from cache, player might be stuck
+            setTimeout(() => {
+                if (window.player && window.player.getPlayerState) {
+                    try {
+                        const state = window.player.getPlayerState();
+                        console.log('Current player state:', state);
+                        
+                        // If player is in a weird state, reload it
+                        if (state === -1 || state === 5) { // unstarted or video cued
+                            console.log('Player in problematic state, reloading iframe');
+                            const iframe = document.getElementById('video-player');
+                            if (iframe) {
+                                const src = iframe.src;
+                                iframe.src = '';
+                                setTimeout(() => {
+                                    iframe.src = src;
+                                }, 100);
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Error checking player state:', e);
+                    }
+                }
+            }, 500);
+        }
+    });
     
     // Clear timers when page is about to unload
     window.addEventListener('beforeunload', function() {
@@ -630,7 +664,7 @@ function startNextVideoCountdown() {
     
     if (!countdownNumber || !countdownText) return;
     
-    let seconds = 5;
+    let seconds = COUNTDOWN_SECONDS;
     
     // Add click handler to go immediately
     nextVideoCard.addEventListener('click', () => {
