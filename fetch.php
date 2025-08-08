@@ -176,11 +176,11 @@ try {
         // Check if we should skip this channel based on last_fetched timestamp
         if (!$options['force'] && $channel['last_fetched']) {
             $last_fetched_time = strtotime($channel['last_fetched']);
-            $min_interval_seconds = FETCH_MIN_INTERVAL_DAYS * 24 * 60 * 60;
+            $min_interval_seconds = 24 * 60 * 60;
             $time_since_fetch = time() - $last_fetched_time;
             
             if ($time_since_fetch < $min_interval_seconds) {
-                echo "  Skipping: Last fetched " . format_upload_date($channel['last_fetched']) . " (less than " . FETCH_MIN_INTERVAL_DAYS . " days ago)\n";
+                echo "  Skipping: Last fetched " . format_upload_date($channel['last_fetched']) . " (less than 1 day ago)\n";
                 continue;
             }
         }

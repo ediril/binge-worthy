@@ -7,19 +7,10 @@ define('ADMIN_CHANNELS_PER_PAGE', 10);
 define('ADMIN_VIDEOS_PER_PAGE', 10);
 define('ADMIN_SUGGESTIONS_PER_PAGE', 10);
 
-// ================================
-// Fetch Configuration
-// ================================
-define('FETCH_MIN_INTERVAL_DAYS', 2);    // Skip fetching if last_fetched is less than this many days old
-define('FETCH_FORCE_INTERVAL_DAYS', 3);  // Force fetch if last_fetched is null or older than this many days
 
 // ================================
 // 404 Error Handling
 // ================================
-
-/**
- * Show standardized 404 error page
- */
 function show_404_page() {
     http_response_code(404);
     record_visit(); // Record the 404 visit
