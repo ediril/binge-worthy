@@ -345,7 +345,13 @@ if ($_POST) {
                                 }
                                 
                                 if (!empty($category_ids) && !$error) {
-                                    $channel_id = add_channel_with_categories($db, $channel_metadata['name'], $channel_metadata['description'], $channel_metadata['youtube_url'], $category_ids, $channel_metadata['thumbnail_url']);
+                                    // Use the description from the form if the user has modified it, otherwise use the fetched metadata
+                                    // This ensures user edits are preserved instead of being overwritten
+                                    $final_description = isset($_POST['channel_description']) && !empty(trim($_POST['channel_description'])) 
+                                        ? trim($_POST['channel_description']) 
+                                        : $channel_metadata['description'];
+                                    
+                                    $channel_id = add_channel_with_categories($db, $channel_metadata['name'], $final_description, $channel_metadata['youtube_url'], $category_ids, $channel_metadata['thumbnail_url']);
                                     if ($channel_id) {
                                         // Auto-remove matching suggestions
                                         auto_remove_matching_suggestions($channel_metadata['youtube_url']);
