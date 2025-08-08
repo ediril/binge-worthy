@@ -1,13 +1,58 @@
 // JavaScript for Binge-Worthy platform
 
 /**
- * Open a video in a new tab
+ * Open a video in the video player
  * @param {string} videoUrl - The URL of the video to open
+ * @param {number} videoId - The database ID of the video (optional)
  */
-function openVideo(videoUrl) {
-    if (videoUrl) {
+function openVideo(videoUrl, videoId = null) {
+    if (!videoUrl) return;
+    
+    // If we have a video ID, use the play page
+    if (videoId) {
+        window.location.href = `/play?id=${videoId}`;
+        return;
+    }
+    
+    // Extract video ID from YouTube URL to find in database
+    const youtubeId = extractYouTubeVideoId(videoUrl);
+    if (youtubeId) {
+        // Try to find the video in our database first
+        fetch(`/api/find-video.php?youtube_id=${youtubeId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.video_id) {
+                    window.location.href = `/play?id=${data.video_id}`;
+                } else {
+                    // Fallback to opening YouTube directly
+                    window.open(videoUrl, '_blank');
+                }
+            })
+            .catch(() => {
+                // Fallback to opening YouTube directly
+                window.open(videoUrl, '_blank');
+            });
+    } else {
+        // Not a YouTube URL, open directly
         window.open(videoUrl, '_blank');
     }
+}
+
+/**
+ * Extract YouTube video ID from URL
+ * @param {string} url - YouTube URL
+ * @returns {string|null} Video ID or null
+ */
+function extractYouTubeVideoId(url) {
+    const patterns = [
+        /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
+    ];
+    
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) return match[1];
+    }
+    return null;
 }
 
 /**
@@ -96,6 +141,17 @@ document.addEventListener('DOMContentLoaded', function() {
             bsAlert.close();
         }, 5000);
     });
+    
+    // Initialize video player if on play page
+    if (document.getElementById('video-player')) {
+        initializeVideoPlayer();
+        
+        // Handle back button to hide overlay
+        setupBackButtonHandler();
+        
+        // Handle ESC key to dismiss overlay
+        setupEscapeKeyHandler();
+    }
     
     // Search form enhancement
     const searchForm = document.querySelector('form[action="search.php"]');
@@ -382,4 +438,308 @@ function hideSuggestionToast() {
         toastContainer.style.display = 'none';
         toast.classList.remove('show');
     }, 300);
+}
+
+/**
+ * Initialize video player functionality
+ */
+function initializeVideoPlayer() {
+    console.log('Initializing video player');
+    
+    // Clear any existing timers when page loads (e.g., from back button)
+    clearNextVideoCountdown();
+    
+    // Make sure overlay is hidden on page load
+    const overlay = document.getElementById('video-end-overlay');
+    if (overlay) {
+        overlay.classList.remove('show');
+        overlay.style.display = 'none';
+    }
+    
+    // Reset countdown display
+    const countdownNumber = document.getElementById('countdown-number');
+    const countdownText = document.getElementById('countdown-text');
+    if (countdownNumber) countdownNumber.textContent = '5';
+    if (countdownText) countdownText.textContent = '5';
+    
+    // Load YouTube IFrame API
+    if (!window.YT) {
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        
+        // Set up the callback for when API is ready
+        window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+    } else {
+        // API already loaded
+        onYouTubeIframeAPIReady();
+    }
+    
+    // Clear timers when page is about to unload
+    window.addEventListener('beforeunload', function() {
+        console.log('Page unloading, clearing timers');
+        clearNextVideoCountdown();
+    });
+    
+    // Also clear on visibility change (tab switching)
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            console.log('Page hidden, clearing timers');
+            clearNextVideoCountdown();
+        }
+    });
+}
+
+/**
+ * Called when YouTube IFrame API is ready
+ */
+function onYouTubeIframeAPIReady() {
+    const iframe = document.getElementById('video-player');
+    if (!iframe) return;
+    
+    // Extract video ID from iframe src
+    const src = iframe.src;
+    const videoIdMatch = src.match(/embed\/([a-zA-Z0-9_-]+)/);
+    if (!videoIdMatch) return;
+    
+    const videoId = videoIdMatch[1];
+    
+    // Replace iframe with YouTube player
+    window.player = new YT.Player('video-player', {
+        height: '100%',
+        width: '100%',
+        videoId: videoId,
+        playerVars: {
+            autoplay: 1,
+            rel: 0,
+            enablejsapi: 1
+        },
+        events: {
+            onReady: onPlayerReady,
+            onStateChange: onPlayerStateChange
+        }
+    });
+}
+
+/**
+ * Called when player is ready
+ */
+function onPlayerReady(event) {
+    console.log('YouTube player is ready');
+    
+    // Check if we came back via navigation
+    const preventAutoPlay = sessionStorage.getItem('preventAutoPlay');
+    
+    if (preventAutoPlay) {
+        console.log('Skipping progress monitoring due to navigation');
+        // Reset video to beginning if we came back via navigation
+        try {
+            event.target.seekTo(0, true);
+            event.target.pauseVideo();
+            console.log('Video reset to beginning');
+        } catch (e) {
+            console.log('Could not reset video:', e);
+        }
+        // Clear the flag for next time
+        sessionStorage.removeItem('preventAutoPlay');
+    }
+    
+    // No need to start progress monitoring since we only show overlay at video end
+}
+
+/**
+ * Handle player state changes
+ */
+function onPlayerStateChange(event) {
+    console.log('Player state changed:', event.data);
+    
+    // YT.PlayerState.ENDED = 0
+    if (event.data === YT.PlayerState.ENDED) {
+        // Check if we should show overlay
+        const shouldShow = !sessionStorage.getItem('preventAutoPlay');
+        
+        if (shouldShow) {
+            console.log('Video ended - showing overlay');
+            // Show overlay after a short delay
+            setTimeout(() => {
+                showVideoOverlay();
+            }, 500);
+        } else {
+            console.log('Video ended - skipping overlay due to navigation');
+            sessionStorage.removeItem('preventAutoPlay');
+        }
+    }
+}
+
+/**
+ * Show video end overlay
+ */
+function showVideoOverlay() {
+    console.log('Attempting to show overlay');
+    const overlay = document.getElementById('video-end-overlay');
+    if (overlay) {
+        console.log('Overlay found, adding show class');
+        // First set display to flex (but still invisible due to opacity: 0)
+        overlay.style.display = 'flex';
+        // Then trigger the transition by adding the show class after a brief delay
+        setTimeout(() => {
+            overlay.classList.add('show');
+        }, 10);
+        
+        // Start countdown for next video
+        startNextVideoCountdown();
+    } else {
+        console.log('Overlay element not found');
+    }
+}
+
+/**
+ * Hide video end overlay
+ */
+function hideVideoOverlay() {
+    const overlay = document.getElementById('video-end-overlay');
+    if (overlay) {
+        // Start the fade out by removing show class
+        overlay.classList.remove('show');
+        // Reset display after transition completes
+        setTimeout(() => {
+            // Only hide if still not showing (in case it was re-shown)
+            if (!overlay.classList.contains('show')) {
+                overlay.style.display = 'none';
+            }
+        }, 500);
+        // Clear countdown when overlay is closed
+        clearNextVideoCountdown();
+    }
+}
+
+
+/**
+ * Start countdown for next video
+ */
+function startNextVideoCountdown() {
+    const nextVideoCard = document.querySelector('.next-video-card');
+    if (!nextVideoCard) return;
+    
+    const videoId = nextVideoCard.getAttribute('data-video-id');
+    if (!videoId) return;
+    
+    const countdownNumber = document.getElementById('countdown-number');
+    const countdownText = document.getElementById('countdown-text');
+    
+    if (!countdownNumber || !countdownText) return;
+    
+    let seconds = 5;
+    
+    // Add click handler to go immediately
+    nextVideoCard.addEventListener('click', () => {
+        clearInterval(window.countdownInterval);
+        navigateToVideo(videoId);
+    });
+    
+    // Update countdown every second
+    window.countdownInterval = setInterval(() => {
+        seconds--;
+        
+        if (countdownNumber) countdownNumber.textContent = seconds;
+        if (countdownText) countdownText.textContent = seconds;
+        
+        if (seconds <= 0) {
+            clearInterval(window.countdownInterval);
+            // Use the same cleanup sequence as manual navigation
+            navigateToVideo(videoId);
+        }
+    }, 1000);
+}
+
+/**
+ * Clear countdown if overlay is closed
+ */
+function clearNextVideoCountdown() {
+    console.log('Clearing countdown timer');
+    if (window.countdownInterval) {
+        clearInterval(window.countdownInterval);
+        window.countdownInterval = null;
+    }
+    // Also clear any timeout that might be set for navigation
+    if (window.navigationTimeout) {
+        clearTimeout(window.navigationTimeout);
+        window.navigationTimeout = null;
+    }
+}
+
+/**
+ * Setup back button handler to hide overlay
+ */
+function setupBackButtonHandler() {
+    // Push initial state when page loads
+    history.replaceState({ overlayVisible: false }, '', window.location.href);
+    
+    // Listen for popstate (back/forward button)
+    window.addEventListener('popstate', function(event) {
+        const overlay = document.getElementById('video-end-overlay');
+        if (overlay && overlay.classList.contains('show')) {
+            // If overlay is visible, hide it without changing history
+            hideVideoOverlay();
+        }
+    });
+    
+    // Update history state when overlay is shown
+    const originalShowOverlay = showVideoOverlay;
+    window.showVideoOverlay = function() {
+        originalShowOverlay();
+        // Replace current state when overlay is shown (no extra history entry)
+        history.replaceState({ overlayVisible: true }, '', window.location.href);
+    };
+}
+
+
+/**
+ * Navigate to video with proper cleanup sequence
+ */
+function navigateToVideo(videoId) {
+    console.log('Navigating to video:', videoId);
+    
+    // Step 1: Stop countdown and clear all timers immediately
+    clearNextVideoCountdown();
+    
+    // Step 2: Close overlay
+    const overlay = document.getElementById('video-end-overlay');
+    if (overlay) {
+        overlay.classList.remove('show');
+    }
+    
+    // Step 3: Reset current video to beginning
+    if (window.player && window.player.seekTo) {
+        try {
+            window.player.seekTo(0, true);
+            window.player.pauseVideo();
+            console.log('Current video reset before navigation');
+        } catch (e) {
+            console.log('Could not reset current video:', e);
+        }
+    }
+    
+    // Step 4: Set flag to prevent auto-overlay on the next page if user goes back
+    sessionStorage.setItem('preventAutoPlay', 'true');
+    
+    // Step 5: Navigate after a brief delay for cleanup to complete
+    window.navigationTimeout = setTimeout(() => {
+        window.location.href = `/play?id=${videoId}`;
+    }, 100); // Brief delay for cleanup
+}
+
+/**
+ * Setup ESC key handler to dismiss overlay
+ */
+function setupEscapeKeyHandler() {
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' || event.keyCode === 27) {
+            const overlay = document.getElementById('video-end-overlay');
+            if (overlay && overlay.classList.contains('show')) {
+                hideVideoOverlay();
+            }
+        }
+    });
 } 

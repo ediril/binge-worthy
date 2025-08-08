@@ -26,7 +26,7 @@
         <!-- Suggested Videos Section -->
         <br><br>
         <section class="video-section mb-4 px-4">
-            <h2 class="section-title mb-3">Have you watched these videos?</h2>
+            <h2 class="section-title mb-3">Have you watched these?</h2>
             <div class="video-row d-flex pb-3">
                 <?php if (empty($suggested_videos)): ?>
                     <p class="text-muted">No suggested videos available.</p>

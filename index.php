@@ -31,7 +31,9 @@ $valid_pages = [
     'channels' => 'channels',
     'channels.php' => 'channels',
     'channel' => 'channel',
-    'channel.php' => 'channel'
+    'channel.php' => 'channel',
+    'play' => 'play',
+    'play.php' => 'play'
 ];
 
 // Determine which page to load
@@ -94,6 +96,10 @@ switch ($page_to_load) {
         
     case 'channel':
         include 'templates/channel.php';
+        break;
+        
+    case 'play':
+        include 'templates/play.php';
         break;
         
     default:

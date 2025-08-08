@@ -82,7 +82,7 @@ $current_page = 'channel';
                                 <div class="video-thumbnail">
                                     <img src="<?php echo htmlspecialchars($video['thumbnail_url']); ?>" 
                                          alt="<?php echo htmlspecialchars($video['title']); ?>"
-                                         onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>')">
+                                         onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>', <?php echo $video['id']; ?>)">
                                 </div>
                                 <div class="video-info p-3">
                                     <h3 class="video-title"><?php echo htmlspecialchars($video['title']); ?></h3>

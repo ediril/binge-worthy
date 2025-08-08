@@ -438,6 +438,44 @@ function extract_youtube_id($url) {
 }
 
 /**
+ * Extract YouTube video ID from URL (alias for consistency)
+ */
+function extractYouTubeId($url) {
+    return extract_youtube_id($url);
+}
+
+/**
+ * Get video thumbnail URL for a YouTube video ID
+ */
+function getVideoThumbnail($youtube_id) {
+    if (!$youtube_id) {
+        return 'https://img.youtube.com/vi/default/hqdefault.jpg';
+    }
+    
+    $thumbnail_options = [
+        "https://img.youtube.com/vi/{$youtube_id}/maxresdefault.jpg",
+        "https://img.youtube.com/vi/{$youtube_id}/hqdefault.jpg",
+        "https://img.youtube.com/vi/{$youtube_id}/mqdefault.jpg",
+        "https://img.youtube.com/vi/{$youtube_id}/default.jpg"
+    ];
+    
+    $context = stream_context_create([
+        'http' => [
+            'timeout' => 5,
+            'method' => 'HEAD',
+            'user_agent' => 'Mozilla/5.0 (compatible; Binge-Worthy/1.0)'
+        ]
+    ]);
+    
+    $headers = @get_headers($thumbnail_options[0], 1, $context);
+    if ($headers && strpos($headers[0], '200') !== false) {
+        return $thumbnail_options[0];
+    }
+    
+    return $thumbnail_options[1];
+}
+
+/**
  * Generate YouTube thumbnail URL from video URL with fallback options
  */
 function generate_youtube_thumbnail($video_url) {
@@ -1427,7 +1465,7 @@ function render_video_card($video) {
         <div class="video-thumbnail">
             <img src="<?php echo htmlspecialchars($video['thumbnail_url']); ?>" 
                  alt="<?php echo htmlspecialchars($video['title']); ?>"
-                 onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>')">
+                 onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>', <?php echo $video['id']; ?>)">
         </div>
         <div class="video-info p-3 d-flex flex-column flex-grow-1">
             <h3 class="video-title mb-2"><?php echo htmlspecialchars($video['title']); ?></h3>
