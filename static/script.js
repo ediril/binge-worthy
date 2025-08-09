@@ -61,7 +61,9 @@ function extractYouTubeVideoId(url) {
 /**
  * Initialize the application
  */
+
 document.addEventListener('DOMContentLoaded', function() {
+    
     // Initialize tooltips if Bootstrap is loaded
     if (typeof bootstrap !== 'undefined') {
         const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -72,6 +74,19 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize thumbnail error handling
     initializeThumbnailErrorHandling();
+    
+    // Initialize the working fullscreen button
+    const fullscreenButton = document.getElementById('fullscreen-button');
+    if (fullscreenButton) {
+        console.log('Found fullscreen-button, adding click listener');
+        fullscreenButton.addEventListener('click', function(e) {
+            console.log('Fullscreen button clicked in script.js');
+            // Use the same function that works with F key
+            toggleCustomFullscreen();
+        });
+    } else {
+        console.log('fullscreen-button not found in script.js');
+    }
     
     // Add smooth scrolling for video rows
     const videoRows = document.querySelectorAll('.video-row');
@@ -1072,38 +1087,82 @@ function handleKeydown(e) {
  * Toggle custom fullscreen mode like scrubbler
  */
 function toggleCustomFullscreen() {
-    const wrapper = document.getElementById('video-player-wrapper');
-    if (!wrapper) return;
+    console.log('Toggle fullscreen called');
+    
+    // Get the video container element exactly like Scrubbler
+    const videoContainer = document.querySelector('.video-container');
     
     if (!window.isFullscreen) {
         console.log('Entering fullscreen');
+        // Try to enter fullscreen
         try {
-            if (wrapper.requestFullscreen) {
-                wrapper.requestFullscreen();
-            } else if (wrapper.mozRequestFullScreen) {
-                wrapper.mozRequestFullScreen();
-            } else if (wrapper.webkitRequestFullscreen) {
-                wrapper.webkitRequestFullscreen();
-            } else if (wrapper.msRequestFullscreen) {
-                wrapper.msRequestFullscreen();
+            // Check if we're on iOS
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            
+            if (isIOS) {
+                // For iOS, we'll use a custom fullscreen approach
+                document.body.classList.add('ios-fullscreen');
+                videoContainer.classList.add('ios-fullscreen');
+                window.isFullscreen = true;
+                
+                // Lock screen orientation if possible
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(() => {
+                        console.log('Orientation lock not supported');
+                    });
+                }
+            } else {
+                // Standard fullscreen for other devices
+                if (videoContainer.requestFullscreen) {
+                    videoContainer.requestFullscreen();
+                } else if (videoContainer.mozRequestFullScreen) { /* Firefox */
+                    videoContainer.mozRequestFullScreen();
+                } else if (videoContainer.webkitRequestFullscreen) { /* Chrome, Safari & Opera */
+                    videoContainer.webkitRequestFullscreen();
+                } else if (videoContainer.msRequestFullscreen) { /* IE/Edge */
+                    videoContainer.msRequestFullscreen();
+                }
+                window.isFullscreen = true;
             }
+            
+            // The fullscreenchange event will handle the event listeners
         } catch (err) {
-            console.error('Error entering fullscreen:', err);
+            console.error('Error attempting to enable fullscreen:', err);
         }
     } else {
         console.log('Exiting fullscreen');
+        // Exit fullscreen
         try {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            } else if (document.mozCancelFullScreen) {
-                document.mozCancelFullScreen();
-            } else if (document.webkitExitFullscreen) {
-                document.webkitExitFullscreen();
-            } else if (document.msExitFullscreen) {
-                document.msExitFullscreen();
+            // Check if we're on iOS
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            
+            if (isIOS) {
+                // For iOS, remove our custom fullscreen classes
+                document.body.classList.remove('ios-fullscreen');
+                videoContainer.classList.remove('ios-fullscreen');
+                window.isFullscreen = false;
+                
+                // Unlock screen orientation if possible
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
+            } else {
+                // Standard fullscreen exit for other devices
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.mozCancelFullScreen) { /* Firefox */
+                    document.mozCancelFullScreen();
+                } else if (document.webkitExitFullscreen) { /* Chrome, Safari & Opera */
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) { /* IE/Edge */
+                    document.msExitFullscreen();
+                }
+                window.isFullscreen = false;
             }
+            
+            // The fullscreenchange event will handle the event listeners
         } catch (err) {
-            console.error('Error exiting fullscreen:', err);
+            console.error('Error attempting to exit fullscreen:', err);
         }
     }
 }
@@ -1115,18 +1174,21 @@ function handleFullscreenChange() {
     const wrapper = document.getElementById('video-player-wrapper');
     const wasFullscreen = window.isFullscreen;
     
-    // Check current fullscreen state
+    // Check current fullscreen state - also check for iOS custom fullscreen
     const fullscreenElement = document.fullscreenElement || 
                              document.webkitFullscreenElement || 
                              document.mozFullScreenElement || 
                              document.msFullscreenElement;
     
-    window.isFullscreen = !!fullscreenElement;
+    const isIOSFullscreen = document.body.classList.contains('ios-fullscreen');
+    
+    window.isFullscreen = !!(fullscreenElement || isIOSFullscreen);
     
     console.log('Fullscreen state changed:', {
         wasFullscreen: wasFullscreen,
         nowFullscreen: window.isFullscreen,
-        fullscreenElement: fullscreenElement ? fullscreenElement.id : 'none'
+        fullscreenElement: fullscreenElement ? fullscreenElement.id : 'none',
+        isIOSFullscreen: isIOSFullscreen
     });
     
     if (window.isFullscreen && !wasFullscreen) {
@@ -1136,12 +1198,35 @@ function handleFullscreenChange() {
         if (wrapper) {
             wrapper.classList.add('custom-fullscreen-active');
         }
+        updateFullscreenButtonIcon(true);
     } else if (!window.isFullscreen && wasFullscreen) {
         console.log('Exited fullscreen');
         document.body.classList.remove('custom-fullscreen-active');
         if (wrapper) {
             wrapper.classList.remove('custom-fullscreen-active');
         }
+        updateFullscreenButtonIcon(false);
+    }
+}
+
+/**
+ * Update fullscreen button icon based on fullscreen state
+ */
+function updateFullscreenButtonIcon(isFullscreen) {
+    const button = document.getElementById('fullscreen-button');
+    if (!button) return;
+    
+    const svg = button.querySelector('svg');
+    if (!svg) return;
+    
+    if (isFullscreen) {
+        // Exit fullscreen icon
+        svg.innerHTML = '<path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>';
+        button.title = 'Exit Fullscreen (F)';
+    } else {
+        // Enter fullscreen icon  
+        svg.innerHTML = '<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>';
+        button.title = 'Enter Fullscreen (F)';
     }
 }
 

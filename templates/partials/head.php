@@ -64,5 +64,11 @@ $current_url = $site_url . $_SERVER['REQUEST_URI'];
             <link rel="stylesheet" href="<?php echo htmlspecialchars($css_url); ?>">
         <?php endforeach; ?>
     <?php endif; ?>
-    <link rel="stylesheet" href="./static/styles.css?v=<?php echo time(); ?>">
+    <?php 
+    // Temporary aggressive cache busting for testing
+    $css_file = __DIR__ . '/../../static/styles.css';
+    // Add current minute to force refresh every minute
+    $css_version = file_exists($css_file) ? filemtime($css_file) . '-' . date('YmdHi') : time();
+    ?>
+    <link rel="stylesheet" href="/static/styles.css?v=<?php echo $css_version; ?>">
 </head> 

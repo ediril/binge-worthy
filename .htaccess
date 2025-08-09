@@ -35,6 +35,12 @@ RewriteRule ^ index.php [L,QSA]
     Allow from all
 </FilesMatch>
 
+# Smart caching for JS and CSS - must revalidate with server
+<FilesMatch "\.(js|css)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+    Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
+</FilesMatch>
+
 # PHP settings
 <IfModule mod_php.c>
     php_flag display_errors On
