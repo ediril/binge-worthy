@@ -32,6 +32,7 @@ $options = [
     'recent' => false,
     'list-chans' => false,
     'force' => false,
+    'remove-shorts' => false,
     'help' => false
 ];
 
@@ -54,6 +55,8 @@ foreach ($argv as $arg) {
         $options['list-chans'] = true;
     } elseif ($arg === '--force') {
         $options['force'] = true;
+    } elseif ($arg === '--remove-shorts') {
+        $options['remove-shorts'] = true;
     } elseif ($arg === '--help' || $arg === '-h') {
         $options['help'] = true;
     }
@@ -79,6 +82,7 @@ if ($options['help']) {
     echo "                     Cannot be used with --chan-id\n";
     echo "  --list-chans       List all channels with IDs and video counts\n";
     echo "  --force            Force fetch regardless of last_fetched timestamp\n";
+    echo "  --remove-shorts    Remove any Shorts found in RSS feeds from the database\n";
     echo "  --dry-run          Show what would be added without actually adding videos\n";
     echo "  --help, -h         Show this help message\n\n";
     echo "Examples:\n";
@@ -169,6 +173,8 @@ try {
     $total_skipped = 0;
     $total_errors = 0;
     $total_timestamp_updates = 0;
+    $total_shorts_skipped = 0;
+    $total_shorts_removed = 0;
     
     foreach ($channels as $channel) {
         echo "Processing: {$channel['name']} (ID: {$channel['id']})\n";
@@ -189,7 +195,10 @@ try {
             echo "  Backfill mode: Fetching additional videos beyond latest ones\n";
         }
         
-        $videos = fetch_channel_videos($channel['youtube_url'], $options['limit'], !$options['backfill']);
+        $fetch_result = fetch_channel_videos($channel['youtube_url'], $options['limit'], !$options['backfill']);
+        $videos = $fetch_result['videos'];
+        $shorts_skipped = $fetch_result['shorts_skipped'] ?? 0;
+        $shorts_found = $fetch_result['shorts_found'] ?? [];
         
         if ($videos === null) {
             echo "  ERROR: Could not fetch videos for this channel\n";
@@ -197,8 +206,32 @@ try {
             continue;
         }
         
+        // Handle removing Shorts from database if requested
+        if ($options['remove-shorts'] && !empty($shorts_found)) {
+            $removed_count = 0;
+            foreach ($shorts_found as $short_url) {
+                if (!$options['dry-run']) {
+                    $delete_stmt = $db->prepare("DELETE FROM videos WHERE video_url = ?");
+                    if ($delete_stmt->execute([$short_url])) {
+                        $removed_count += $delete_stmt->rowCount();
+                    }
+                }
+            }
+            if ($options['dry-run']) {
+                echo "  [DRY RUN] Would remove " . count($shorts_found) . " Shorts from database\n";
+                $total_shorts_removed += count($shorts_found);
+            } else if ($removed_count > 0) {
+                echo "  Removed {$removed_count} Shorts from database\n";
+                $total_shorts_removed += $removed_count;
+            }
+        }
+        
+        if ($shorts_skipped > 0) {
+            echo "  Skipped {$shorts_skipped} Shorts\n";
+        }
+        
         if (empty($videos)) {
-            echo "  No videos found for this channel\n";
+            echo "  No regular videos found for this channel\n";
             continue;
         }
         
@@ -211,7 +244,8 @@ try {
             echo "  Backfill mode: Fetching from YouTube (limit: ~30 videos per channel)\n";
             
             // Since YouTube only provides ~30 videos, just fetch once
-            $backfill_videos = fetch_channel_videos($channel['youtube_url'], 50, false);
+            $backfill_result = fetch_channel_videos($channel['youtube_url'], 50, false);
+            $backfill_videos = $backfill_result['videos'];
             
             if (!$backfill_videos || empty($backfill_videos)) {
                 echo "  No videos could be fetched\n";
@@ -253,6 +287,7 @@ try {
         $total_added += $added_count;
         $total_skipped += $skipped_count;
         $total_timestamp_updates += $timestamp_updates;
+        $total_shorts_skipped += $shorts_skipped;
         
         // Update last_fetched timestamp for this channel
         if (!$options['dry-run']) {
@@ -267,6 +302,12 @@ try {
     echo "\n=== SUMMARY ===\n";
     echo "Total videos added: {$total_added}\n";
     echo "Total videos skipped: {$total_skipped}\n";
+    if ($total_shorts_skipped > 0) {
+        echo "Total Shorts filtered out: {$total_shorts_skipped}\n";
+    }
+    if ($total_shorts_removed > 0) {
+        echo "Total Shorts removed from database: {$total_shorts_removed}\n";
+    }
     if ($total_timestamp_updates > 0) {
         echo "Total timestamps updated: {$total_timestamp_updates}\n";
     }
@@ -292,11 +333,12 @@ try {
  */
 function fetch_channel_videos($channel_url, $limit, $use_rss = false) {
     if ($use_rss) {
-        return fetch_channel_videos_rss($channel_url, $limit);
+        $result = fetch_channel_videos_rss($channel_url, $limit);
+        return ['videos' => $result['videos'], 'shorts_skipped' => $result['shorts_skipped'], 'shorts_found' => $result['shorts_found']];
     }
     
-    // Use web scraping for backfill
-    return fetch_channel_videos_scraping($channel_url, $limit);
+    // Use web scraping for backfill (doesn't skip shorts as /videos page doesn't include them)
+    return ['videos' => fetch_channel_videos_scraping($channel_url, $limit), 'shorts_skipped' => 0, 'shorts_found' => []];
 }
 
 /**
@@ -307,7 +349,7 @@ function fetch_channel_videos_rss($channel_url, $limit = 10) {
     $channel_id = extract_youtube_channel_id($channel_url);
     
     if (!$channel_id) {
-        return null;
+        return ['videos' => null, 'shorts_skipped' => 0, 'shorts_found' => []];
     }
     
     // For RSS feeds, we need the actual channel ID (UC format)
@@ -332,24 +374,39 @@ function fetch_channel_videos_rss($channel_url, $limit = 10) {
     $rss_content = @file_get_contents($rss_url, false, $context);
     
     if ($rss_content === false) {
-        return null;
+        return ['videos' => null, 'shorts_skipped' => 0, 'shorts_found' => []];
     }
     
     $videos = [];
+    $shorts_skipped = 0;
+    $shorts_found = [];
     
     // Parse RSS XML
     $xml = @simplexml_load_string($rss_content);
     if (!$xml) {
-        return null;
+        return ['videos' => null, 'shorts_skipped' => 0, 'shorts_found' => []];
     }
     
     $count = 0;
     foreach ($xml->entry as $entry) {
-        if ($count >= $limit) {
-            break;
+        // Check if this is a Short by looking at the link
+        $link = (string)$entry->link['href'];
+        $video_id = (string)$entry->children('http://www.youtube.com/xml/schemas/2015')->videoId;
+        
+        if (strpos($link, '/shorts/') !== false) {
+            // Track this Short
+            $shorts_skipped++;
+            if ($video_id) {
+                $shorts_found[] = "https://youtube.com/watch?v=" . $video_id;
+            }
+            continue;
         }
         
-        $video_id = (string)$entry->children('http://www.youtube.com/xml/schemas/2015')->videoId;
+        // Only add regular videos up to the limit
+        if ($count >= $limit) {
+            continue;
+        }
+        
         $title = (string)$entry->title;
         $published = (string)$entry->published;
         
@@ -368,7 +425,7 @@ function fetch_channel_videos_rss($channel_url, $limit = 10) {
         }
     }
     
-    return $videos;
+    return ['videos' => $videos, 'shorts_skipped' => $shorts_skipped, 'shorts_found' => $shorts_found];
 }
 
 /**
@@ -480,11 +537,6 @@ function fetch_channel_videos_scraping($channel_url, $limit = 10) {
         $video_id = $match[1];
         $title = html_entity_decode($match[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $published_text = isset($match[3]) ? $match[3] : '';
-        
-        // Skip shorts and livestreams
-        if (strlen($title) < 10 || str_contains(strtolower($title), '#shorts')) {
-            continue;
-        }
         
         // Convert relative date to actual date if possible
         $published_date = null;
