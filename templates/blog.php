@@ -21,13 +21,33 @@ $current_page = 'blog';
             <div class="col-lg-10 col-md-11">
                 <div class="about-content">
                     <h1 class="text-center mb-4">Blog</h1>
-                </div>
-                
+                </div>                
                 <div class="blog-content">
-                    <!-- Blog Post -->
-                    <div class="blog-post mb-5">
-                        <h2 id="august-1-2025" class="blog-post__title">
-                            <a href="#august-1-2025" class="blog-post__link">August 1, 2025</a>
+                    <div class="blog-post mb-4">
+                        <h2 id="2025-08-10" class="blog-post__title">
+                            <a href="#2025-08-10" class="blog-post__link">August 10, 2025</a>
+                        </h2>
+                        <div class="blog-post__content">
+                            <p>
+                                I love the concept of improving a product little by litte, day by day; letting those improvements
+                                accumulate over time to better and better experiences for users.
+                            </p>
+                            <p>
+                                I spent time this weekend to add a video player. It is the same player that YouTube provides, but well integrated
+                                to this site. When the video ends, it will suggest both the next video in the same channel, which provides a "playlist"
+                                like experience. It will also provide suggestions for videos from other channels as well in case you don't wish to continue 
+                                with the same channel.
+                            </p>
+                            <p>
+                                Just a small improvement but there are many more to come. Right now there is no way to personalize the site
+                                for each user and I think that would be a very good area to work on next.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="blog-post mb-4">
+                        <h2 id="2025-08-01" class="blog-post__title">
+                            <a href="#2025-08-01" class="blog-post__link">August 1, 2025</a>
                         </h2>
                         <div class="blog-post__content">
                             <p>
@@ -41,7 +61,8 @@ $current_page = 'blog';
                                 So stay tuned!
                             </p>
                         </div>
-                    </div>                    
+                    </div>
+
                 </div>
             </div>
         </div>
