@@ -23,7 +23,7 @@ try {
     $db = getDB();
     
     // Search for video by YouTube ID in the video URL
-    $stmt = $db->prepare('SELECT id FROM videos WHERE video_url LIKE ? AND is_active = 1 LIMIT 1');
+    $stmt = $db->prepare('SELECT id FROM videos WHERE video_url LIKE ? LIMIT 1');
     $stmt->execute(["%{$youtube_id}%"]);
     $video = $stmt->fetch(PDO::FETCH_ASSOC);
     
