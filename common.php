@@ -174,7 +174,7 @@ function generate_next_video_section($db, $video) {
     }
 
     if (!$video || !$next_video) {
-        $html .= '<h4>No more videos in ' . htmlspecialchars($video['channel_title']) . '</h4>';
+        $html .= '<h4>No more new videos in ' . htmlspecialchars($video['channel_title']) . '</h4>';
         $html .= '<p class="text-muted">Try one of the suggested videos below.</p>';
         $html .= '</div>';
         return $html;
