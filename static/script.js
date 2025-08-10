@@ -616,21 +616,6 @@ function onYouTubeIframeAPIReady() {
 function onPlayerReady(event) {
     console.log('YouTube player is ready');
     
-    // Debug player configuration
-    const iframe = event.target.getIframe();
-    console.log('Player iframe element:', iframe);
-    console.log('Player iframe src:', iframe.src);
-    console.log('Current video ID from player:', event.target.getVideoData());
-    console.log('Player state at ready:', event.target.getPlayerState());
-    
-    // Debug: Test if navigateToVideo function is available
-    console.log('navigateToVideo function available:', typeof navigateToVideo);
-    window.testVideoSwitch = () => {
-        console.log('Testing video switch manually...');
-        navigateToVideo('3885'); // Use a test video ID
-    };
-    console.log('Added window.testVideoSwitch() for manual testing');
-    
     // Try to hide fullscreen button with CSS injection
     hideFullscreenButton();
     
@@ -907,7 +892,6 @@ function onPlayerStateChange(event) {
  * Show video end overlay
  */
 function showVideoOverlay() {
-    console.log('Attempting to show overlay');
     const overlay = document.getElementById('video-end-overlay');
     if (overlay) {
         console.log('Overlay found, showing overlay');
@@ -928,22 +912,10 @@ function showVideoOverlay() {
         
         // First set display to flex (but still invisible due to opacity: 0)
         overlay.style.display = 'flex';
-        console.log('Set overlay display to flex');
         
         // Then trigger the transition by adding the show class after a brief delay
         setTimeout(() => {
             overlay.classList.add('show');
-            console.log('Added show class to overlay');
-            console.log('Overlay final classes:', overlay.className);
-            console.log('Overlay final styles:', {
-                display: overlay.style.display,
-                zIndex: overlay.style.zIndex,
-                position: getComputedStyle(overlay).position,
-                top: getComputedStyle(overlay).top,
-                left: getComputedStyle(overlay).left,
-                width: getComputedStyle(overlay).width,
-                height: getComputedStyle(overlay).height
-            });
         }, 10);
         
         // Start countdown for next video
@@ -1257,7 +1229,6 @@ function hideVideoOverlay() {
  * Start countdown for next video (normal mode)
  */
 function startNextVideoCountdown() {
-    console.log('Starting next video countdown...');
     const nextVideoCard = document.querySelector('.next-video-card');
     if (!nextVideoCard) {
         console.log('No next video card found');
@@ -1520,7 +1491,9 @@ function swapVideoPlayer(youtubeId, videoId) {
 function swapToNewVideo(videoId, youtubeId = null) {
     console.log('=== SWAPPING VIDEO ===');
     console.log('Video ID:', videoId, 'YouTube ID:', youtubeId);
-    
+
+    // TODO: GET RID OF YOUTUBEID path below
+/*    
     // If we have the YouTube ID directly, use it but still fetch video info for overlay
     if (youtubeId) {
         console.log('Using direct YouTube ID for video swap');
@@ -1555,7 +1528,8 @@ function swapToNewVideo(videoId, youtubeId = null) {
             });
         return;
     }
-    
+*/
+
     // Otherwise fetch from API
     console.log('=== FETCHING VIDEO INFO ===');
     console.log('Fetching video information for:', videoId);
@@ -1587,14 +1561,15 @@ function swapToNewVideo(videoId, youtubeId = null) {
                 updateVideoDisplay(video);
                 
                 // Load the new video in the existing player
-                const youtubeId = extractYouTubeVideoId(video.video_url);
-                console.log('Extracted YouTube ID:', youtubeId);
-                
                 if (youtubeId) {
-                    swapVideoPlayer(youtubeId, videoId);
+                    console.log('Already have YouTube ID:', youtubeId);
                 } else {
-                    console.error('Could not extract YouTube ID from:', video.video_url);
+                    youtubeId = extractYouTubeVideoId(video.video_url);
+                    console.log('Extracted YouTube ID:', youtubeId);
                 }
+
+                // Swap video
+                swapVideoPlayer(youtubeId, videoId);
                 
                 // Update overlay content for new video
                 updateOverlayContent(video);
@@ -1602,21 +1577,21 @@ function swapToNewVideo(videoId, youtubeId = null) {
                 
             } else {
                 console.error('API returned failure:', data);
-                console.log('API failed, but NOT falling back to page navigation to preserve fullscreen');
-                console.log('Trying direct video load instead...');
+                // console.log('API failed, but NOT falling back to page navigation to preserve fullscreen');
+                // console.log('Trying direct video load instead...');
                 
-                // Instead of page navigation, try to load video directly
-                if (window.player && window.player.loadVideoById) {
-                    // The videoId is our database ID, but we need the YouTube ID
-                    // Let's try to get it from the API response first, or make another API call
-                    console.log('API failed, but we still need YouTube ID for database ID:', videoId);
-                    console.log('Unfortunately cannot load video without YouTube ID');
-                    console.log('Must fall back to page navigation to get proper video data');
-                    window.location.href = `/play?id=${videoId}`;
-                } else {
-                    console.log('Player not available, falling back to page navigation');
-                    window.location.href = `/play?id=${videoId}`;
-                }
+                // // Instead of page navigation, try to load video directly
+                // if (window.player && window.player.loadVideoById) {
+                //     // The videoId is our database ID, but we need the YouTube ID
+                //     // Let's try to get it from the API response first, or make another API call
+                //     console.log('API failed, but we still need YouTube ID for database ID:', videoId);
+                //     console.log('Unfortunately cannot load video without YouTube ID');
+                //     console.log('Must fall back to page navigation to get proper video data');
+                //     window.location.href = `/play?id=${videoId}`;
+                // } else {
+                //     console.log('Player not available, falling back to page navigation');
+                //     window.location.href = `/play?id=${videoId}`;
+                // }
             }
         })
         .catch(error => {
@@ -1678,66 +1653,35 @@ function updateOverlayContent(video) {
 }
 
 function updateNextVideoSection(video) {
-    console.log('Updating next video section for channel:', video.channel_id);
-    
-    if (!video.channel_id) {
-        console.log('No channel ID available, showing no more videos message');
-        const nextVideoContainer = document.querySelector('.next-video-container');
-        if (nextVideoContainer) {
-            nextVideoContainer.innerHTML = '<p class="text-muted">No more videos in this channel</p>';
-        }
-        return;
-    }
-    
-    // Fetch a random video from the same channel
-    fetch(`/api/channel-videos.php?channel_id=${video.channel_id}&exclude=${video.id}&limit=1`)
+    console.log('>>>> Updating next video section for video:', video.id, video.published_at, video.channel_id);
+
+    // Fetch the complete HTML for the next video section
+    fetch(`/api/next-video-section.php?video_ts=${video.published_at}&channel_id=${video.channel_id}`)
         .then(response => response.json())
         .then(data => {
-            if (data.success && data.videos.length > 0) {
-                const nextVideo = data.videos[0];
-                console.log('Found next video:', nextVideo);
+            console.log('>>> Fetched next video section data:', data);
+
+            if (data.success && data.html) {
+                console.log('Replaced next video section HTML from server');
                 
-                // Update the next video card HTML
-                const nextVideoContainer = document.querySelector('.next-video-container');
-                if (nextVideoContainer) {
-                    const youtubeId = extractYouTubeVideoId(nextVideo.video_url);
-                    const thumbnail = nextVideo.thumbnail_url || `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`;
+                // Find the existing overlay section for next video
+                const overlaySection = document.querySelector('.overlay-sections .overlay-section:first-child');
+                if (overlaySection) {
+                    // Create a temporary container to parse the HTML
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = data.html;
+                    const newSection = tempDiv.firstElementChild;
                     
-                    nextVideoContainer.innerHTML = `
-                        <div class="next-video-card" data-video-id="${nextVideo.id}" data-youtube-id="${youtubeId}">
-                            <div class="next-video-thumbnail-container">
-                                <img src="${thumbnail}" 
-                                     class="next-video-thumbnail" 
-                                     alt="${nextVideo.title}">
-                                <div class="countdown-overlay">
-                                    <div class="countdown-circle">
-                                        <span id="countdown-number">10</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="next-video-info">
-                                <h5 class="next-video-title">
-                                    ${nextVideo.title}
-                                </h5>
-                                <p class="next-video-channel">
-                                    ${nextVideo.channel_name}
-                                </p>
-                                <p class="next-video-countdown">Starting in <span id="countdown-text">10</span> seconds...</p>
-                            </div>
-                        </div>
-                    `;
-                    console.log('Updated next video card HTML - handlers will be re-initialized when overlay shows');
+                    // Replace the entire section
+                    overlaySection.replaceWith(newSection);
+                    console.log('Updated next video section HTML - handlers will be re-initialized when overlay shows');
                 }
             } else {
-                console.log('No more videos in this channel');
-                const nextVideoContainer = document.querySelector('.next-video-container');
-                if (nextVideoContainer) {
-                    nextVideoContainer.innerHTML = '<p class="text-muted">No more videos in this channel</p>';
-                }
+                console.error('Failed to get next video section HTML:', data.error);
             }
         })
         .catch(error => {
-            console.error('Error fetching next video:', error);
+            console.error('Error fetching next video section:', error);
         });
 }
 
@@ -1786,21 +1730,10 @@ function updateSuggestedVideosSection(video) {
 }
 
 /**
- * Initialize event handlers for the next video card
- */
-function initializeNextVideoCard() {
-    // The countdown function handles the next video card initialization
-    // Just restart the countdown for the new card
-    console.log('Re-initializing next video card after HTML update');
-    startNextVideoCountdown();
-}
-
-/**
  * Initialize event handlers for suggested video cards
  */
 function initializeSuggestedVideoCards() {
     const suggestedCards = document.querySelectorAll('.overlay-video-card');
-    console.log('Initializing suggested video card handlers, found:', suggestedCards.length);
     
     suggestedCards.forEach(card => {
         const videoId = card.getAttribute('data-video-id');

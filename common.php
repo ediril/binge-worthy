@@ -149,6 +149,73 @@ function get_suggested_videos($db, $limit) {
 }
 
 /**
+ * Get the chronologically next video from the same channel
+ */
+function get_next_channel_video($db, $channel_id, $published_at) {
+    $stmt = $db->prepare('SELECT v.*, c.name as channel_title 
+                          FROM videos v 
+                          LEFT JOIN channels c ON v.channel_id = c.id 
+                          WHERE v.published_at > ? AND v.channel_id = ?
+                          ORDER BY v.published_at ASC
+                          LIMIT 1');
+    $stmt->execute([$published_at, $channel_id]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Generate the next video section HTML for the overlay
+ */
+function generate_next_video_section($db, $video) {
+    $html = '<div class="overlay-section">';
+    
+    $next_video = null;
+    if ($video) {
+        $next_video = get_next_channel_video($db, $video['channel_id'], $video['published_at']);
+    }
+
+    if (!$video || !$next_video) {
+        $html .= '<h4>No more videos in ' . htmlspecialchars($video['channel_title']) . '</h4>';
+        $html .= '<p class="text-muted">Try one of the suggested videos below.</p>';
+        $html .= '</div>';
+        return $html;
+    }
+
+    $html .= '<h2 class="overlay-title">What\'s Next?</h2>';
+    $html .= '<h4>The next video in ' . htmlspecialchars($next_video['channel_title']) . '</h4>';
+    $html .= '<div class="next-video-container">';
+
+    $next_youtube_id = extractYouTubeId($next_video['video_url']);
+    $next_thumbnail = getVideoThumbnail($next_youtube_id);
+    
+    $html .= '<div class="next-video-card" data-video-id="' . $next_video['id'] . '" data-youtube-id="' . htmlspecialchars($next_youtube_id) . '">';
+    $html .= '<div class="next-video-thumbnail-container">';
+    $html .= '<img src="' . htmlspecialchars($next_video['thumbnail_url'] ?: $next_thumbnail) . '" ';
+    $html .= 'class="next-video-thumbnail" ';
+    $html .= 'alt="' . htmlspecialchars($next_video['title']) . '">';
+    $html .= '<div class="countdown-overlay">';
+    $html .= '<div class="countdown-circle">';
+    $html .= '<span id="countdown-number">10</span>';
+    $html .= '</div>';
+    $html .= '</div>';
+    $html .= '</div>';
+    $html .= '<div class="next-video-info">';
+    $html .= '<h5 class="next-video-title">';
+    $html .= htmlspecialchars($next_video['title']);
+    $html .= '</h5>';
+    $html .= '<p class="next-video-channel">';
+    $html .= htmlspecialchars($next_video['channel_title']);
+    $html .= '</p>';
+    $html .= '<p class="next-video-countdown">Starting in <span id="countdown-text">10</span> seconds...</p>';
+    $html .= '</div>';
+    $html .= '</div>';
+    $html .= '</div>';
+    
+    $html .= '</div>';
+    
+    return $html;
+}
+
+/**
  * Get all channels
  */
 function get_all_channels($db) {

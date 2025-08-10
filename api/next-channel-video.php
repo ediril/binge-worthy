@@ -14,14 +14,13 @@ require_once __DIR__ . '/../database.php';
 require_once __DIR__ . '/../common.php';
 
 $channel_id = $_GET['channel_id'] ?? '';
-$exclude_id = $_GET['exclude'] ?? '';
-$limit = (int)($_GET['limit'] ?? 10);
+$published_at = $_GET['published_at'] ?? '';
 
-if (empty($channel_id)) {
+if (empty($channel_id) || empty($published_at)) {
     http_response_code(400);
     echo json_encode([
         'success' => false,
-        'error' => 'Channel ID is required'
+        'error' => 'Channel ID and published_at are required'
     ]);
     exit;
 }
@@ -29,28 +28,12 @@ if (empty($channel_id)) {
 try {
     $db = get_database();
     
-    // Build query to get videos from the channel, excluding the current one
-    $sql = 'SELECT v.*, c.name as channel_name 
-            FROM videos v 
-            LEFT JOIN channels c ON v.channel_id = c.id 
-            WHERE v.channel_id = ?';
-    $params = [$channel_id];
-    
-    if (!empty($exclude_id)) {
-        $sql .= ' AND v.id != ?';
-        $params[] = $exclude_id;
-    }
-    
-    $sql .= ' ORDER BY RANDOM() LIMIT ?';
-    $params[] = $limit;
-    
-    $stmt = $db->prepare($sql);
-    $stmt->execute($params);
-    $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Use the shared function to get the next video
+    $next_video = get_next_channel_video($db, $channel_id, $published_at);
     
     echo json_encode([
         'success' => true,
-        'videos' => $videos
+        'video' => $next_video
     ]);
 
 } catch (Exception $e) {

@@ -82,52 +82,11 @@ $page_description = 'Watch ' . $video['title'] . ' on BingeWorthy';
             <div id="video-end-overlay" class="video-end-overlay">
                 <button class="overlay-close" onclick="hideVideoOverlay()">&times;</button>
                 <div class="overlay-content">
-                    <h2 class="overlay-title">What's Next?</h2>
                     <div class="overlay-sections">
                         <!-- Next Video from Channel -->
-                        <div class="overlay-section">
-                            <h4>The next video in <?php echo htmlspecialchars($video['channel_title']); ?></h4>
-                            <div class="next-video-container">
-                                <?php
-                                $stmt = $db->prepare('SELECT v.*, c.name as channel_title 
-                                                      FROM videos v 
-                                                      LEFT JOIN channels c ON v.channel_id = c.id 
-                                                      WHERE v.id != ? AND v.channel_id = ?
-                                                      ORDER BY RANDOM() 
-                                                      LIMIT 1');
-                                $stmt->execute([$video_id, $video['channel_id']]);
-                                $next_video = $stmt->fetch(PDO::FETCH_ASSOC);
-                                
-                                if ($next_video): 
-                                    $next_youtube_id = extractYouTubeId($next_video['video_url']);
-                                    $next_thumbnail = getVideoThumbnail($next_youtube_id);
-                                ?>
-                                <div class="next-video-card" data-video-id="<?php echo $next_video['id']; ?>" data-youtube-id="<?php echo htmlspecialchars($next_youtube_id); ?>">
-                                    <div class="next-video-thumbnail-container">
-                                        <img src="<?php echo htmlspecialchars($next_video['thumbnail_url'] ?: $next_thumbnail); ?>" 
-                                             class="next-video-thumbnail" 
-                                             alt="<?php echo htmlspecialchars($next_video['title']); ?>">
-                                        <div class="countdown-overlay">
-                                            <div class="countdown-circle">
-                                                <span id="countdown-number">10</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="next-video-info">
-                                        <h5 class="next-video-title">
-                                            <?php echo htmlspecialchars($next_video['title']); ?>
-                                        </h5>
-                                        <p class="next-video-channel">
-                                            <?php echo htmlspecialchars($next_video['channel_title']); ?>
-                                        </p>
-                                        <p class="next-video-countdown">Starting in <span id="countdown-text">10</span> seconds...</p>
-                                    </div>
-                                </div>
-                                <?php else: ?>
-                                <p class="text-muted">No more videos in this channel</p>
-                                <?php endif; ?>
-                            </div>
-                        </div>
+                        <?php 
+                            echo generate_next_video_section($db, $video); 
+                        ?>
                         
                         <!-- Suggested Videos -->
                         <div class="overlay-section">
