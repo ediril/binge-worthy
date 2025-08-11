@@ -29,6 +29,37 @@ $current_page = 'blog';
                         </h2>
                         <div class="blog-post__content">
                             <p>
+                                I hit a snag while vibe coding the video player feature. There was a minor bug, it was supposed to suggest the next video in the channel when the current video ends, and it did the first time but not the subsequent times.
+                            </p><p>
+                                The bad news is, despite trying, starting over and trying again several times, claude code just couldn't crack it.
+                            </p><p>
+                                If i was not a developer, i would have been lost.. Luckily I'm a developer and I should be able to fix it myself.
+                            </p><p>
+                                The good news is, when i dug into the code, i found it to be well organized, well commented and overall pleasant to work with. I see many devs, especially senior ones, ripping vibe code to shreds. What I have in my hands is quite good. I didn't count exactly but I think it is at several 1000s of lines at this point. Not huge but not too shabby either.
+                            </p><p>
+                                The issue turned out to be easy although it did span a few layers and it was sort of recursive in nature (not exactly but hard to explain without going into details)
+                            </p><p>
+                                Once I figured out what the issue was, I got CC to help me implement the fix too, which it executed masterfully.
+                            </p><p>
+                                All in all, it was good experience to see what was happening in the code because I haven't really been looking at it since the start.
+                            </p><p>
+                                Trying to figure out the issue did take some effort but the overall mental effort on my part was still much less than what it would have been without AI assistance.
+                            </p><p>
+                                I've been vibe coding since April and my experience is still that of AI being a net positive, a big net positive. I'm able to do things I have not been able to do due to lack of time and mental energy. 
+                            </p><p>
+                                That said, will you have similar results if you are not an experienced dev? Your milage will vary, but it's fair to say you simply won't be able to go as far.
+                            </p><p>
+                                I'm not sure what it is like with Replit, Lovable and the others though. Maybe they are superior in how far they can take someone with little to no dev experience.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="blog-post mb-4">
+                        <h2 id="2025-08-09" class="blog-post__title">
+                            <a href="#2025-08-09" class="blog-post__link">August 9, 2025</a>
+                        </h2>
+                        <div class="blog-post__content">
+                            <p>
                                 I love the concept of improving a product little by litte, day by day; letting those improvements
                                 accumulate over time to better and better experiences for users.
                             </p>
