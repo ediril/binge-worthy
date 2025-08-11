@@ -989,7 +989,7 @@ body.fullscreen-mode *:hover {
     width: 44px;
     height: 44px;
     border-radius: 6px;
-    display: none;
+    display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
@@ -1155,11 +1155,14 @@ body.ios-fullscreen {
     pointer-events: none;
 }
 
-/* Show mobile controls on tablet and phone screens */
-@media (max-width: 1024px) {
-    .fullscreen-button {
-        display: flex;
-    }
+/* Hide fullscreen button when in fullscreen mode */
+.video-container:fullscreen .fullscreen-button,
+.video-container:-webkit-full-screen .fullscreen-button,
+.video-container:-moz-full-screen .fullscreen-button,
+body.custom-fullscreen-active .fullscreen-button,
+.video-container.custom-fullscreen-active .fullscreen-button,
+.ios-fullscreen .fullscreen-button {
+    display: none !important;
 }
 
 /* Mobile controls in fullscreen */

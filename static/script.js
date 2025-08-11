@@ -800,10 +800,44 @@ function showClickToPlayHint() {
 }
 
 /**
+ * Update fullscreen button visibility based on video playing state
+ */
+function updateFullscreenButtonVisibility(playerState) {
+    // Apply this logic on all devices - hide when playing, show when paused
+    
+    const button = document.getElementById('fullscreen-button');
+    if (!button) return;
+    
+    const isPlaying = (playerState === YT.PlayerState.PLAYING);
+    const isPaused = (playerState === YT.PlayerState.PAUSED);
+    const isBuffering = (playerState === YT.PlayerState.BUFFERING);
+    
+    console.log('FS button visibility update - Playing:', isPlaying, 'Paused:', isPaused, 'Buffering:', isBuffering);
+    
+    if (isPlaying || isBuffering) {
+        // Hide button when video is playing or buffering (clean viewing experience)
+        console.log('Hiding FS button (video playing/buffering)');
+        button.style.setProperty('display', 'none', 'important');
+        button.style.setProperty('visibility', 'hidden', 'important');
+        button.style.setProperty('opacity', '0', 'important');
+    } else if (isPaused) {
+        // Show button when video is paused (access to fullscreen controls)
+        console.log('Showing FS button (video paused)');
+        button.style.setProperty('display', 'flex', 'important');
+        button.style.setProperty('visibility', 'visible', 'important');
+        button.style.setProperty('opacity', '0.9', 'important');
+    }
+    // For other states (ended, cued, unstarted), keep current visibility
+}
+
+/**
  * Handle player state changes
  */
 function onPlayerStateChange(event) {
     console.log('Player state changed:', event.data);
+    
+    // Update fullscreen button visibility based on play/pause state
+    updateFullscreenButtonVisibility(event.data);
     
     // Handle video swapping autoplay and fullscreen restoration
     if (event.data === YT.PlayerState.CUED || event.data === YT.PlayerState.UNSTARTED) {
@@ -1059,13 +1093,16 @@ function handleKeydown(e) {
  * Toggle custom fullscreen mode like scrubbler
  */
 function toggleCustomFullscreen() {
-    console.log('Toggle fullscreen called');
+    console.log('=== Toggle fullscreen called ===');
+    console.log('Current window.isFullscreen:', window.isFullscreen);
+    console.log('Current document.fullscreenElement:', document.fullscreenElement);
     
     // Get the video container element exactly like Scrubbler
     const videoContainer = document.querySelector('.video-container');
+    console.log('Found video container:', !!videoContainer);
     
     if (!window.isFullscreen) {
-        console.log('Entering fullscreen');
+        console.log('=== ENTERING FULLSCREEN ===');
         // Try to enter fullscreen
         try {
             // Check if we're on iOS
@@ -1156,29 +1193,24 @@ function handleFullscreenChange() {
     
     window.isFullscreen = !!(fullscreenElement || isIOSFullscreen);
     
-    console.log('Fullscreen state changed:', {
-        wasFullscreen: wasFullscreen,
-        nowFullscreen: window.isFullscreen,
-        fullscreenElement: fullscreenElement ? fullscreenElement.id : 'none',
-        isIOSFullscreen: isIOSFullscreen
-    });
-    
+    // Handle fullscreen state changes
     if (window.isFullscreen && !wasFullscreen) {
-        console.log('Entered fullscreen');
+        // Entering fullscreen
         document.body.classList.add('custom-fullscreen-active');
-        // Apply fullscreen styles to wrapper
         if (wrapper) {
             wrapper.classList.add('custom-fullscreen-active');
         }
         updateFullscreenButtonIcon(true);
     } else if (!window.isFullscreen && wasFullscreen) {
-        console.log('Exited fullscreen');
+        // Exiting fullscreen
         document.body.classList.remove('custom-fullscreen-active');
         if (wrapper) {
             wrapper.classList.remove('custom-fullscreen-active');
         }
         updateFullscreenButtonIcon(false);
     }
+    
+    // Button visibility is controlled by video play/pause state only
 }
 
 /**
