@@ -664,7 +664,16 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                             'empty_message' => 'No channels added yet. Add your first channel above!',
                             'columns' => [
                                 ['title' => 'ID', 'key' => 'id', 'type' => 'text'],
-                                ['title' => 'Name', 'key' => 'name', 'type' => 'link', 'url_key' => 'youtube_url'],
+                                [
+                                    'title' => 'Name',
+                                    'render' => function($row) {
+                                        return sprintf(
+                                            '<a href="/channel?id=%d" class="text-info text-decoration-underline">%s</a>',
+                                            $row['id'],
+                                            htmlspecialchars($row['name'])
+                                        );
+                                    }
+                                ],
                                 ['title' => 'Description', 'key' => 'description', 'type' => 'truncated_text', 'truncate' => 200],
                                 [
                                     'title' => 'Category',
@@ -690,6 +699,12 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                         return sprintf(
                                             '<div class="row g-1">
                                                 <div class="col-6">
+                                                    <a href="%s" target="_blank" class="btn btn-sm btn-outline-info w-100 d-flex justify-content-center align-items-center" 
+                                                       title="View on YouTube" data-bs-toggle="tooltip" data-bs-placement="top">
+                                                        <i class="fab fa-youtube"></i>
+                                                    </a>
+                                                </div>
+                                                <div class="col-6">
                                                     <button type="button" class="btn btn-sm btn-outline-warning w-100 d-flex justify-content-center align-items-center edit-channel-btn" 
                                                             data-channel-id="%d"
                                                             data-channel-name="%s"
@@ -698,7 +713,7 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                                         <i class="fas fa-edit"></i>
                                                     </button>
                                                 </div>
-                                                <div class="col-6">
+                                                <div class="col-6 mt-1">
                                                     <button type="button" class="btn btn-sm btn-outline-danger w-100 d-flex justify-content-center align-items-center delete-channel-btn" 
                                                             data-channel-id="%d"
                                                             data-channel-name="%s"
@@ -706,7 +721,11 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </div>
+                                                <div class="col-6 mt-1">
+                                                    <!-- Reserved for future action button -->
+                                                </div>
                                             </div>',
+                                            htmlspecialchars($row['youtube_url']),
                                             $row['id'],
                                             htmlspecialchars($row['name'], ENT_QUOTES),
                                             htmlspecialchars($row['description'] ?? '', ENT_QUOTES),
