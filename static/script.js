@@ -1400,10 +1400,20 @@ function navigateToVideo(videoId, youtubeId = null) {
         }
     }
     
-    // Step 1: Stop countdown and clear all timers immediately
+    // Step 1: Check if we're currently in fullscreen mode and preserve state
+    const wasInFullscreen = !!(document.fullscreenElement || window.isFullscreen);
+    console.log('Current fullscreen state before navigation:', wasInFullscreen);
+    
+    if (wasInFullscreen) {
+        console.log('=== PRESERVING FULLSCREEN STATE FOR VIDEO NAVIGATION ===');
+        sessionStorage.setItem('restoreFullscreen', 'true');
+        sessionStorage.setItem('wasInFullscreen', 'true');
+    }
+    
+    // Step 2: Stop countdown and clear all timers immediately
     clearNextVideoCountdown();
     
-    // Step 2: Close overlay
+    // Step 3: Close overlay
     const overlay = document.getElementById('video-end-overlay');
     if (overlay) {
         console.log('Closing overlay');
@@ -1416,7 +1426,7 @@ function navigateToVideo(videoId, youtubeId = null) {
         }, 500);
     }
     
-    // Step 3: Update URL parameter without page reload
+    // Step 4: Update URL parameter without page reload
     const newUrl = `/play?id=${videoId}`;
     try {
         window.history.pushState({ videoId: videoId }, '', newUrl);
@@ -1425,7 +1435,7 @@ function navigateToVideo(videoId, youtubeId = null) {
         console.error('Failed to update URL:', e);
     }
     
-    // Step 4: Fetch video information and swap the video
+    // Step 5: Fetch video information and swap the video
     swapToNewVideo(videoId, youtubeId);
 }
 
@@ -1492,9 +1502,11 @@ function swapToNewVideo(videoId, youtubeId = null) {
     console.log('=== SWAPPING VIDEO ===');
     console.log('Video ID:', videoId, 'YouTube ID:', youtubeId);
 
-    // TODO: GET RID OF YOUTUBEID path below
-/*    
-    // If we have the YouTube ID directly, use it but still fetch video info for overlay
+    // Fast path: If we have the YouTube ID directly, swap immediately to preserve fullscreen
+    // This is critical for fullscreen preservation - we need to start the video swap
+    // before the browser exits fullscreen due to DOM changes or API delays.
+    // The slow path below (API fetch first) creates a race condition where fullscreen
+    // can be lost during the API call delay.
     if (youtubeId) {
         console.log('Using direct YouTube ID for video swap');
         swapVideoPlayer(youtubeId, videoId);
@@ -1528,7 +1540,6 @@ function swapToNewVideo(videoId, youtubeId = null) {
             });
         return;
     }
-*/
 
     // Otherwise fetch from API
     console.log('=== FETCHING VIDEO INFO ===');
