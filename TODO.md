@@ -1,8 +1,9 @@
 
-- Add "last_fetched" column to channels, if null or less than 3 days ago, skip channel during fetch
+- Make channel name a link and different color in the overlay
 
-- Do an rss fetch when channel first added to db via admin
-
+- When there are no more new videos available, fetch older videos from the same channel and 
+  display them with a note "No more new videos in <channel-name>. Care to watch one of these?"
+  and present 3 older videos. This time no countdown!
 
 
 - Find good channels to include in the catalog

@@ -69,6 +69,12 @@ switch ($page_to_load) {
         $new_channels = get_new_channels($db);
         $suggested_videos = get_suggested_videos($db, 10);
         
+        // Check if we should show the new channels section
+        // Show if: 1) There are new channels, OR 2) There are no channels at all
+        // Hide if: There are channels but none are new
+        $has_any_channels = has_any_channels($db);
+        $show_new_channels_section = !empty($new_channels) || !$has_any_channels;
+        
         $page_title = 'BingeWorthy - Edutainment Videos';
         $current_page = 'home';
         $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'];

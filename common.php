@@ -79,6 +79,16 @@ function get_new_channels($db) {
 }
 
 /**
+ * Check if any channels exist in the database
+ */
+function has_any_channels($db) {
+    $stmt = $db->prepare("SELECT COUNT(*) as count FROM channels LIMIT 1");
+    $stmt->execute();
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $result['count'] > 0;
+}
+
+/**
  * Get suggested videos from the database
  */
 function get_suggested_videos($db, $limit) {

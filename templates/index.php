@@ -6,22 +6,24 @@
 
     <div class="container-fluid p-0">
 
-        <!-- New Channels Section -->
-        <br>
-        <section class="video-section mb-4 px-4">
-            <h2 class="section-title mb-3">New Channels</h2>
-            <div class="row g-4">
-                <?php if (!empty($new_channels)): ?>
-                    <?php foreach ($new_channels as $channel): ?>
-                        <div class="col-lg-3 col-md-4 col-sm-6 col-12 mb-4">
-                            <?php render_channel_card($channel); ?>
-                        </div>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <p class="text-muted">No new channels in the last 7 days.</p>
-                <?php endif; ?>
-            </div>
-        </section>
+        <!-- New Channels Section (only show if there are new channels or no channels at all) -->
+        <?php if ($show_new_channels_section): ?>
+            <br>
+            <section class="video-section mb-4 px-4">
+                <h2 class="section-title mb-3">New Channels</h2>
+                <div class="row g-4">
+                    <?php if (!empty($new_channels)): ?>
+                        <?php foreach ($new_channels as $channel): ?>
+                            <div class="col-lg-3 col-md-4 col-sm-6 col-12 mb-4">
+                                <?php render_channel_card($channel); ?>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <p class="text-muted">No new channels in the last 7 days.</p>
+                    <?php endif; ?>
+                </div>
+            </section>
+        <?php endif; ?>
 
         <!-- Suggested Videos Section -->
         <br><br>
