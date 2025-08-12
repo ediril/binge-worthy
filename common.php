@@ -7,6 +7,11 @@ define('ADMIN_CHANNELS_PER_PAGE', 10);
 define('ADMIN_VIDEOS_PER_PAGE', 10);
 define('ADMIN_SUGGESTIONS_PER_PAGE', 10);
 
+// ================================
+// Fetch Configuration
+// ================================
+define('CHANNEL_UPDATE_INTERVAL_HOURS', 23); // Hours to wait before fetching channel again
+
 
 // ================================
 // 404 Error Handling
