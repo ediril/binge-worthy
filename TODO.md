@@ -1,7 +1,6 @@
 
-- We need to implement "lock" mechanism for fetch like we did for founderfodder
-
 - Make channel name a link and different color in the overlay
+
 
 - When there are no more new videos available, fetch older videos from the same channel and 
   display them with a note "No more new videos in <channel-name>. Care to watch one of these?"
