@@ -1,5 +1,8 @@
 <?php
 
+define('FETCHER_VERSION', '0.0812.001');
+
+
 // ================================
 // Admin Configuration
 // ================================
@@ -11,7 +14,48 @@ define('ADMIN_SUGGESTIONS_PER_PAGE', 10);
 // Fetch Configuration
 // ================================
 define('CHANNEL_UPDATE_INTERVAL_HOURS', 23); // Hours to wait before fetching channel again
+define('FETCHER_LOCK_FILE_NAME', 'bw_fetch.lock');
 
+
+// ================================
+// Lock File Management
+// ================================
+function acquireLock($lockName) {
+    $lockFile = __DIR__ . '/' . $lockName;       
+    $lockHandle = fopen($lockFile, 'c');
+    
+    if (!$lockHandle) {
+        echo "ERROR: Could not create lock file: {$lockFile}\n";
+        exit(1);
+    }
+    
+    if (!flock($lockHandle, LOCK_EX | LOCK_NB)) {
+        echo "Another fetch process is already running.\n";
+        echo "If you're sure no other process is running, delete the lock file: {$lockFile}\n";
+        fclose($lockHandle);
+        exit(1);
+    }
+    
+    // Write PID to lock file
+    ftruncate($lockHandle, 0);
+    fwrite($lockHandle, getmypid() . "\n");
+    
+    return $lockHandle;
+}
+
+function releaseLock(&$lockHandle, $lockFile) {
+    if ($lockHandle && is_resource($lockHandle)) {
+        flock($lockHandle, LOCK_UN);
+        fclose($lockHandle);
+        $lockHandle = null;  // Clear the handle to prevent double-release
+        
+        // Remove the lock file
+        $lockPath = __DIR__ . '/' . $lockFile;
+        if (file_exists($lockPath)) {
+            @unlink($lockPath);
+        }
+    }
+}
 
 // ================================
 // 404 Error Handling
@@ -628,8 +672,10 @@ function normalize_video_input($input) {
 function normalize_channel_input($input) {
     $input = trim($input);
     
-    // If it's already a full URL, return as is
+    // If it's already a full URL, normalize mobile URLs and return
     if (filter_var($input, FILTER_VALIDATE_URL)) {
+        // Convert m.youtube.com to youtube.com
+        $input = str_replace('m.youtube.com', 'youtube.com', $input);
         return $input;
     }
     
@@ -656,6 +702,9 @@ function normalize_channel_input($input) {
  * Extract YouTube channel ID from URL
  */
 function extract_youtube_channel_id($url) {
+    // Normalize mobile URLs to standard format
+    $url = str_replace('m.youtube.com', 'youtube.com', $url);
+    
     // Handle different YouTube channel URL formats
     if (preg_match('/youtube\.com\/channel\/([a-zA-Z0-9_-]+)/', $url, $matches)) {
         return $matches[1];
@@ -748,6 +797,9 @@ function fetch_youtube_video_metadata($video_url) {
  * Fetch YouTube channel metadata with fallback for different URL formats
  */
 function fetch_youtube_channel_metadata($channel_url) {
+    // Normalize mobile URLs to standard format
+    $channel_url = str_replace('m.youtube.com', 'youtube.com', $channel_url);
+    
     $context = stream_context_create([
         'http' => [
             'timeout' => 10,
@@ -1031,6 +1083,9 @@ function get_videos_by_category($db, $category_id, $limit = null) {
  */
 function cleanup_youtube_url($url) {
     $url = trim($url);
+    
+    // Normalize mobile URLs to standard format
+    $url = str_replace('m.youtube.com', 'youtube.com', $url);
     
     // If it's not a YouTube URL, return as is
     if (strpos($url, 'youtube.com') === false && strpos($url, 'youtu.be') === false) {

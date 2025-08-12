@@ -33,6 +33,7 @@ $options = [
     'list-chans' => false,
     'force' => false,
     'remove-shorts' => false,
+    'allow-shorts' => false,
     'help' => false
 ];
 
@@ -57,6 +58,8 @@ foreach ($argv as $arg) {
         $options['force'] = true;
     } elseif ($arg === '--remove-shorts') {
         $options['remove-shorts'] = true;
+    } elseif ($arg === '--allow-shorts') {
+        $options['allow-shorts'] = true;
     } elseif ($arg === '--help' || $arg === '-h') {
         $options['help'] = true;
     }
@@ -69,6 +72,7 @@ if (!$limit_explicitly_set) {
 
 // Show help
 if ($options['help']) {
+    echo "BingeWorthy Video Fetcher v" . FETCHER_VERSION . "\n";
     echo "Fetch Videos Script - Terminal Only\n\n";
     echo "Usage: php fetch.php [OPTIONS]\n\n";
     echo "Options:\n";
@@ -83,6 +87,7 @@ if ($options['help']) {
     echo "  --list-chans       List all channels with IDs and video counts\n";
     echo "  --force            Force fetch regardless of last_fetched timestamp\n";
     echo "  --remove-shorts    Remove any Shorts found in RSS feeds from the database\n";
+    echo "  --allow-shorts     Include YouTube Shorts in fetched videos (normally filtered out)\n";
     echo "  --dry-run          Show what would be added without actually adding videos\n";
     echo "  --help, -h         Show this help message\n\n";
     echo "Examples:\n";
@@ -95,6 +100,7 @@ if ($options['help']) {
     echo "  php fetch_videos.php --recent               # Fetch videos from channels added in the last hour\n";
     echo "  php fetch_videos.php --dry-run              # Preview what would be fetched\n";
     echo "  php fetch.php --list-chans                  # List all channels with IDs and video counts\n";
+    echo "  php fetch.php --allow-shorts                # Include YouTube Shorts in fetched videos\n";
     exit(0);
 }
 
@@ -117,6 +123,15 @@ if ($options['recent'] && $options['chan-id'] !== null) {
     exit(1);
 }
 
+// Acquire lock before starting fetch process
+$lockHandle = acquireLock(FETCHER_LOCK_FILE_NAME);
+
+// Register shutdown function to release lock on exit
+register_shutdown_function(function() use (&$lockHandle) {
+    releaseLock($lockHandle, FETCHER_LOCK_FILE_NAME);
+});
+
+echo "BingeWorthy Video Fetcher v" . FETCHER_VERSION . "\n";
 echo "Starting video fetch process...\n";
 if ($options['dry-run']) {
     echo "DRY RUN MODE - No videos will be added to database\n";
@@ -195,7 +210,7 @@ try {
             echo "  Backfill mode: Fetching additional videos beyond latest ones\n";
         }
         
-        $fetch_result = fetch_channel_videos($channel['youtube_url'], $options['limit'], !$options['backfill']);
+        $fetch_result = fetch_channel_videos($channel['youtube_url'], $options['limit'], !$options['backfill'], $options['allow-shorts']);
         $videos = $fetch_result['videos'];
         $shorts_skipped = $fetch_result['shorts_skipped'] ?? 0;
         $shorts_found = $fetch_result['shorts_found'] ?? [];
@@ -244,7 +259,7 @@ try {
             echo "  Backfill mode: Fetching from YouTube (limit: ~30 videos per channel)\n";
             
             // Since YouTube only provides ~30 videos, just fetch once
-            $backfill_result = fetch_channel_videos($channel['youtube_url'], 50, false);
+            $backfill_result = fetch_channel_videos($channel['youtube_url'], 50, false, $options['allow-shorts']);
             $backfill_videos = $backfill_result['videos'];
             
             if (!$backfill_videos || empty($backfill_videos)) {
@@ -317,13 +332,14 @@ try {
         echo "\n--- DRY RUN COMPLETE ---\n";
         echo "This was a dry run. No videos were actually added to the database.\n";
         echo "Run the command again without --dry-run to actually add the videos.\n";
-    } else {
-        echo "\nVideos have been successfully added to the database.\n";
     }
     
 } catch (Exception $e) {
     echo "ERROR: " . $e->getMessage() . "\n";
     exit(1);
+} finally {
+    // Release lock when done
+    releaseLock($lockHandle, FETCHER_LOCK_FILE_NAME);
 }
 
 } // End of main execution block
@@ -331,20 +347,21 @@ try {
 /**
  * Fetch videos from a YouTube channel via RSS or web scraping
  */
-function fetch_channel_videos($channel_url, $limit, $use_rss = false) {
+function fetch_channel_videos($channel_url, $limit, $use_rss = false, $allow_shorts = false) {
     if ($use_rss) {
-        $result = fetch_channel_videos_rss($channel_url, $limit);
+        $result = fetch_channel_videos_rss($channel_url, $limit, $allow_shorts);
         return ['videos' => $result['videos'], 'shorts_skipped' => $result['shorts_skipped'], 'shorts_found' => $result['shorts_found']];
     }
     
-    // Use web scraping for backfill (doesn't skip shorts as /videos page doesn't include them)
-    return ['videos' => fetch_channel_videos_scraping($channel_url, $limit), 'shorts_skipped' => 0, 'shorts_found' => []];
+    // Use web scraping for backfill
+    $result = fetch_channel_videos_scraping($channel_url, $limit, $allow_shorts);
+    return $result;
 }
 
 /**
  * Fetch videos from YouTube channel RSS feed
  */
-function fetch_channel_videos_rss($channel_url, $limit = 10) {
+function fetch_channel_videos_rss($channel_url, $limit = 10, $allow_shorts = false) {
     // Extract channel ID from URL for RSS feed
     $channel_id = extract_youtube_channel_id($channel_url);
     
@@ -395,11 +412,14 @@ function fetch_channel_videos_rss($channel_url, $limit = 10) {
         
         if (strpos($link, '/shorts/') !== false) {
             // Track this Short
-            $shorts_skipped++;
-            if ($video_id) {
-                $shorts_found[] = "https://youtube.com/watch?v=" . $video_id;
+            if (!$allow_shorts) {
+                $shorts_skipped++;
+                if ($video_id) {
+                    $shorts_found[] = "https://youtube.com/watch?v=" . $video_id;
+                }
+                continue;
             }
-            continue;
+            // If allow_shorts is true, we'll process it as a regular video
         }
         
         // Only add regular videos up to the limit
@@ -432,6 +452,9 @@ function fetch_channel_videos_rss($channel_url, $limit = 10) {
  * Get real channel ID from YouTube channel page
  */
 function get_real_channel_id_from_page($channel_url) {
+    // Normalize mobile URLs to standard format
+    $channel_url = str_replace('m.youtube.com', 'youtube.com', $channel_url);
+    
     $context = stream_context_create([
         'http' => [
             'timeout' => 10,
@@ -466,7 +489,7 @@ function get_real_channel_id_from_page($channel_url) {
 /**
  * Fetch videos from YouTube channel by web scraping
  */
-function fetch_channel_videos_scraping($channel_url, $limit = 10) {
+function fetch_channel_videos_scraping($channel_url, $limit = 10, $allow_shorts = false) {
     
     $context = stream_context_create([
         'http' => [
@@ -475,19 +498,21 @@ function fetch_channel_videos_scraping($channel_url, $limit = 10) {
         ]
     ]);
     
-    // Convert channel URL to videos page
-    $videos_url = str_replace(['/@', '/channel/', '/c/', '/user/'], ['/@', '/channel/', '/c/', '/user/'], $channel_url);
-    if (!str_contains($videos_url, '/videos')) {
-        $videos_url = rtrim($videos_url, '/') . '/videos';
-    }
+    $videos = [];
+    $shorts_skipped = 0;
+    $shorts_found = [];
     
+    // Convert channel URL to videos page
+    $base_url = str_replace(['/@', '/channel/', '/c/', '/user/'], ['/@', '/channel/', '/c/', '/user/'], $channel_url);
+    $base_url = rtrim($base_url, '/');
+    
+    // Fetch regular videos first
+    $videos_url = $base_url . '/videos';
     $html = @file_get_contents($videos_url, false, $context);
     
     if ($html === false) {
-        return null;
+        return ['videos' => null, 'shorts_skipped' => 0, 'shorts_found' => []];
     }
-    
-    $videos = [];
     
     // Extract video data from the HTML - look for video containers with metadata
     // Use a more specific pattern to extract video IDs that correspond correctly to titles
@@ -557,7 +582,51 @@ function fetch_channel_videos_scraping($channel_url, $limit = 10) {
         $processed_count++;
     }
     
-    return $videos;
+    // If allow_shorts is true, also fetch from /shorts page
+    if ($allow_shorts && $processed_count < $limit) {
+        $shorts_url = $base_url . '/shorts';
+        $shorts_html = @file_get_contents($shorts_url, false, $context);
+        
+        if ($shorts_html !== false) {
+            // Extract shorts data
+            preg_match_all('/"videoId":"([^"]+)","thumbnail"/', $shorts_html, $shorts_ids_specific);
+            preg_match_all('/"title":{"runs":\[{"text":"([^"]+)"}/', $shorts_html, $shorts_titles);
+            
+            $shorts_matches = [];
+            if (!empty($shorts_ids_specific[1]) && !empty($shorts_titles[1])) {
+                $count = min(count($shorts_ids_specific[1]), count($shorts_titles[1]));
+                for ($i = 0; $i < $count; $i++) {
+                    $shorts_matches[] = [
+                        $shorts_ids_specific[1][$i],
+                        $shorts_titles[1][$i]
+                    ];
+                }
+            }
+            
+            foreach ($shorts_matches as $short) {
+                if ($processed_count >= $limit) {
+                    break;
+                }
+                
+                $video_id = $short[0];
+                $title = html_entity_decode($short[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                
+                $video_url = "https://youtube.com/shorts/{$video_id}";
+                $thumbnail_url = generate_youtube_thumbnail("https://youtube.com/watch?v={$video_id}");
+                
+                $videos[] = [
+                    'title' => $title,
+                    'url' => $video_url,
+                    'thumbnail' => $thumbnail_url,
+                    'published' => null
+                ];
+                
+                $processed_count++;
+            }
+        }
+    }
+    
+    return ['videos' => $videos, 'shorts_skipped' => $shorts_skipped, 'shorts_found' => $shorts_found];
 }
 
 /**
