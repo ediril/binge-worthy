@@ -437,7 +437,8 @@ if (isset($_POST['action']) && $_POST['action'] === 'fetch_channel_videos' && is
             
             if ($channel) {
                 // Fetch videos using RSS method
-                $videos = fetch_channel_videos_rss($channel['youtube_url'], 15);
+                $fetch_result = fetch_channel_videos_rss($channel['youtube_url'], 15);
+                $videos = $fetch_result['videos'] ?? [];
                 $videos_added = add_videos($db, $channel_id, $videos);
                 
                 if ($videos_added > 0) {

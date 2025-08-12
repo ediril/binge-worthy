@@ -166,11 +166,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Check URL patterns (including full URLs with @ handles)
             const patterns = [
-                /^https?:\/\/(www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/,     // Video
-                /^https?:\/\/(www\.)?youtube\.com\/channel\/([a-zA-Z0-9_-]+)(\/.*)?$/, // Channel ID with optional path
-                /^https?:\/\/(www\.)?youtube\.com\/c\/([a-zA-Z0-9_-]+)(\/.*)?$/,      // Custom channel with optional path
-                /^https?:\/\/(www\.)?youtube\.com\/user\/([a-zA-Z0-9_-]+)(\/.*)?$/,   // User channel with optional path
-                /^https?:\/\/(www\.)?youtube\.com\/@([a-zA-Z0-9_.-]+)(\/.*)?$/,       // Handle URL with optional path
+                /^https?:\/\/(www\.|m\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/,     // Video (including mobile)
+                /^https?:\/\/(www\.|m\.)?youtube\.com\/channel\/([a-zA-Z0-9_-]+)(\/.*)?$/, // Channel ID with optional path
+                /^https?:\/\/(www\.|m\.)?youtube\.com\/c\/([a-zA-Z0-9_-]+)(\/.*)?$/,      // Custom channel with optional path
+                /^https?:\/\/(www\.|m\.)?youtube\.com\/user\/([a-zA-Z0-9_-]+)(\/.*)?$/,   // User channel with optional path
+                /^https?:\/\/(www\.|m\.)?youtube\.com\/@([a-zA-Z0-9_.-]+)(\/.*)?$/,       // Handle URL with optional path (including mobile)
                 /^https?:\/\/(www\.)?youtu\.be\/([a-zA-Z0-9_-]+)/,                    // Short video URL
             ];
             
@@ -1555,9 +1555,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!trimmedUrl) return false;
             
             const patterns = [
-                /^https?:\/\/(www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})(\&.*)?$/,
+                /^https?:\/\/(www\.|m\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})(\&.*)?$/,  // Including mobile
                 /^https?:\/\/(www\.)?youtu\.be\/([a-zA-Z0-9_-]{11})(\?.*)?$/,
-                /^https?:\/\/(www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})(\?.*)?$/,
+                /^https?:\/\/(www\.|m\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})(\?.*)?$/,     // Including mobile
                 /^[a-zA-Z0-9_-]{11}$/ // Just the video ID
             ];
             
