@@ -5,6 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Overview
 BingeWorthy is a Netflix-like platform for educational and intellectually stimulating videos, focusing on tech, business, coding, science, and AI content. The platform provides a curated alternative to brain-rotting entertainment.
 
+## Recent Updates & Important Context
+- **Mobile URL Support**: Added support for m.youtube.com URLs throughout the system
+- **Lock File System**: Implemented lock file mechanism to prevent concurrent fetch operations
+- **Channel Update Interval**: Configurable via CHANNEL_UPDATE_INTERVAL_HOURS (currently 23 hours)
+- **Suggestion Auto-Removal**: Channels/videos are automatically removed from suggestions when added
+
 ## Technology Stack
 - **Backend**: PHP 8.3
 - **Database**: SQLite (binge_worthy.db)
@@ -107,9 +113,48 @@ php database.php
 - Multiple thumbnail resolution fallbacks
 - Handles different YouTube URL formats (watch?v=, youtu.be/, @handles)
 
+## Critical Code Synchronization Points
+
+### YouTube URL Handling (MUST UPDATE ALL WHEN ADDING NEW FORMATS)
+When adding support for new YouTube URL formats (e.g., m.youtube.com), ALL of these locations must be updated:
+
+#### PHP Backend Functions (common.php):
+- **extract_youtube_channel_id()** (line 698) - Extracts channel ID from URLs
+- **normalize_channel_input()** (line 668) - Normalizes channel input to full URLs
+- **cleanup_youtube_url()** (line 1077) - Cleans up YouTube URLs to base form
+- **fetch_youtube_channel_metadata()** (line 795) - Fetches channel metadata
+- **auto_remove_matching_suggestions()** (line 1128) - Removes matching suggestions
+
+#### PHP Fetch Functions (fetch.php):
+- **get_real_channel_id_from_page()** (line 446) - Gets channel ID from page HTML
+
+#### JavaScript Validation (static/admin.js):
+- **isValidYouTubeURL()** (line 146) - Validates channel/video URLs
+  - Patterns array at line 168-175
+- **isValidYouTubeVideoURL()** (line 1551) - Validates video-only URLs
+  - Patterns array at line 1557-1562
+
+#### JavaScript Main Site (static/script.js):
+- **isValidYouTubeURL()** (line 383) - Main site URL validation
+
+### Lock File System
+- **Lock file name**: FETCHER_LOCK_FILE_NAME = 'bw_fetch.lock' (common.php:14)
+- **acquireLock()** (common.php:20) - Acquires lock with PID tracking
+- **releaseLock()** (common.php:43) - Releases lock and cleans up file
+- **Usage in fetch.php**: Lines 120-127 (acquisition) and 329-333 (release)
+
+### Fetch Configuration
+- **CHANNEL_UPDATE_INTERVAL_HOURS** (common.php:13) - Currently 23 hours
+- **Check in fetch.php**: Lines 183-191 - Skips channels fetched within interval
+
+### Admin Panel Video Fetching Fix
+- **templates/admin.php:440-441** - Fixed to extract 'videos' array from fetch_channel_videos_rss() result
+- Returns structure: `['videos' => [...], 'shorts_skipped' => N, 'shorts_found' => [...]]`
+
 ## Important Notes
 - SQLite database file should not be committed to repository
 - Admin panel only accessible on localhost for security
 - All external YouTube content opens in new tabs
 - Responsive design supports modern browsers only
 - Analytics data stored in separate banalytiq.db
+- When adding new URL formats, search for ALL YouTube URL validation patterns in both PHP and JS
