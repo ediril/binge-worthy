@@ -1,4 +1,6 @@
 
+- We need to implement "lock" mechanism for fetch like we did for founderfodder
+
 - Make channel name a link and different color in the overlay
 
 - When there are no more new videos available, fetch older videos from the same channel and 
@@ -22,7 +24,6 @@
 
 - We need stubs for channels so we can access them without using chan-id for SEO
 
-- Add player to watch on the site (scrubbler!)
 
 - Allow to create accounts:
     - To follow channels
