@@ -40,6 +40,10 @@ $current_page = 'about';
                             Don't fret! We curated videos from all the best channels across YouTube, designed to help you binge without guilt. It's easy to find healthy, "high-fiber"
                             videos you will love watching or simply leave running in the background while you get your work done.
                         </p>
+                        </p><p class="lead">
+                            We care about the popularity of the channels we curate as much as the quality of their content. So you will find large and small channels alike as long as 
+                            they will help you have a good time and maybe even learn a thing or two.
+                        </p>
 
                         <h3 class="mt-5 mb-3">Get Started</h3>
                         <p>
