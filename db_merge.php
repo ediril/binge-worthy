@@ -171,7 +171,7 @@ function merge($remote_db_file, $db_type = 'binge_worthy') {
     $local_db->beginTransaction();
     
     try {
-        log_message("Merging '{$db_type}'...");
+        log_message("\nMerging '{$db_type}'...");
         
         if ($db_type === 'suggestions') {                
             // Get remote table structure and create local table if needed
@@ -329,7 +329,7 @@ function find_unprocessed_db_files($db_type) {
  * Process a single database file
  */
 function process_db_file($db_file, $db_type = 'binge_worthy') {
-    log_message("Processing {$db_type} database file: " . $db_file);
+    log_message("\nProcessing {$db_type} database file: " . $db_file);
     
     // Merge databases
     merge($db_file, $db_type);
