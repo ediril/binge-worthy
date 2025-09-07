@@ -136,12 +136,11 @@ function get_database_by_type($db_type = 'binge_worthy') {
         $db = new PDO("sqlite:{$db_path}");
         $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         
-        // Create suggestions table structure (you may need to adjust this)
+        // Create suggestions table structure to match actual schema
         $db->exec("CREATE TABLE IF NOT EXISTS suggestions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            type TEXT NOT NULL,
-            content TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            link TEXT NOT NULL UNIQUE,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )");
         
         return $db;
@@ -186,8 +185,9 @@ function merge($remote_db_file, $db_type = 'binge_worthy') {
             $remote_suggestions = $remote_db->query("SELECT * FROM suggestions")->fetchAll(PDO::FETCH_ASSOC);
             
             if (!empty($remote_suggestions)) {
-                // Get column names from the first record
+                // Get column names from the first record, excluding id (auto-increment)
                 $columns = array_keys($remote_suggestions[0]);
+                $columns = array_filter($columns, function($col) { return $col !== 'id'; });
                 $columns_list = implode(', ', $columns);
                 $placeholders = str_repeat('?,', count($columns) - 1) . '?';
                 
@@ -195,6 +195,8 @@ function merge($remote_db_file, $db_type = 'binge_worthy') {
                 $stmt = $local_db->prepare("INSERT OR IGNORE INTO suggestions ({$columns_list}) VALUES ({$placeholders})");
                 
                 foreach ($remote_suggestions as $suggestion) {
+                    // Remove id from values array
+                    unset($suggestion['id']);
                     $stmt->execute(array_values($suggestion));
                 }
                 
