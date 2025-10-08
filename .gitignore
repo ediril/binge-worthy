@@ -34,3 +34,5 @@ cache/
 *.backup
 
 ftp_config.yaml
+admin.txt
+.htpasswd

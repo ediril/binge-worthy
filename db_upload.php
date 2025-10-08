@@ -1,5 +1,11 @@
 <?php
 
+// Deny web access; allow CLI only
+if (php_sapi_name() !== 'cli') {
+    require_once __DIR__ . '/common.php';
+    show_404_page();
+}
+
 require_once 'database.php';
 
 /**

@@ -9,13 +9,15 @@ header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Cache-Control: post-check=0, pre-check=0", false);
 header("Pragma: no-cache");
 
-// Localhost-only restriction - only allow access when running on localhost
-$is_localhost = in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1', 'localhost:8080', '127.0.0.1:8080']) || 
+// Localhost-only by default, but allow when HTTP Basic Auth succeeded (production)
+$is_localhost = in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1', 'localhost:8080', '127.0.0.1:8080']) ||
                (isset($_SERVER['HTTP_HOST']) && preg_match('/^localhost:\d+$/', $_SERVER['HTTP_HOST']));
 
-// Check if running on localhost
-if (!$is_localhost) {
-    // Return 404 error to hide the existence of the admin panel
+// Detect successful Basic Auth handled by Apache
+$is_basic_auth = isset($_SERVER['PHP_AUTH_USER']) || isset($_SERVER['REMOTE_USER']) || isset($_SERVER['HTTP_AUTHORIZATION']);
+
+// If not localhost and no Basic Auth, return 404 to hide admin
+if (!$is_localhost && !$is_basic_auth) {
     http_response_code(404);
     echo '<!DOCTYPE html>
 <html lang="en">

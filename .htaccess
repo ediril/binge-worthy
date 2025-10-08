@@ -1,5 +1,8 @@
 RewriteEngine On
 
+# Disable directory listings
+Options -Indexes
+
 # Force HTTPS redirect
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
@@ -29,10 +32,37 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [L,QSA]
 
-# Allow direct access to static files
+# Allow direct access to static files (Apache 2.4 and 2.2 compatible)
 <FilesMatch "\.(css|js|jpg|jpeg|png|gif|ico)$">
-    Order allow,deny
-    Allow from all
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</FilesMatch>
+
+# Protect sensitive files from direct access (Apache 2.4 and 2.2 compatible)
+<FilesMatch "\.(db|sqlite|db\.bkp|yaml|yml)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Block dotfiles and common config manifests (Apache 2.4 and 2.2 compatible)
+<FilesMatch "^(\.|composer\.(json|lock))$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
 </FilesMatch>
 
 # Smart caching for JS and CSS - must revalidate with server
@@ -41,8 +71,38 @@ RewriteRule ^ index.php [L,QSA]
     Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
 </FilesMatch>
 
-# PHP settings
-<IfModule mod_php.c>
-    php_flag display_errors On
-    php_value error_reporting E_ALL
+# PHP settings must not be set via .htaccess on many shared hosts (PHP-FPM).
+# Use a .user.ini or cPanel MultiPHP INI Editor instead:
+#   display_errors = Off
+#   log_errors = On
+#   error_reporting = E_ALL
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set Referrer-Policy "no-referrer-when-downgrade"
+    Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    # CSP tuned for current assets and YouTube embeds
+    Header set Content-Security-Policy "default-src 'self'; img-src 'self' https://img.youtube.com data:; style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net data:; connect-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com; frame-ancestors 'none'"
 </IfModule>
+
+# Basic Auth for admin endpoints (production)
+# NOTE: Update AuthUserFile to an absolute path on the server
+<FilesMatch "^(admin\.php|admin_ajax\.php)$">
+    AuthType Basic
+    AuthName "Restricted Area"
+    AuthUserFile "/home/etern13/_env/bingeworthy.htpasswd"
+    Require valid-user
+</FilesMatch>
+
+# Never expose Apache ht* control files (e.g., .htaccess, .htpasswd) (Apache 2.4 and 2.2 compatible)
+<Files ".ht*">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</Files>
