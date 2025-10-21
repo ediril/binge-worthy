@@ -11,7 +11,8 @@
         </div>
         <div class="row">
             <div class="col-12 text-center">
-                <p class="my-1"><a href="https://emrahdiril.com">Emrah Diril</a> &copy; 2025 ✨❤️</p>
+                <p class=""><a href="https://emrahdiril.com">Emrah Diril</a> &copy; 2025 ✨❤️</p>
+                <a href="https://startupfa.me/s/bingeworthy?utm_source=bingeworthyshows.tv" target="_blank"><img src="https://startupfa.me/badges/featured/dark-small-rounded.webp" alt="BingeWorthy - Featured on Startup Fame" width="240" height="37" /></a>
             </div>
         </div>
     </div>
