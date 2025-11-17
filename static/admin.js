@@ -3,7 +3,24 @@ console.log('admin.js loaded');
 document.addEventListener('DOMContentLoaded', function() {
         console.log('DOMContentLoaded fired in admin.js');
         console.log('About to define functions...');
-        
+
+        // Check for toast messages from previous actions (e.g., after page reload)
+        const adminToast = sessionStorage.getItem('admin_toast');
+        if (adminToast) {
+            try {
+                const toastData = JSON.parse(adminToast);
+                sessionStorage.removeItem('admin_toast');
+                // Show toast after a brief delay to ensure page is fully loaded
+                setTimeout(() => {
+                    if (window.showToast) {
+                        window.showToast(toastData.message, toastData.type);
+                    }
+                }, 100);
+            } catch (e) {
+                console.error('Error parsing admin toast:', e);
+            }
+        }
+
         // Function to check if content already exists
         function checkContentExists(url) {
             // Safety check - don't check if URL is empty
@@ -656,13 +673,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Edit category button
                 if (e.target.closest('.edit-category-btn')) {
+                    e.preventDefault();
+                    e.stopPropagation();
                     const btn = e.target.closest('.edit-category-btn');
                     const categoryId = parseInt(btn.getAttribute('data-category-id'));
                     editCategoryInline(categoryId);
                 }
-                
+
                 // Delete category button
                 if (e.target.closest('.delete-category-btn')) {
+                    e.preventDefault();
+                    e.stopPropagation();
                     const btn = e.target.closest('.delete-category-btn');
                     const categoryId = parseInt(btn.getAttribute('data-category-id'));
                     deleteCategory(categoryId);
@@ -836,10 +857,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get category name for confirmation
             const categorySpan = document.querySelector(`.category-name[data-category-id="${categoryId}"]`);
             const categoryName = categorySpan ? categorySpan.textContent.trim() : 'this category';
-            
+
+            console.log('deleteCategory called:', categoryId, categoryName);
+
             if (confirm(`Are you sure you want to delete "${categoryName}"? This will remove it from all channels. This action cannot be undone.`)) {
+                console.log('Sending delete request for category:', categoryId);
+
                 // Send AJAX request
-                fetch('/admin.php', {
+                fetch(window.location.pathname, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
@@ -847,28 +872,37 @@ document.addEventListener('DOMContentLoaded', function() {
                     body: `action=delete_category&category_id=${categoryId}`
                 })
                 .then(response => {
+                    console.log('Delete response status:', response.status);
                     if (!response.ok) {
-                        throw new Error('Network response was not ok');
+                        throw new Error('Network response was not ok: ' + response.status);
                     }
                     return response.text();
                 })
                 .then(text => {
+                    console.log('Delete response text:', text);
                     try {
                         const data = JSON.parse(text);
+                        console.log('Delete response data:', data);
                         if (data.success) {
+                            // Store success message in session storage to show after reload
+                            sessionStorage.setItem('admin_toast', JSON.stringify({
+                                message: `Category "${categoryName}" deleted successfully!`,
+                                type: 'success'
+                            }));
                             // Reload page to refresh category lists
                             window.location.reload();
                         } else {
-                            alert(data.error || 'Failed to delete category.');
+                            console.error('Delete failed:', data.error);
+                            showToast(data.error || 'Failed to delete category.', 'danger');
                         }
                     } catch (e) {
-                        // If JSON parsing fails but we got a response, reload anyway
-                        window.location.reload();
+                        console.error('JSON parse error:', e, 'Response text:', text);
+                        showToast('Error parsing server response. Check console for details.', 'danger');
                     }
                 })
                 .catch(error => {
                     console.error('Error deleting category:', error);
-                    alert('Error deleting category.');
+                    showToast('Network error deleting category: ' + error.message, 'danger');
                 });
             }
         }

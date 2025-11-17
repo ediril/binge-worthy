@@ -777,7 +777,7 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
     <?php include 'templates/partials/admin/channel_modal.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="static/script.js"></script>
+    <script src="static/script.js?v=<?php echo filemtime('static/script.js'); ?>"></script>
     <script>
         // Pass PHP variables to JavaScript
         window.adminConfig = {
@@ -788,7 +788,7 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             }
         };
     </script>
-    <script src="static/admin.js"></script>
+    <script src="static/admin.js?v=<?php echo filemtime('static/admin.js'); ?>"></script>
     
     <?php if ($message): ?>
     <script>
