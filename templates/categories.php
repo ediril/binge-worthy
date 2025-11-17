@@ -45,7 +45,7 @@ $current_page = 'categories';
         
         <!-- Categories Buttons -->
         <div class="categories-header px-4 mb-4">
-            <div class="categories-buttons d-flex flex-wrap gap-3 justify-content-center mb-4">
+            <div class="categories-buttons d-flex flex-wrap gap-2 justify-content-center mb-4">
                 <?php foreach ($categories as $category): ?>
                     <a href="/categories?category=<?php echo $category['id']; ?>" 
                        class="category-button <?php echo ($category['id'] == $selected_category_id) ? 'active' : ''; ?>">

@@ -517,51 +517,61 @@ body {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
+/* Ultra-compact tag style for categories */
 .category-button {
     background: #404040;
-    border-radius: 25px;
+    border-radius: 4px;
     text-decoration: none;
     color: #ffffff;
-    transition: all 0.3s ease;
-    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    border: 1px solid #555555;
     font-weight: 500;
     white-space: nowrap;
-    padding: 2px 8px;
+    padding: 3px 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.8rem;
 }
 
 .category-button:hover {
     background: #555555;
+    border-color: #666666;
     color: #ffffff;
     text-decoration: none;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .category-button.active {
     background: #e50914;
-    border-color: #b20710;
+    border-color: #e50914;
     color: #ffffff;
-    box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
+    box-shadow: 0 2px 8px rgba(229, 9, 20, 0.4);
 }
 
 .category-button.active:hover {
     background: #b20710;
+    border-color: #b20710;
     color: #ffffff;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(229, 9, 20, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 10px rgba(229, 9, 20, 0.5);
 }
 
 .category-name {
-    font-weight: 600;
-    font-size: 0.9rem;
+    font-weight: 500;
+    font-size: 0.8rem;
+    line-height: 1;
 }
 
 .category-count {
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    min-width: 1.5rem;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 1px 5px;
+    line-height: 1;
+    min-width: auto;
 }
 
 .category-button.active .category-count {
@@ -681,12 +691,21 @@ body {
     .categories-page-title {
         font-size: 1.5rem;
     }
-    
+
     .category-button {
-        font-size: 0.9rem;
-        min-width: 200px;
+        font-size: 0.75rem;
+        padding: 2px 6px;
     }
-    
+
+    .category-name {
+        font-size: 0.75rem;
+    }
+
+    .category-count {
+        font-size: 0.65rem;
+        padding: 1px 4px;
+    }
+
     .category-title {
         font-size: 1.3rem;
     }
