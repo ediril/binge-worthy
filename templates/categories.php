@@ -11,9 +11,9 @@ $categories = get_display_categories($db);
 // Get selected category from URL parameter
 $selected_category_id = isset($_GET['category']) ? intval($_GET['category']) : null;
 
-// If no category selected, default to first category
+// If no category selected, default to random category
 if (!$selected_category_id && !empty($categories)) {
-    $selected_category_id = $categories[0]['id'];
+    $selected_category_id = $categories[array_rand($categories)]['id'];
 }
 
 // Get videos for selected category
