@@ -1,8 +1,5 @@
-console.log('admin.js loaded');
 
 document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOMContentLoaded fired in admin.js');
-        console.log('About to define functions...');
 
         // Check for toast messages from previous actions (e.g., after page reload)
         const adminToast = sessionStorage.getItem('admin_toast');
@@ -25,11 +22,9 @@ document.addEventListener('DOMContentLoaded', function() {
         function checkContentExists(url) {
             // Safety check - don't check if URL is empty
             if (!url || !url.trim()) {
-                console.log('❌ checkContentExists called with empty URL');
                 return Promise.resolve(false);
             }
             
-            console.log('Checking if content exists for URL:', url);
             return fetch('/admin_ajax.php', {
                 method: 'POST',
                 headers: {
@@ -42,17 +37,14 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Content exists response:', data);
                 const contentInfo = document.getElementById('content-info');
                 const contentInfoText = document.getElementById('content-info-text');
                 
                 if (data.success && data.exists) {
-                    console.log('Content exists! Hiding form elements...');
                     // Content already exists - hide form elements and show alert
                     const categorySection = document.getElementById('category-section');
                     const submitButton = document.querySelector('#add-content-form button[type="submit"]');
                     
-                    console.log('Elements found:', {
                         categorySection: !!categorySection,
                         descriptionField: !!descriptionField, 
                         submitButton: !!submitButton,
@@ -74,10 +66,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     contentInfo.style.borderColor = '#f5c6cb';
                     contentInfo.style.color = '#721c24';
                     
-                    console.log('Alert should now be visible with red styling');
                     return true; // Content exists
                 } else if (data.success && !data.exists && data.error === 'url_not_found') {
-                    console.log('URL not found on YouTube!');
                     // URL doesn't exist on YouTube - show error alert
                     const categorySection = document.getElementById('category-section');
                     const submitButton = document.querySelector('#add-content-form button[type="submit"]');
@@ -93,7 +83,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     contentInfo.style.borderColor = '#f5c6cb';
                     contentInfo.style.color = '#721c24';
                     
-                    console.log('URL not found alert should now be visible');
                     return false; // URL doesn't exist
                 } else if (data.success && !data.exists) {
                     // Content doesn't exist - show form elements and proceed with normal flow
@@ -142,7 +131,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 contentInfoText.textContent = 'Enter a video URL to check if its channel exists in the database.';
             }
             
-            console.log('Updated UI for content type:', contentType);
         }
         
         
@@ -245,7 +233,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         function createChannelFromVideo(videoUrl, channelName) {
-            console.log('Creating channel from video:', videoUrl, channelName);
             
             // Get video metadata to extract channel URL
             fetch('/admin_ajax.php', {
@@ -331,13 +318,9 @@ document.addEventListener('DOMContentLoaded', function() {
         function fetchContentDescription(url, type, targetFieldId = null) {
             // Safety check - don't fetch if URL is empty
             if (!url || !url.trim()) {
-                console.log('❌ fetchContentDescription called with empty URL');
                 return;
             }
             
-            console.log('📝 Starting fetchContentDescription for:', url);
-            console.log('📝 URL validation result:', isValidYouTubeURL(url.trim()));
-            console.log('📝 Content type:', type);
             
             // Determine target field based on type if not specified
             let fieldId = targetFieldId;
@@ -367,7 +350,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Fetch YouTube metadata using the admin_ajax.php endpoint
-            console.log('Making fetch request to /admin_ajax.php');
             fetch('/admin_ajax.php', {
                 method: 'POST',
                 headers: {
@@ -380,19 +362,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
             })
             .then(response => {
-                console.log('Fetch response received:', response.status, response.statusText);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
-                console.log('Fetch data received:', data);
                 if (data.success && data.description) {
                     descriptionField.value = data.description;
-                    console.log('Description set successfully');
                 } else {
-                    console.log('No description in response or request failed');
                 }
             })
             .catch(error => {
@@ -405,18 +383,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Restore field state
                 descriptionField.placeholder = originalPlaceholder;
                 descriptionField.disabled = false;
-                console.log('Fetch request completed, field restored');
             });
         }
         
         // Set up auto-fetch functionality for modal input fields
         function setupModalAutoFetch() {
-            console.log('Setting up auto-fetch for modals');
             
             // Video modal auto-check for channel existence
             const videoUrlInput = document.getElementById('video-url');
             if (videoUrlInput) {
-                console.log('Setting up video URL channel check');
                 let videoTimeout;
                 videoUrlInput.addEventListener('input', function() {
                     clearTimeout(videoTimeout);
@@ -429,7 +404,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     if (url && isValidYouTubeURL(url)) {
                         videoTimeout = setTimeout(() => {
-                            console.log('Checking channel existence for video URL:', url);
                             checkVideoChannelExistence(url);
                         }, 1000); // Wait 1 second after user stops typing
                     }
@@ -478,7 +452,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(response => response.json())
                 .then(data => {
-                    console.log('Channel exists check response:', data);
                     
                     if (data.success && data.exists && data.type === 'channel') {
                         // Channel already exists - show error and disable submit
@@ -540,7 +513,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Channel modal input handler
             const channelUrlInput = document.getElementById('channel-url');
             if (channelUrlInput) {
-                console.log('Setting up channel URL validation');
                 let channelTimeout;
                 channelUrlInput.addEventListener('input', function() {
                     clearTimeout(channelTimeout);
@@ -560,7 +532,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (url) {
                         if (isValidYouTubeURL(url)) {
                             channelTimeout = setTimeout(() => {
-                                console.log('Checking channel URL:', url);
                                 checkChannelUrl(url);
                             }, 1000); // Wait 1 second after user stops typing
                         } else {
@@ -585,11 +556,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Initialize UI on page load
-        console.log('Reached initialization section');
         // Initialize Bootstrap tooltips
-        console.log('Calling initializeTooltips...');
         initializeTooltips();
-        console.log('initializeTooltips completed');
         
         // Set up auto-fetch for modal input fields
         setupModalAutoFetch();
@@ -608,7 +576,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             channelModal.addEventListener('hidden.bs.modal', function() {
                 if (window.pendingVideoUrl && window.pendingVideoModal && window.channelModalReturnToVideo) {
-                    console.log('Returning to video modal after channel creation');
                     
                     // Re-open video modal
                     window.pendingVideoModal.show();
@@ -626,11 +593,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
             
-            console.log('Setting up click event listener...');
             
             // Add event listener for pagination and button interactions
             document.addEventListener('click', function(e) {
-                console.log('CLICK EVENT:', e.target);
                                 
                 // Pagination dropdown items
                 if (e.target.classList.contains('dropdown-item') && e.target.hasAttribute('data-page')) {
@@ -644,14 +609,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Edit channel button
                 if (e.target.closest('.edit-channel-btn')) {
-                    console.log('EDIT BUTTON CLICKED!');
                     e.preventDefault();
                     const btn = e.target.closest('.edit-channel-btn');
                     const channelId = btn.getAttribute('data-channel-id');
                     const channelName = btn.getAttribute('data-channel-name');
                     const channelDescription = btn.getAttribute('data-channel-description');
                     
-                    console.log('Calling openChannelModal with:', {channelId, channelName, channelDescription});
                     
                     window.openChannelModal('edit', {
                         channelId: channelId,
@@ -858,10 +821,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const categorySpan = document.querySelector(`.category-name[data-category-id="${categoryId}"]`);
             const categoryName = categorySpan ? categorySpan.textContent.trim() : 'this category';
 
-            console.log('deleteCategory called:', categoryId, categoryName);
 
             if (confirm(`Are you sure you want to delete "${categoryName}"? This will remove it from all channels. This action cannot be undone.`)) {
-                console.log('Sending delete request for category:', categoryId);
 
                 // Send AJAX request
                 fetch(window.location.pathname, {
@@ -872,17 +833,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     body: `action=delete_category&category_id=${categoryId}`
                 })
                 .then(response => {
-                    console.log('Delete response status:', response.status);
                     if (!response.ok) {
                         throw new Error('Network response was not ok: ' + response.status);
                     }
                     return response.text();
                 })
                 .then(text => {
-                    console.log('Delete response text:', text);
                     try {
                         const data = JSON.parse(text);
-                        console.log('Delete response data:', data);
                         if (data.success) {
                             // Store success message in session storage to show after reload
                             sessionStorage.setItem('admin_toast', JSON.stringify({
@@ -909,11 +867,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Function to add suggestion to appropriate modal
         window.addSuggestionToForm = function(link) {
-            console.log('addSuggestionToForm called with:', link);
             
             // Detect content type
             const contentType = detectContentType(link);
-            console.log('Detected content type:', contentType);
             
             if (contentType === 'video') {
                 // Open video modal and populate it
@@ -921,7 +877,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const videoInput = document.getElementById('video-url');
                 const videoDescription = document.getElementById('video-description');
                 
-                console.log('Video modal elements found:', {
                     modal: !!videoModal,
                     input: !!videoInput,
                     description: !!videoDescription
@@ -933,9 +888,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Set the input value AFTER the modal is shown (and after clearVideoModal runs)
                 setTimeout(() => {
                     if (videoInput) {
-                        console.log('Setting input value to:', link);
                         videoInput.value = link;
-                        console.log('Input value after setting:', videoInput.value);
                         videoInput.focus();
                         videoInput.style.backgroundColor = 'rgba(40, 167, 69, 0.2)';
                         setTimeout(() => {
@@ -968,7 +921,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Unified function to open channel modal for add/edit
         function openChannelModal(mode, options = {}) {
-            console.log('openChannelModal called with:', mode, options);
             const modal = new bootstrap.Modal(document.getElementById('channelModal'));
             const modalTitle = document.getElementById('channelModalLabel');
             const submitBtn = document.getElementById('channel-submit-btn');
@@ -976,7 +928,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const actionInput = document.getElementById('channel-action');
             const channelIdInput = document.getElementById('channel-id');
             
-            console.log('Modal elements found:', {
                 modal: !!modal,
                 modalTitle: !!modalTitle,
                 submitBtn: !!submitBtn,
@@ -1066,7 +1017,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 setTimeout(() => {
                     const urlInput = document.getElementById('channel-url');
                     if (urlInput) {
-                        console.log('Setting channel URL to:', options.url);
                         urlInput.value = options.url;
                         
                         // Highlight briefly
@@ -1151,7 +1101,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Simple toast function for notifications
         function showToast(message, type = 'info') {
-            console.log(`Toast [${type}]:`, message);
             
             // Create toast container if it doesn't exist
             let toastContainer = document.getElementById('toastContainer');
@@ -1450,19 +1399,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     let badgeClass = 'bg-secondary';
                     let badgeText = 'Unknown';
                     let addButtonTitle = 'Add to Form';
-                    console.log('Processing suggestion:', suggestion.link);
                     if (/watch\?v=|youtu\.be\//.test(suggestion.link)) {
                         badgeClass = 'bg-danger';
                         badgeText = 'Video';
                         addButtonTitle = 'Add Video';
-                        console.log('Set as Video, title:', addButtonTitle);
                     } else if (/channel\/|@|\/c\/|\/user\//.test(suggestion.link)) {
                         badgeClass = 'bg-primary';
                         badgeText = 'Channel';
                         addButtonTitle = 'Add Channel';
-                        console.log('Set as Channel, title:', addButtonTitle);
                     }
-                    console.log('Final title:', addButtonTitle);
                     
                     html += `
                         <tr>
@@ -1640,7 +1585,6 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Video exists check response:', data);
                 
                 if (data.success && data.exists && data.type === 'video') {
                     // Video already exists - show error, disable submit button, and STOP here
@@ -1693,7 +1637,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(response => response.json())
                 .then(channelData => {
-                    console.log('Channel exists check response:', channelData);
                     
                     const submitButton = document.querySelector('#addVideoModal button[type="submit"]');
                     
@@ -1743,7 +1686,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         function createChannelFromVideo(videoUrl, channelName) {
-            console.log('Creating channel from video:', videoUrl, channelName);
             
             // Get video metadata to extract channel URL
             fetch('/admin_ajax.php', {
@@ -1782,19 +1724,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Set up video URL input validation 
-        console.log('Setting up video URL validation...');
         
         // Clear any stale info messages on page load
         const infoDiv = document.getElementById('video-info');
         if (infoDiv) {
             infoDiv.style.display = 'none';
-            console.log('Cleared stale info div');
         }
         
         const videoUrlInput = document.getElementById('video-url');
-        console.log('Video URL input found:', !!videoUrlInput);
         if (videoUrlInput) {
-                console.log('Setting up video URL validation');
                 let videoTimeout;
                 videoUrlInput.addEventListener('input', function() {
                     clearTimeout(videoTimeout);
@@ -1804,16 +1742,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     const infoDiv = document.getElementById('video-info');
                     if (infoDiv) infoDiv.style.display = 'none';
                     
-                    console.log('Input changed, URL:', url, 'Valid:', isValidYouTubeURL(url));
                     
                     if (url && isValidYouTubeURL(url)) {
                         videoTimeout = setTimeout(() => {
-                            console.log('Checking video URL:', url);
                             checkVideoUrlAndChannel(url);
                         }, 1000); // Wait 1 second after user stops typing
                     } else if (url) {
                         // Show invalid URL message for non-empty invalid URLs
-                        console.log('Showing invalid URL message for:', url);
                         const infoDiv = document.getElementById('video-info');
                         const infoText = document.getElementById('video-info-text');
                         if (infoDiv && infoText) {
@@ -1835,21 +1770,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const videoModal = document.getElementById('addVideoModal');
         if (videoModal) {
             function clearVideoModal() {
-                console.log('Clearing video modal');
                 const urlInput = document.getElementById('video-url');
                 const infoDiv = document.getElementById('video-info');
                 const submitButton = document.querySelector('#addVideoModal button[type="submit"]');
                 
                 if (urlInput) {
-                    console.log('Clearing URL input, was:', urlInput.value);
                     urlInput.value = '';
                 }
                 if (infoDiv) {
-                    console.log('Hiding info div');
                     infoDiv.style.display = 'none';
                 }
                 if (submitButton) {
-                    console.log('Re-enabling submit button');
                     submitButton.disabled = false;
                 }
             }
@@ -1857,7 +1788,6 @@ document.addEventListener('DOMContentLoaded', function() {
             videoModal.addEventListener('show.bs.modal', clearVideoModal);
             videoModal.addEventListener('hidden.bs.modal', clearVideoModal);
         } else {
-            console.log('Video modal not found!');
         }
         
         // Make functions globally accessible
