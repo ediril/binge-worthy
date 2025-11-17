@@ -121,19 +121,7 @@ $page_description = 'Watch ' . $video['title'] . ' on BingeWorthy';
         </div>
         
     </div>
-    
-    <?php include 'partials/footer.php'; ?>
-    
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Custom JS -->
-    <?php 
-    // Use filemtime for smart cache busting
-    $js_file = __DIR__ . '/../static/script.js';
-    $js_version = file_exists($js_file) ? filemtime($js_file) : time();
-    ?>
-    <script src="/static/script.js?v=<?php echo $js_version; ?>"></script>
-    
+        
     <!-- Inline JavaScript for fullscreen functionality (backup/override) -->
     <script>
         // Only define if not already defined by external script
@@ -264,5 +252,5 @@ $page_description = 'Watch ' . $video['title'] . ' on BingeWorthy';
             if (countdownText) countdownText.textContent = COUNTDOWN_SECONDS;
         });
     </script>
-</body>
-</html>
+
+    <?php include 'templates/partials/footer.php'; ?>

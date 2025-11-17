@@ -16,3 +16,14 @@
         </div>
     </div>
 </footer> 
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <?php 
+    // Use filemtime for smart cache busting
+    $js_file = __DIR__ . '/../../static/script.js';
+    $js_version = file_exists($js_file) ? filemtime($js_file) : time();
+    ?>
+    <script src="/static/script.js?v=<?php echo $js_version; ?>"></script>
+    <script async src="https://scripts.simpleanalyticscdn.com/latest.js"></script>
+</body>
+</html> 

@@ -99,12 +99,6 @@ $current_page = 'blog';
         </div>
     </div>
 
-    <?php include 'templates/partials/footer.php'; ?>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="static/script.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
-
     <style>
         .blog-section {
             margin-bottom: 3rem;
@@ -154,5 +148,5 @@ $current_page = 'blog';
             margin-bottom: 0;
         }
     </style>
-</body>
-</html>
+
+    <?php include 'templates/partials/footer.php'; ?>
