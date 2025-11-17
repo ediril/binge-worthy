@@ -93,16 +93,6 @@ $current_page = 'about';
                         <p>
                             Your feedback is very valuable! If you have any suggestions or comments, please feel free to <a href="https://x.com/emrahdma" class="text-decoration-none">reach out</a>.
                         </p>
-
-                        <h3 class="mt-5 mb-3">Accolades</h3>
-                        <p>
-                            <a href="https://open-launch.com/projects/binge-worthy-shows" target="_blank" title="Open-Launch Top 3 Daily Winner">
-                            <img 
-                                src="https://open-launch.com/images/badges/top3-dark.svg" 
-                                alt="Open-Launch Top 3 Daily Winner" 
-                                style="width: 195px; height: auto;" />
-                            </a>
-                        </p>
                         <br><br>
                     </div>
                 </div>
