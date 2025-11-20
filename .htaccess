@@ -88,7 +88,7 @@ RewriteRule ^ index.php [L,QSA]
     # Allow YouTube thumbnails and channel avatars
     # - Video thumbnails commonly come from img.youtube.com / i.ytimg.com
     # - Channel avatars come from yt3.googleusercontent.com (and occasionally yt3.ggpht.com)
-    Header set Content-Security-Policy "default-src 'self'; img-src 'self' https://img.youtube.com https://i.ytimg.com https://ytimg.com https://yt3.googleusercontent.com https://yt3.ggpht.com data:; style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net data:; connect-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com; frame-ancestors 'none'"
+    Header set Content-Security-Policy "default-src 'self'; img-src 'self' https://img.youtube.com https://i.ytimg.com https://ytimg.com https://yt3.googleusercontent.com https://yt3.ggpht.com https://queue.simpleanalyticscdn.com data:; style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net https://scripts.simpleanalyticscdn.com 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net data:; connect-src 'self' https://queue.simpleanalyticscdn.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com; frame-ancestors 'none'"
 </IfModule>
 
 # Basic Auth for admin endpoints (production)
