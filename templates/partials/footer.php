@@ -11,7 +11,9 @@
         </div>
         <div class="row">
             <div class="col-12 text-center">
-                <p class=""><a href="https://emrahdiril.com">Emrah Diril</a> &copy; 2025 ✨❤️</p>
+                <a href="https://startupfa.me/s/bingeworthy?utm_source=bingeworthyshows.tv" target="_blank"><img src="https://startupfa.me/badges/featured-badge-small.webp" alt="BingeWorthy - Featured on Startup Fame" width="224" height="36" style="filter: brightness(0.85);" /></a>
+                <a href="https://wired.business" target="_blank"><img src="https://wired.business/badge0-dark.svg" alt="Featured on Wired Business" width="180" height="40"></a>
+                <p class="pt-3">🌘 <a href="https://emrahdiril.com">Emrah Diril</a> &copy; 2025. All Rights Reserved.</p>
             </div>
         </div>
     </div>
