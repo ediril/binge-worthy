@@ -19,7 +19,10 @@ $current_page = isset($current_page) ? $current_page : 'home';
             </ul>
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link <?php echo ($current_page == 'about') ? 'active' : ''; ?>" href="about.php">About</a>
+                    <a class="nav-link <?php echo ($current_page == 'blog') ? 'active' : ''; ?>" href="/blog">Blog</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo ($current_page == 'about') ? 'active' : ''; ?>" href="/about">About</a>
                 </li>
                 <?php 
                 // Only show admin button on localhost

@@ -3,7 +3,6 @@
         <div class="row">
             <div class="col-12 text-center">
                 <p>
-                    <a href="/blog">Blog</a> • 
                     <a href="/legal">Legal</a> • 
                     <a href="/privacy">Privacy</a>
                 </p>
@@ -11,8 +10,12 @@
         </div>
         <div class="row">
             <div class="col-12 text-center">
-                <a href="https://startupfa.me/s/bingeworthy?utm_source=bingeworthyshows.tv" target="_blank"><img src="https://startupfa.me/badges/featured-badge-small.webp" alt="BingeWorthy - Featured on Startup Fame" width="224" height="36" style="filter: brightness(0.85);" /></a>
+                <a href="https://startupfa.me/s/bingeworthy?utm_source=bingeworthyshows.tv" target="_blank"><img src="https://startupfa.me/badges/featured-badge-small.webp" alt="BingeWorthy - Featured on Startup Fame" width="224" height="36" style="filter: brightness(0.8);" /></a>
                 <a href="https://wired.business" target="_blank"><img src="https://wired.business/badge0-dark.svg" alt="Featured on Wired Business" width="180" height="40"></a>
+                <a href="https://starterbest.com" target="_blank" rel="noopener noreferrer" style="filter: brightness(0.8);">
+                    <img src="https://starterbest.com/badages-awards.svg"
+                    alt="Featured on Starter Best" style="height: 40px; width: auto;"/>
+                </a>
                 <p class="pt-3">🌘 <a href="https://emrahdiril.com">Emrah Diril</a> &copy; 2025. All Rights Reserved.</p>
             </div>
         </div>
