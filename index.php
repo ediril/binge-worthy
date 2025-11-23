@@ -35,7 +35,11 @@ $valid_pages = [
     'channel' => 'channel',
     'channel.php' => 'channel',
     'play' => 'play',
-    'play.php' => 'play'
+    'play.php' => 'play',
+    'legal' => 'legal',
+    'legal.php' => 'legal',
+    'privacy' => 'privacy',
+    'privacy.php' => 'privacy'
 ];
 
 // Determine which page to load
@@ -115,7 +119,19 @@ switch ($page_to_load) {
     case 'play':
         include 'templates/play.php';
         break;
-        
+
+    case 'legal':
+        $page_title = 'Legal - BingeWorthy';
+        $current_page = 'legal';
+        include 'templates/legal.php';
+        break;
+
+    case 'privacy':
+        $page_title = 'Privacy Policy - BingeWorthy';
+        $current_page = 'privacy';
+        include 'templates/privacy.php';
+        break;
+
     default:
         show_404_page();
 } 
