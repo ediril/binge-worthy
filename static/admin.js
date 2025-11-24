@@ -44,13 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Content already exists - hide form elements and show alert
                     const categorySection = document.getElementById('category-section');
                     const submitButton = document.querySelector('#add-content-form button[type="submit"]');
-                    
-                        categorySection: !!categorySection,
-                        descriptionField: !!descriptionField, 
-                        submitButton: !!submitButton,
-                        contentInfo: !!contentInfo
-                    });
-                    
+
                     // Hide form sections
                     if (categorySection) categorySection.style.display = 'none';
                     if (submitButton) submitButton.style.display = 'none';
@@ -876,12 +870,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const videoModal = new bootstrap.Modal(document.getElementById('addVideoModal'));
                 const videoInput = document.getElementById('video-url');
                 const videoDescription = document.getElementById('video-description');
-                
-                    modal: !!videoModal,
-                    input: !!videoInput,
-                    description: !!videoDescription
-                });
-                
+
                 // Show the modal first
                 videoModal.show();
                 
@@ -927,15 +916,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const submitText = document.getElementById('channel-submit-text');
             const actionInput = document.getElementById('channel-action');
             const channelIdInput = document.getElementById('channel-id');
-            
-                modal: !!modal,
-                modalTitle: !!modalTitle,
-                submitBtn: !!submitBtn,
-                submitText: !!submitText,
-                actionInput: !!actionInput,
-                channelIdInput: !!channelIdInput
-            });
-            
+
             // Clear form
             clearChannelModal();
             

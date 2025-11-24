@@ -623,22 +623,24 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                 [
                                     'title' => 'Actions',
                                     'render' => function($row) {
+                                        // Properly escape for JavaScript - escape backslashes first, then quotes
+                                        $jsEscapedLink = str_replace(['\\', "'"], ['\\\\', "\\'"], $row['link']);
                                         return sprintf(
                                             '<div class="btn-group btn-group-sm" role="group">
-                                                <button type="button" 
-                                                        class="btn btn-outline-success" 
+                                                <button type="button"
+                                                        class="btn btn-outline-success"
                                                         onclick="addSuggestionToForm(\'%s\')"
                                                         title="Add to Form">
                                                     <i class="fas fa-plus"></i>
                                                 </button>
-                                                <button type="button" 
-                                                        class="btn btn-outline-danger" 
+                                                <button type="button"
+                                                        class="btn btn-outline-danger"
                                                         onclick="deleteSuggestion(%d)"
                                                         title="Delete Suggestion">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </div>',
-                                            htmlspecialchars($row['link']),
+                                            $jsEscapedLink,
                                             $row['id']
                                         );
                                     }
