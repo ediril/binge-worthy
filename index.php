@@ -44,13 +44,21 @@ $valid_pages = [
 
 // Determine which page to load
 $page_to_load = 'home'; // default
-if (array_key_exists($path, $valid_pages)) {
+
+// Handle /channel/slug-name pattern (from .htaccess rewrite or direct)
+if (preg_match('#^channel/([a-zA-Z0-9-]+)/?$#', $path, $matches)) {
+    $_GET['slug'] = $matches[1];
+    $page_to_load = 'channel';
+} elseif (isset($_GET['slug']) && !empty($_GET['slug'])) {
+    // Slug passed via query string from .htaccess rewrite
+    $page_to_load = 'channel';
+} elseif (array_key_exists($path, $valid_pages)) {
     $page_to_load = $valid_pages[$path];
 } else {
     // Check if it's a path with parameters (like categories?category=1 or channel?id=1)
     $path_parts = explode('?', $path);
     $base_path = $path_parts[0];
-    
+
     if (array_key_exists($base_path, $valid_pages)) {
         $page_to_load = $valid_pages[$base_path];
     } else {

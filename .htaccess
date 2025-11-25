@@ -23,6 +23,11 @@ RewriteCond %{REQUEST_URI} !^/admin\.php$
 RewriteCond %{REQUEST_URI} !^/admin_ajax\.php$
 RewriteRule ^ /%1? [R=301,L]
 
+# Channel slug URLs - route /channel/slug-name to index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^channel/([a-zA-Z0-9-]+)/?$ index.php?slug=$1 [L,QSA]
+
 # Clean URL rules for existing pages
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

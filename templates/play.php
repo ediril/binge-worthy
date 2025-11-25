@@ -7,9 +7,9 @@ if (!$video_id) {
 
 require_once __DIR__ . '/../database.php';
 $db = get_database();
-$stmt = $db->prepare('SELECT v.*, c.name as channel_title 
-                      FROM videos v 
-                      LEFT JOIN channels c ON v.channel_id = c.id 
+$stmt = $db->prepare('SELECT v.*, c.name as channel_title, c.slug as channel_slug
+                      FROM videos v
+                      LEFT JOIN channels c ON v.channel_id = c.id
                       WHERE v.id = ?');
 $stmt->execute([$video_id]);
 $video = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -40,7 +40,7 @@ $page_description = 'Watch ' . $video['title'] . ' on BingeWorthy';
                 <h1 class="video-player-title"><?php echo htmlspecialchars($video['title']); ?></h1>
                 
                 <div class="video-player-meta">
-                    <a href="/channel?id=<?php echo htmlspecialchars($video['channel_id']); ?>" 
+                    <a href="<?php echo !empty($video['channel_slug']) ? '/channel/' . urlencode($video['channel_slug']) : '/channel?id=' . htmlspecialchars($video['channel_id']); ?>"
                        class="video-player-channel">
                         <?php echo htmlspecialchars($video['channel_title']); ?>
                     </a>

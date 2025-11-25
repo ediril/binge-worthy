@@ -672,9 +672,10 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                 [
                                     'title' => 'Name',
                                     'render' => function($row) {
+                                        $url = !empty($row['slug']) ? '/channel/' . urlencode($row['slug']) : '/channel?id=' . $row['id'];
                                         return sprintf(
-                                            '<a href="/channel?id=%d" class="text-info text-decoration-underline">%s</a>',
-                                            $row['id'],
+                                            '<a href="%s" class="text-info text-decoration-underline">%s</a>',
+                                            htmlspecialchars($url),
                                             htmlspecialchars($row['name'])
                                         );
                                     }

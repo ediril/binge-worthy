@@ -26,9 +26,9 @@ if (empty($video_id)) {
 
 try {
     $db = get_database();
-    $stmt = $db->prepare('SELECT v.*, c.name as channel_title 
-                          FROM videos v 
-                          LEFT JOIN channels c ON v.channel_id = c.id 
+    $stmt = $db->prepare('SELECT v.*, c.name as channel_title, c.slug as channel_slug
+                          FROM videos v
+                          LEFT JOIN channels c ON v.channel_id = c.id
                           WHERE v.id = ?');
     $stmt->execute([$video_id]);
     $video = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -62,6 +62,7 @@ try {
             'youtube_id' => $youtube_id,
             'channel_id' => $video['channel_id'],
             'channel_title' => $video['channel_title'],
+            'channel_slug' => $video['channel_slug'],
             'published_at' => $video['published_at'],
             'thumbnail_url' => $video['thumbnail_url']
         ]

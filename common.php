@@ -342,13 +342,16 @@ function add_channel_with_categories($db, $name, $description, $youtube_url, $ca
     if ($stmt->fetch()) {
         return false; // Channel with this name already exists
     }
-    
-    // Add channel without category_id
+
+    // Generate slug (pass $db to check for uniqueness)
+    $slug = generate_channel_slug($name, $db);
+
+    // Add channel with slug
     $stmt = $db->prepare("
-        INSERT INTO channels (name, description, youtube_url, thumbnail_url, last_fetched, created_at) 
-        VALUES (?, ?, ?, ?, NULL, datetime('now'))
+        INSERT INTO channels (name, description, youtube_url, thumbnail_url, slug, last_fetched, created_at)
+        VALUES (?, ?, ?, ?, ?, NULL, datetime('now'))
     ");
-    if ($stmt->execute([$name, $description, $youtube_url, $thumbnail_url])) {
+    if ($stmt->execute([$name, $description, $youtube_url, $thumbnail_url, $slug])) {
         $channel_id = $db->lastInsertId();
         add_channel_categories($db, $channel_id, $category_ids);
         return $channel_id;
@@ -1019,6 +1022,66 @@ function get_channel_by_id($db, $channel_id) {
 }
 
 /**
+ * Generate a URL slug from channel name
+ * Format: lowercase, hyphenated, first 5 words
+ * Only adds 5-char MD5 hash suffix if needed for uniqueness
+ * Example: "3Blue1Brown" -> "3blue1brown"
+ * Example: "5-Minute Crafts" -> "5-minute-crafts"
+ * Example (collision): "Tech Reviews" -> "tech-reviews-a1b2c"
+ */
+function generate_channel_slug($channel_name, $db = null) {
+    // Normalize: lowercase, remove special chars except spaces and hyphens
+    $normalized = strtolower(trim($channel_name));
+    $normalized = preg_replace('/[^a-z0-9\s-]/', '', $normalized);
+
+    // Replace multiple spaces/hyphens with single space, then split
+    $normalized = preg_replace('/[\s-]+/', ' ', $normalized);
+    $words = explode(' ', $normalized);
+    $words = array_filter($words);
+    $words = array_slice($words, 0, 5);
+
+    // Join with hyphens
+    $slug_base = implode('-', $words);
+
+    // If no db provided, always add hash for safety
+    if (!$db) {
+        $hash = substr(md5($channel_name), 0, 5);
+        return $slug_base . '-' . $hash;
+    }
+
+    // Check if base slug is unique
+    $stmt = $db->prepare("SELECT COUNT(*) FROM channels WHERE slug = ?");
+    $stmt->execute([$slug_base]);
+    if ($stmt->fetchColumn() == 0) {
+        return $slug_base;
+    }
+
+    // Collision - add hash
+    $hash = substr(md5($channel_name), 0, 5);
+    return $slug_base . '-' . $hash;
+}
+
+/**
+ * Get channel by slug
+ */
+function get_channel_by_slug($db, $slug) {
+    $stmt = $db->prepare("SELECT * FROM channels WHERE slug = ?");
+    $stmt->execute([$slug]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Generate channel URL from channel data
+ * Returns slug-based URL if slug exists, falls back to ID-based URL
+ */
+function get_channel_url($channel) {
+    if (!empty($channel['slug'])) {
+        return '/channel/' . urlencode($channel['slug']);
+    }
+    return '/channel?id=' . $channel['id'];
+}
+
+/**
  * Get videos by channel ID
  */
 function get_videos_by_channel($db, $channel_id, $limit = null) {
@@ -1524,41 +1587,42 @@ function render_admin_table($config) {
  * Render a channel card
  */
 function render_channel_card($channel) {
+    $channel_url = get_channel_url($channel);
     ?>
     <div class="channel-card h-100 d-flex flex-column">
         <div class="channel-thumbnail">
             <?php if (!empty($channel['thumbnail_url'])): ?>
-                <img src="<?php echo htmlspecialchars($channel['thumbnail_url']); ?>" 
+                <img src="<?php echo htmlspecialchars($channel['thumbnail_url']); ?>"
                      alt="<?php echo htmlspecialchars($channel['name']); ?>"
-                     onclick="window.location.href='channel?id=<?php echo $channel['id']; ?>'">
+                     onclick="window.location.href='<?php echo $channel_url; ?>'">
             <?php else: ?>
-                <div class="channel-thumbnail-placeholder d-flex justify-content-center align-items-center" 
-                     onclick="window.location.href='channel?id=<?php echo $channel['id']; ?>'">
+                <div class="channel-thumbnail-placeholder d-flex justify-content-center align-items-center"
+                     onclick="window.location.href='<?php echo $channel_url; ?>'">
                     <span class="placeholder-icon">📺</span>
                 </div>
             <?php endif; ?>
         </div>
         <div class="channel-info p-3 d-flex flex-column flex-grow-1">
             <h3 class="channel-title mb-2">
-                <a href="channel?id=<?php echo $channel['id']; ?>" class="text-decoration-none text-light">
+                <a href="<?php echo $channel_url; ?>" class="text-decoration-none text-light">
                     <?php echo htmlspecialchars($channel['name']); ?>
                 </a>
             </h3>
-            
+
             <!-- Channel Stats -->
             <div class="channel-stats mb-2">
                 <span class="badge bg-secondary"><?php echo $channel['video_count']; ?> videos</span>
             </div>
-            
+
             <?php if (!empty($channel['description'])): ?>
                 <p class="channel-description mb-2">
-                    <?php 
+                    <?php
                         $description = htmlspecialchars($channel['description']);
                         echo strlen($description) > 200 ? substr($description, 0, 200) . '...' : $description;
                     ?>
                 </p>
             <?php endif; ?>
-            
+
             <!-- Channel Categories -->
             <?php if (!empty($channel['category_names'])): ?>
                 <div class="channel-categories mb-2 mt-auto">
@@ -1575,15 +1639,15 @@ function render_channel_card($channel) {
                     ?>
                 </div>
             <?php endif; ?>
-            
+
             <!-- External Link -->
             <div class="channel-actions">
-                <a href="channel?id=<?php echo $channel['id']; ?>" 
+                <a href="<?php echo $channel_url; ?>"
                    class="btn btn-primary btn-sm me-2">
                     View Channel
                 </a>
-                <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" 
-                   target="_blank" 
+                <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>"
+                   target="_blank"
                    class="btn btn-outline-light btn-sm">
                     <i class="fas fa-external-link-alt"></i> YouTube
                 </a>

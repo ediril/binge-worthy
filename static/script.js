@@ -1666,7 +1666,9 @@ function updateVideoDisplay(video) {
     // Update channel link and name
     const channelLink = document.querySelector('.video-player-channel');
     if (channelLink) {
-        channelLink.href = `/channel?id=${video.channel_id}`;
+        channelLink.href = video.channel_slug
+            ? `/channel/${encodeURIComponent(video.channel_slug)}`
+            : `/channel?id=${video.channel_id}`;
         channelLink.textContent = video.channel_title;
     }
     

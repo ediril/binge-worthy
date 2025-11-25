@@ -2,26 +2,46 @@
 require_once 'common.php';
 require_once 'database.php';
 
-// Get channel ID from URL parameter
-$channel_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-
-if ($channel_id <= 0) {
-    header('Location: /');
-    exit;
-}
-
 // Get database connection
 $db = get_database();
+$channel = null;
 
-// Get channel information
-$channel = get_channel_by_id($db, $channel_id);
-if (!$channel) {
+// Check for slug-based access first
+if (isset($_GET['slug']) && !empty($_GET['slug'])) {
+    $slug = $_GET['slug'];
+    $channel = get_channel_by_slug($db, $slug);
+
+    if (!$channel) {
+        show_404_page();
+    }
+}
+// Handle legacy ID-based access with 301 redirect
+elseif (isset($_GET['id'])) {
+    $channel_id = intval($_GET['id']);
+    if ($channel_id <= 0) {
+        header('Location: /');
+        exit;
+    }
+
+    $channel = get_channel_by_id($db, $channel_id);
+    if (!$channel) {
+        header('Location: /');
+        exit;
+    }
+
+    // 301 permanent redirect to slug-based URL if slug exists
+    if (!empty($channel['slug'])) {
+        header('HTTP/1.1 301 Moved Permanently');
+        header('Location: /channel/' . urlencode($channel['slug']));
+        exit;
+    }
+} else {
     header('Location: /');
     exit;
 }
 
 // Get videos for this channel
-$videos = get_videos_by_channel($db, $channel_id);
+$videos = get_videos_by_channel($db, $channel['id']);
 
 $page_title = $channel['name'] . ' - Binge-Worthy';
 $current_page = 'channel';
