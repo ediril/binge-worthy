@@ -1008,11 +1008,78 @@ function get_category_id_by_name($db, $category_name) {
  * Add a new category
  */
 function add_category($db, $name) {
+    $slug = generate_category_slug($name, $db);
     $stmt = $db->prepare("
-        INSERT INTO categories (name, created_at) 
-        VALUES (?, datetime('now'))
+        INSERT INTO categories (name, slug, created_at)
+        VALUES (?, ?, datetime('now'))
     ");
-    return $stmt->execute([$name]);
+    return $stmt->execute([$name, $slug]);
+}
+
+/**
+ * Generate a URL slug from category name
+ * Format: lowercase, hyphenated
+ * Only adds 5-char MD5 hash suffix if needed for uniqueness
+ */
+function generate_category_slug($category_name, $db = null) {
+    // Normalize: lowercase, remove special chars except spaces and hyphens
+    $normalized = strtolower(trim($category_name));
+    $normalized = preg_replace('/[^a-z0-9\s-]/', '', $normalized);
+
+    // Replace multiple spaces/hyphens with single hyphen
+    $slug_base = preg_replace('/[\s-]+/', '-', $normalized);
+    $slug_base = trim($slug_base, '-');
+
+    // Handle edge case where name has no alphanumeric chars
+    if (empty($slug_base)) {
+        return 'category-' . substr(md5($category_name), 0, 8);
+    }
+
+    // If no db provided, always add hash for safety
+    if (!$db) {
+        $hash = substr(md5($category_name), 0, 5);
+        return $slug_base . '-' . $hash;
+    }
+
+    // Check if base slug is unique
+    $stmt = $db->prepare("SELECT COUNT(*) FROM categories WHERE slug = ?");
+    $stmt->execute([$slug_base]);
+    if ($stmt->fetchColumn() == 0) {
+        return $slug_base;
+    }
+
+    // Collision - add hash
+    $hash = substr(md5($category_name), 0, 5);
+    return $slug_base . '-' . $hash;
+}
+
+/**
+ * Get category by slug
+ */
+function get_category_by_slug($db, $slug) {
+    $stmt = $db->prepare("SELECT * FROM categories WHERE slug = ?");
+    $stmt->execute([$slug]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Get category by ID
+ */
+function get_category_by_id($db, $category_id) {
+    $stmt = $db->prepare("SELECT * FROM categories WHERE id = ?");
+    $stmt->execute([$category_id]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Generate category URL from category data
+ * Returns slug-based URL if slug exists, falls back to ID-based URL
+ */
+function get_category_url($category) {
+    if (!empty($category['slug'])) {
+        return '/categories/' . urlencode($category['slug']);
+    }
+    return '/categories?category=' . $category['id'];
 }
 
 /**

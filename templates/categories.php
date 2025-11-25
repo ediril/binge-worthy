@@ -8,12 +8,57 @@ $db = get_database();
 // Get all categories
 $categories = get_display_categories($db);
 
-// Get selected category from URL parameter
-$selected_category_id = isset($_GET['category']) ? intval($_GET['category']) : null;
+// Get selected category - check for slug first, then ID
+$selected_category = null;
+$selected_category_id = null;
+
+// Check for slug-based access first
+if (isset($_GET['category_slug']) && !empty($_GET['category_slug'])) {
+    $slug = $_GET['category_slug'];
+    $selected_category = get_category_by_slug($db, $slug);
+
+    if (!$selected_category) {
+        show_404_page();
+    }
+    $selected_category_id = $selected_category['id'];
+}
+// Handle legacy ID-based access with 301 redirect
+elseif (isset($_GET['category']) && !empty($_GET['category'])) {
+    $category_id = intval($_GET['category']);
+    if ($category_id <= 0) {
+        // Invalid ID, redirect to categories page
+        header('Location: /categories');
+        exit;
+    }
+
+    $selected_category = get_category_by_id($db, $category_id);
+
+    if (!$selected_category) {
+        // Category not found, redirect to categories page
+        header('Location: /categories');
+        exit;
+    }
+
+    // 301 permanent redirect to slug-based URL if slug exists
+    if (!empty($selected_category['slug'])) {
+        header('HTTP/1.1 301 Moved Permanently');
+        header('Location: /categories/' . urlencode($selected_category['slug']));
+        exit;
+    }
+
+    $selected_category_id = $selected_category['id'];
+}
 
 // If no category selected, default to random category
 if (!$selected_category_id && !empty($categories)) {
     $selected_category_id = $categories[array_rand($categories)]['id'];
+    // Find the category data
+    foreach ($categories as $cat) {
+        if ($cat['id'] == $selected_category_id) {
+            $selected_category = $cat;
+            break;
+        }
+    }
 }
 
 // Get videos for selected category
@@ -46,8 +91,10 @@ $current_page = 'categories';
         <!-- Categories Buttons -->
         <div class="categories-header px-4 mb-4">
             <div class="categories-buttons d-flex flex-wrap gap-2 justify-content-center mb-4">
-                <?php foreach ($categories as $category): ?>
-                    <a href="/categories?category=<?php echo $category['id']; ?>" 
+                <?php foreach ($categories as $category):
+                    $cat_url = get_category_url($category);
+                ?>
+                    <a href="<?php echo $cat_url; ?>"
                        class="category-button <?php echo ($category['id'] == $selected_category_id) ? 'active' : ''; ?>">
                         <span class="category-name"><?php echo htmlspecialchars($category['name']); ?></span>
                         <span class="category-count">

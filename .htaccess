@@ -33,6 +33,11 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^play/([a-zA-Z0-9-]+)/?$ index.php?video_slug=$1 [L,QSA]
 
+# Category slug URLs - route /categories/slug-name to index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^categories/([a-zA-Z0-9-]+)/?$ index.php?category_slug=$1 [L,QSA]
+
 # Clean URL rules for existing pages
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

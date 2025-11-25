@@ -60,6 +60,14 @@ elseif (preg_match('#^play/([a-zA-Z0-9-]+)/?$#', $path, $matches)) {
 } elseif (isset($_GET['video_slug']) && !empty($_GET['video_slug'])) {
     // Video slug passed via query string from .htaccess rewrite
     $page_to_load = 'play';
+}
+// Handle /categories/slug-name pattern (from .htaccess rewrite or direct)
+elseif (preg_match('#^categories/([a-zA-Z0-9-]+)/?$#', $path, $matches)) {
+    $_GET['category_slug'] = $matches[1];
+    $page_to_load = 'categories';
+} elseif (isset($_GET['category_slug']) && !empty($_GET['category_slug'])) {
+    // Category slug passed via query string from .htaccess rewrite
+    $page_to_load = 'categories';
 } elseif (array_key_exists($path, $valid_pages)) {
     $page_to_load = $valid_pages[$path];
 } else {
