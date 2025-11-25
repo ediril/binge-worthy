@@ -371,18 +371,21 @@ function add_channel($db, $name, $description, $youtube_url, $category_id, $thum
  * Add a new video
  */
 function add_video($db, $channel_id, $title, $video_url, $thumbnail_url, $is_featured = 0, $created_at = null) {
+    // Generate slug
+    $slug = generate_video_slug($title, $db);
+
     if ($created_at) {
         $stmt = $db->prepare("
-            INSERT INTO videos (channel_id, title, video_url, thumbnail_url, is_featured, published_at) 
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO videos (channel_id, title, video_url, thumbnail_url, is_featured, published_at, slug)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
-        return $stmt->execute([$channel_id, $title, $video_url, $thumbnail_url, $is_featured, $created_at]);
+        return $stmt->execute([$channel_id, $title, $video_url, $thumbnail_url, $is_featured, $created_at, $slug]);
     } else {
         $stmt = $db->prepare("
-            INSERT INTO videos (channel_id, title, video_url, thumbnail_url, is_featured) 
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO videos (channel_id, title, video_url, thumbnail_url, is_featured, slug)
+            VALUES (?, ?, ?, ?, ?, ?)
         ");
-        return $stmt->execute([$channel_id, $title, $video_url, $thumbnail_url, $is_featured]);
+        return $stmt->execute([$channel_id, $title, $video_url, $thumbnail_url, $is_featured, $slug]);
     }
 }
 
@@ -1082,6 +1085,78 @@ function get_channel_url($channel) {
 }
 
 /**
+ * Generate a URL slug from video title
+ * Format: lowercase, hyphenated, first 5 words
+ * Only adds 5-char MD5 hash suffix if needed for uniqueness
+ */
+function generate_video_slug($video_title, $db = null) {
+    // Normalize: lowercase, remove special chars except spaces and hyphens
+    $normalized = strtolower(trim($video_title));
+    $normalized = preg_replace('/[^a-z0-9\s-]/', '', $normalized);
+
+    // Replace multiple spaces/hyphens with single space, then split
+    $normalized = preg_replace('/[\s-]+/', ' ', $normalized);
+    $words = explode(' ', $normalized);
+    $words = array_filter($words);
+    $words = array_slice($words, 0, 5);
+
+    // Join with hyphens
+    $slug_base = implode('-', $words);
+
+    // Handle edge case where title has no alphanumeric chars (e.g., Japanese only)
+    if (empty($slug_base)) {
+        $slug_base = 'video-' . substr(md5($video_title), 0, 8);
+        // No need to check uniqueness, hash is unique enough
+        return $slug_base;
+    }
+
+    // If no db provided, always add hash for safety
+    if (!$db) {
+        $hash = substr(md5($video_title), 0, 5);
+        return $slug_base . '-' . $hash;
+    }
+
+    // Check if base slug is unique
+    $stmt = $db->prepare("SELECT COUNT(*) FROM videos WHERE slug = ?");
+    $stmt->execute([$slug_base]);
+    if ($stmt->fetchColumn() == 0) {
+        return $slug_base;
+    }
+
+    // Collision - add hash based on full title
+    $slug_with_hash = $slug_base . '-' . substr(md5($video_title), 0, 5);
+
+    // Check if slug with hash is also taken (rare edge case)
+    $stmt->execute([$slug_with_hash]);
+    if ($stmt->fetchColumn() == 0) {
+        return $slug_with_hash;
+    }
+
+    // Still collision - use longer hash
+    return $slug_base . '-' . substr(md5($video_title . microtime()), 0, 8);
+}
+
+/**
+ * Get video by slug
+ */
+function get_video_by_slug($db, $slug) {
+    $stmt = $db->prepare("SELECT * FROM videos WHERE slug = ?");
+    $stmt->execute([$slug]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Generate video URL from video data
+ * Returns slug-based URL if slug exists, falls back to ID-based URL
+ */
+function get_video_url($video) {
+    if (!empty($video['slug'])) {
+        return '/play/' . urlencode($video['slug']);
+    }
+    return '/play?id=' . $video['id'];
+}
+
+/**
  * Get videos by channel ID
  */
 function get_videos_by_channel($db, $channel_id, $limit = null) {
@@ -1661,17 +1736,19 @@ function render_channel_card($channel) {
  * Render a video card
  */
 function render_video_card($video) {
+    $video_url = get_video_url($video);
+    $channel_url = !empty($video['channel_slug']) ? '/channel/' . urlencode($video['channel_slug']) : '/channel?id=' . $video['channel_id'];
     ?>
     <div class="video-card d-flex flex-column">
         <div class="video-thumbnail">
-            <img src="<?php echo htmlspecialchars($video['thumbnail_url']); ?>" 
+            <img src="<?php echo htmlspecialchars($video['thumbnail_url']); ?>"
                  alt="<?php echo htmlspecialchars($video['title']); ?>"
-                 onclick="openVideo('<?php echo htmlspecialchars($video['video_url']); ?>', <?php echo $video['id']; ?>)">
+                 onclick="window.location.href='<?php echo $video_url; ?>'">
         </div>
         <div class="video-info p-3 d-flex flex-column flex-grow-1">
             <h3 class="video-title mb-2"><?php echo htmlspecialchars($video['title']); ?></h3>
             <p class="video-channel mb-2">
-                <a href="channel?id=<?php echo $video['channel_id']; ?>" class="channel-link">
+                <a href="<?php echo $channel_url; ?>" class="channel-link">
                     <?php echo htmlspecialchars($video['channel_name']); ?>
                 </a>
             </p>

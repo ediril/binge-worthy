@@ -52,6 +52,14 @@ if (preg_match('#^channel/([a-zA-Z0-9-]+)/?$#', $path, $matches)) {
 } elseif (isset($_GET['slug']) && !empty($_GET['slug'])) {
     // Slug passed via query string from .htaccess rewrite
     $page_to_load = 'channel';
+}
+// Handle /play/slug-name pattern (from .htaccess rewrite or direct)
+elseif (preg_match('#^play/([a-zA-Z0-9-]+)/?$#', $path, $matches)) {
+    $_GET['video_slug'] = $matches[1];
+    $page_to_load = 'play';
+} elseif (isset($_GET['video_slug']) && !empty($_GET['video_slug'])) {
+    // Video slug passed via query string from .htaccess rewrite
+    $page_to_load = 'play';
 } elseif (array_key_exists($path, $valid_pages)) {
     $page_to_load = $valid_pages[$path];
 } else {

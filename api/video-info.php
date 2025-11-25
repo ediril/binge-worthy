@@ -26,7 +26,7 @@ if (empty($video_id)) {
 
 try {
     $db = get_database();
-    $stmt = $db->prepare('SELECT v.*, c.name as channel_title, c.slug as channel_slug
+    $stmt = $db->prepare('SELECT v.*, v.slug as video_slug, c.name as channel_title, c.slug as channel_slug
                           FROM videos v
                           LEFT JOIN channels c ON v.channel_id = c.id
                           WHERE v.id = ?');
@@ -58,6 +58,7 @@ try {
         'video' => [
             'id' => $video['id'],
             'title' => $video['title'],
+            'slug' => $video['video_slug'],
             'video_url' => $video['video_url'],
             'youtube_id' => $youtube_id,
             'channel_id' => $video['channel_id'],

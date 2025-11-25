@@ -1,20 +1,51 @@
 <?php
-$video_id = $_GET['id'] ?? '';
-if (!$video_id) {
-    header('Location: /');
-    exit;
-}
-
 require_once __DIR__ . '/../database.php';
-$db = get_database();
-$stmt = $db->prepare('SELECT v.*, c.name as channel_title, c.slug as channel_slug
-                      FROM videos v
-                      LEFT JOIN channels c ON v.channel_id = c.id
-                      WHERE v.id = ?');
-$stmt->execute([$video_id]);
-$video = $stmt->fetch(PDO::FETCH_ASSOC);
+require_once __DIR__ . '/../common.php';
 
-if (!$video) {
+$db = get_database();
+$video = null;
+
+// Check for slug-based access first
+if (isset($_GET['video_slug']) && !empty($_GET['video_slug'])) {
+    $slug = $_GET['video_slug'];
+    $stmt = $db->prepare('SELECT v.*, c.name as channel_title, c.slug as channel_slug
+                          FROM videos v
+                          LEFT JOIN channels c ON v.channel_id = c.id
+                          WHERE v.slug = ?');
+    $stmt->execute([$slug]);
+    $video = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$video) {
+        show_404_page();
+    }
+}
+// Handle legacy ID-based access with 301 redirect
+elseif (isset($_GET['id']) && !empty($_GET['id'])) {
+    $video_id = intval($_GET['id']);
+    if ($video_id <= 0) {
+        header('Location: /');
+        exit;
+    }
+
+    $stmt = $db->prepare('SELECT v.*, c.name as channel_title, c.slug as channel_slug
+                          FROM videos v
+                          LEFT JOIN channels c ON v.channel_id = c.id
+                          WHERE v.id = ?');
+    $stmt->execute([$video_id]);
+    $video = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$video) {
+        header('Location: /');
+        exit;
+    }
+
+    // 301 permanent redirect to slug-based URL if slug exists
+    if (!empty($video['slug'])) {
+        header('HTTP/1.1 301 Moved Permanently');
+        header('Location: /play/' . urlencode($video['slug']));
+        exit;
+    }
+} else {
     header('Location: /');
     exit;
 }

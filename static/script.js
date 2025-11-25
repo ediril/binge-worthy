@@ -1458,16 +1458,7 @@ function navigateToVideo(videoId, youtubeId = null) {
         }, 500);
     }
     
-    // Step 4: Update URL parameter without page reload
-    const newUrl = `/play?id=${videoId}`;
-    try {
-        window.history.pushState({ videoId: videoId }, '', newUrl);
-        console.log('Updated URL to:', newUrl);
-    } catch (e) {
-        console.error('Failed to update URL:', e);
-    }
-    
-    // Step 5: Fetch video information and swap the video
+    // Step 4: Fetch video information and swap the video (URL updated after we get slug)
     swapToNewVideo(videoId, youtubeId);
 }
 
@@ -1597,7 +1588,16 @@ function swapToNewVideo(videoId, youtubeId = null) {
             if (data.success && data.video) {
                 const video = data.video;
                 console.log('Video data received:', video);
-                
+
+                // Update URL with slug
+                const newUrl = video.slug ? `/play/${encodeURIComponent(video.slug)}` : `/play?id=${videoId}`;
+                try {
+                    window.history.pushState({ videoId: videoId, slug: video.slug }, '', newUrl);
+                    console.log('Updated URL to:', newUrl);
+                } catch (e) {
+                    console.error('Failed to update URL:', e);
+                }
+
                 // Update page title and meta information
                 document.title = video.title + ' - BingeWorthy';
                 console.log('Updated page title:', document.title);

@@ -28,6 +28,11 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^channel/([a-zA-Z0-9-]+)/?$ index.php?slug=$1 [L,QSA]
 
+# Video slug URLs - route /play/slug-name to index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^play/([a-zA-Z0-9-]+)/?$ index.php?video_slug=$1 [L,QSA]
+
 # Clean URL rules for existing pages
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
