@@ -11,10 +11,10 @@ $current_page = isset($current_page) ? $current_page : 'home';
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
-                    <a class="nav-link <?php echo ($current_page == 'channels') ? 'active' : ''; ?>" href="channels.php">Channels</a>
+                    <a class="nav-link <?php echo ($current_page == 'channels') ? 'active' : ''; ?>" href="/channels">Channels</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link <?php echo ($current_page == 'categories') ? 'active' : ''; ?>" href="categories.php">Categories</a>
+                    <a class="nav-link <?php echo ($current_page == 'categories') ? 'active' : ''; ?>" href="/categories">Categories</a>
                 </li>
             </ul>
             <ul class="navbar-nav">
@@ -31,7 +31,7 @@ $current_page = isset($current_page) ? $current_page : 'home';
                 if ($is_localhost): 
                 ?>
                     <li class="nav-item ms-2 d-flex align-items-center">
-                        <a href="admin.php" class="btn btn-outline-light btn-sm">Admin</a>
+                        <a href="/admin" class="btn btn-outline-light btn-sm">Admin</a>
                     </li>
                 <?php endif; ?>
             </ul>
