@@ -43,6 +43,9 @@ elseif (isset($_GET['id'])) {
 // Get videos for this channel
 $videos = get_videos_by_channel($db, $channel['id']);
 
+// Get categories for this channel
+$channel_categories = get_channel_categories($db, $channel['id']);
+
 $page_title = $channel['name'] . ' - Binge-Worthy';
 $current_page = 'channel';
 ?>
@@ -77,12 +80,19 @@ $current_page = 'channel';
                     <?php endif; ?>
                     <div class="channel-stats">
                         <span class="badge bg-secondary"><?php echo count($videos); ?> videos</span>
-                        <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>" 
-                           target="_blank" 
+                        <a href="<?php echo htmlspecialchars($channel['youtube_url']); ?>"
+                           target="_blank"
                            class="btn btn-outline-primary btn-sm ms-2">
                             <i class="fas fa-external-link-alt"></i> Visit YouTube Channel
                         </a>
                     </div>
+                    <?php if (!empty($channel_categories)): ?>
+                        <div class="channel-categories mt-2">
+                            <?php foreach ($channel_categories as $cat): ?>
+                                <a href="<?php echo get_category_url($cat); ?>" class="badge bg-primary me-1 text-decoration-none"><?php echo htmlspecialchars($cat['name']); ?></a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
