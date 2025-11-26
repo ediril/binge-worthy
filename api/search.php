@@ -43,13 +43,12 @@ try {
     // Search videos
     try {
         $stmt = $db->prepare("
-            SELECT 'video' as type, v.title, v.slug, v.thumbnail_url, c.name as channel_name
+            SELECT 'video' as type, v.title, v.slug, v.thumbnail_url, c.name as channel_name, v.published_at
             FROM videos_fts
             JOIN videos v ON videos_fts.rowid = v.id
             JOIN channels c ON v.channel_id = c.id
             WHERE videos_fts MATCH ?
-            ORDER BY rank
-            LIMIT 8
+            ORDER BY rank, v.published_at DESC
         ");
         $stmt->execute([$fts_query]);
         $videos = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -61,11 +60,11 @@ try {
     // Search channels
     try {
         $stmt = $db->prepare("
-            SELECT 'channel' as type, c.name as title, c.slug, c.thumbnail_url
+            SELECT 'channel' as type, c.name as title, c.slug, c.thumbnail_url, c.created_at
             FROM channels_fts
             JOIN channels c ON channels_fts.rowid = c.id
             WHERE channels_fts MATCH ?
-            ORDER BY rank
+            ORDER BY rank, c.created_at DESC
             LIMIT 4
         ");
         $stmt->execute([$fts_query]);
