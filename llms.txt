@@ -1,0 +1,25 @@
+# BingeWorthy - Edutainment Videos
+
+> BingeWorthy is a curated collection of high-quality edutainment videos from YouTube, organized by channel and category.
+
+## Key Pages
+
+- [Home](https://bingeworthyshows.tv/): The main page with new and suggested videos.
+- [Categories](https://bingeworthyshows.tv/categories): Browse videos by category.
+- [Channels](https://bingeworthyshows.tv/channels): Browse all channels.
+
+## API and Search
+
+- [Search API](/api/search.php): Endpoint for searching videos. Expects a 'q' parameter.
+- [Suggestions API](/api/suggested-videos.php): Endpoint for video suggestions.
+
+## Usage Policy
+
+The content on this site is for viewing and entertainment purposes.
+
+### AI Training
+
+User-agent: *
+Disallow-training: /
+
+The use of any content on this site for the purpose of training artificial intelligence models is strictly prohibited without prior written consent.
