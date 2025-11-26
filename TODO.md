@@ -1,12 +1,15 @@
 
+- Admin: Add "refetch" button to the channels table 
 
+- "No category selected" error shouldn't dismiss the add channel or add video modal.
+
+- Show video title in suggestions and videos table (instead of link, which we should put with a link icon next to the name)
 
 
 - Allow to create accounts:
     - To follow channels
     - mark videos watched
     - show new videos in followed channels
-
 
 - Redesign:
 
