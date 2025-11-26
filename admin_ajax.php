@@ -132,7 +132,8 @@ if (isset($input['action']) && $input['action'] === 'fetch_channel_videos') {
         }
         
         // Fetch videos using RSS method
-        $videos = fetch_channel_videos_rss($channel['youtube_url'], 15);
+        $fetch_result = fetch_channel_videos_rss($channel['youtube_url'], 15);
+        $videos = $fetch_result['videos'] ?? [];
         $videos_added = add_videos($db, $channel_id, $videos);
         
         if ($videos_added > 0) {
@@ -357,7 +358,8 @@ if (isset($input['action']) && $input['action'] === 'check_channel_exists') {
             echo json_encode([
                 'success' => true,
                 'channel_exists' => false,
-                'channel_name' => $video_metadata['channel_name'] ?? 'Unknown Channel'
+                'channel_name' => $video_metadata['channel_name'] ?? 'Unknown Channel',
+                'channel_url' => $video_metadata['channel_url']
             ]);
         }
         

@@ -4,9 +4,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Check for toast messages from previous actions (e.g., after page reload)
         const adminToast = sessionStorage.getItem('admin_toast');
         if (adminToast) {
+            // Always remove immediately to prevent showing on next reload
+            sessionStorage.removeItem('admin_toast');
             try {
                 const toastData = JSON.parse(adminToast);
-                sessionStorage.removeItem('admin_toast');
                 // Show toast after a brief delay to ensure page is fully loaded
                 setTimeout(() => {
                     if (window.showToast) {
@@ -16,6 +17,38 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (e) {
                 console.error('Error parsing admin toast:', e);
             }
+        }
+
+        // Check if we need to return to video modal after channel creation (via URL param)
+        // Videos are fetched synchronously during channel creation, so we just need to reopen the video modal
+        const urlParams = new URLSearchParams(window.location.search);
+        const pendingVideoUrl = urlParams.get('pending_video');
+
+        if (pendingVideoUrl) {
+            // Clean URL without reloading
+            window.history.replaceState({}, document.title, window.location.pathname);
+
+            // Open video modal and populate with the pending URL
+            setTimeout(() => {
+                const videoModalEl = document.getElementById('addVideoModal');
+                const videoModal = bootstrap.Modal.getOrCreateInstance(videoModalEl);
+                const videoUrlInput = document.getElementById('video-url');
+
+                // Show the modal first (this triggers clearVideoModal)
+                videoModal.show();
+
+                // Set the value AFTER modal is shown (after clearVideoModal runs)
+                setTimeout(() => {
+                    if (videoUrlInput) {
+                        const decodedUrl = decodeURIComponent(pendingVideoUrl);
+                        videoUrlInput.value = decodedUrl;
+                        // Call validation directly (skip debounce since we know the URL is valid)
+                        if (window.checkVideoUrlAndChannel) {
+                            window.checkVideoUrlAndChannel(decodedUrl);
+                        }
+                    }
+                }, 100);
+            }, 500);
         }
 
         // Function to check if content already exists
@@ -210,13 +243,26 @@ document.addEventListener('DOMContentLoaded', function() {
                         infoDiv.className = 'mb-3 p-3 text-success bg-success bg-opacity-10 border border-success rounded';
                     } else {
                         // Channel doesn't exist - show warning and offer to create channel
-                        infoText.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>Channel "<strong>${data.channel_name}</strong>" not found. <button type="button" class="btn btn-sm btn-warning ms-2" onclick="createChannelFromVideo('${videoUrl.replace(/'/g, "\\'")}', '${data.channel_name.replace(/'/g, "\\'")}')">Create Channel First</button>`;
+                        const channelUrl = data.channel_url || '';
+                        infoText.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>Channel "<strong>${data.channel_name}</strong>" not found. <button type="button" class="btn btn-sm btn-warning ms-2" onclick="createChannelFromVideo('${videoUrl.replace(/'/g, "\\'")}', '${data.channel_name.replace(/'/g, "\\'")}', '${channelUrl.replace(/'/g, "\\'")}')">Create Channel First</button>`;
                         infoDiv.className = 'mb-3 p-3 text-warning bg-warning bg-opacity-10 border border-warning rounded';
+
+                        // Disable submit button - must create channel first
+                        const submitButton = document.getElementById('video-submit-btn');
+                        if (submitButton) {
+                            submitButton.disabled = true;
+                        }
                     }
                 } else {
                     // Error checking
                     infoText.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Could not check channel existence. Please verify the video URL is valid.';
                     infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
+
+                    // Disable submit button on error
+                    const submitButton = document.getElementById('video-submit-btn');
+                    if (submitButton) {
+                        submitButton.disabled = true;
+                    }
                 }
             })
             .catch(error => {
@@ -226,41 +272,18 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
-        function createChannelFromVideo(videoUrl, channelName) {
-            
-            // Get video metadata to extract channel URL
-            fetch('/admin_ajax.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'fetch_metadata',
-                    url: videoUrl,
-                    type: 'video'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.metadata && data.metadata.channel_url) {
-                    // Store the video URL so we can return to it later
-                    window.pendingVideoUrl = videoUrl;
-                    window.pendingVideoModal = bootstrap.Modal.getInstance(document.getElementById('addVideoModal'));
-                    
-                    // Open channel modal with channel data pre-filled
-                    openChannelModal('add', {
-                        url: data.metadata.channel_url,
-                        name: channelName,
-                        autoFetch: true,
-                        returnToVideo: true
-                    });
-                } else {
-                    showToast('Could not fetch channel information for this video', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching video metadata:', error);
-                showToast('Error fetching channel information', 'danger');
+        function createChannelFromVideo(videoUrl, channelName, channelUrl) {
+            // Store the video URL in the hidden field so it survives the form POST
+            const pendingVideoInput = document.getElementById('pending-video-url');
+            if (pendingVideoInput) {
+                pendingVideoInput.value = videoUrl;
+            }
+
+            // Open channel modal with channel data pre-filled (channel URL already available from check_channel_exists)
+            openChannelModal('add', {
+                url: channelUrl,
+                name: channelName,
+                autoFetch: true
             });
         }
         
@@ -380,6 +403,110 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
+        // Channel URL validation and duplicate checking
+        function checkChannelUrl(channelUrl) {
+            const infoDiv = document.getElementById('channel-info');
+            const infoText = document.getElementById('channel-info-text');
+            const submitButton = document.getElementById('channel-submit-btn');
+
+            if (!infoDiv || !infoText) {
+                console.error('Channel info elements not found');
+                return;
+            }
+
+            // First validate URL format
+            if (!isValidYouTubeURL(channelUrl)) {
+                infoText.innerHTML = '<i class="fas fa-times-circle me-2"></i>Invalid channel URL. Please enter a valid YouTube channel URL, handle (@username), or channel name.';
+                infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
+                infoDiv.style.display = 'block';
+
+                // Disable submit button for invalid URLs
+                if (submitButton) {
+                    submitButton.disabled = true;
+                }
+                return;
+            }
+
+            // Show checking state and disable submit button during check
+            infoText.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Checking channel...';
+            infoDiv.className = 'mb-3 p-3 text-info bg-info bg-opacity-10 border border-info rounded';
+            infoDiv.style.display = 'block';
+
+            if (submitButton) {
+                submitButton.disabled = true;
+            }
+
+            // Check if channel already exists
+            fetch('/admin_ajax.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'check_content_exists',
+                    url: channelUrl
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                
+                if (data.success && data.exists && data.type === 'channel') {
+                    // Channel already exists - show error and disable submit
+                    infoText.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>Channel "<strong>${data.name}</strong>" already exists in the database.`;
+                    infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
+                    
+                    if (submitButton) {
+                        submitButton.disabled = true;
+                    }
+                    return;
+                }
+                
+                // Check for API errors or invalid channel URLs
+                if (data.error === 'url_not_found') {
+                    infoText.innerHTML = `<i class="fas fa-times-circle me-2"></i>${data.message || 'Invalid channel URL or channel does not exist on YouTube.'}`;
+                    infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
+                    
+                    if (submitButton) {
+                        submitButton.disabled = true;
+                    }
+                    return;
+                }
+                
+                if (!data.success) {
+                    infoText.innerHTML = '<i class="fas fa-times-circle me-2"></i>Error checking channel. Please try again.';
+                    infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
+                    
+                    if (submitButton) {
+                        submitButton.disabled = true;
+                    }
+                    return;
+                }
+                
+                // Channel doesn't exist - it's valid to add
+                infoText.innerHTML = '<i class="fas fa-check-circle me-2"></i>Channel is valid and can be added.';
+                infoDiv.className = 'mb-3 p-3 text-success bg-success bg-opacity-10 border border-success rounded';
+                
+                if (submitButton) {
+                    submitButton.disabled = false;
+                }
+                
+                // Also fetch description if empty
+                const descriptionField = document.getElementById('channel-description');
+                if (descriptionField && !descriptionField.value.trim()) {
+                    fetchContentDescription(channelUrl, 'channel', 'channel-description');
+                }
+            })
+            .catch(error => {
+                console.error('Error checking channel:', error);
+                infoText.innerHTML = '<i class="fas fa-times-circle me-2"></i>Error checking channel.';
+                infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
+                
+                if (submitButton) {
+                    submitButton.disabled = true;
+                }
+            });
+        }
+
         // Set up auto-fetch functionality for modal input fields
         function setupModalAutoFetch() {
             
@@ -404,106 +531,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
             
-            // Channel URL validation and duplicate checking
-            function checkChannelUrl(channelUrl) {
-                const infoDiv = document.getElementById('channel-info');
-                const infoText = document.getElementById('channel-info-text');
-                const submitButton = document.querySelector('#channelModal button[type="submit"]');
-                
-                if (!infoDiv || !infoText) {
-                    console.error('Channel info elements not found');
-                    return;
-                }
-                
-                // First validate URL format
-                if (!isValidYouTubeURL(channelUrl)) {
-                    infoText.innerHTML = '<i class="fas fa-times-circle me-2"></i>Invalid channel URL. Please enter a valid YouTube channel URL, handle (@username), or channel name.';
-                    infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
-                    infoDiv.style.display = 'block';
-                    
-                    // Disable submit button for invalid URLs
-                    if (submitButton) {
-                        submitButton.disabled = true;
-                    }
-                    return;
-                }
-                
-                // Show checking state
-                infoText.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Checking channel...';
-                infoDiv.className = 'mb-3 p-3 text-info bg-info bg-opacity-10 border border-info rounded';
-                infoDiv.style.display = 'block';
-                
-                // Check if channel already exists
-                fetch('/admin_ajax.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        action: 'check_content_exists',
-                        url: channelUrl
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    
-                    if (data.success && data.exists && data.type === 'channel') {
-                        // Channel already exists - show error and disable submit
-                        infoText.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>Channel "<strong>${data.name}</strong>" already exists in the database.`;
-                        infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
-                        
-                        if (submitButton) {
-                            submitButton.disabled = true;
-                        }
-                        return;
-                    }
-                    
-                    // Check for API errors or invalid channel URLs
-                    if (data.error === 'url_not_found') {
-                        infoText.innerHTML = `<i class="fas fa-times-circle me-2"></i>${data.message || 'Invalid channel URL or channel does not exist on YouTube.'}`;
-                        infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
-                        
-                        if (submitButton) {
-                            submitButton.disabled = true;
-                        }
-                        return;
-                    }
-                    
-                    if (!data.success) {
-                        infoText.innerHTML = '<i class="fas fa-times-circle me-2"></i>Error checking channel. Please try again.';
-                        infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
-                        
-                        if (submitButton) {
-                            submitButton.disabled = true;
-                        }
-                        return;
-                    }
-                    
-                    // Channel doesn't exist - it's valid to add
-                    infoText.innerHTML = '<i class="fas fa-check-circle me-2"></i>Channel is valid and can be added.';
-                    infoDiv.className = 'mb-3 p-3 text-success bg-success bg-opacity-10 border border-success rounded';
-                    
-                    if (submitButton) {
-                        submitButton.disabled = false;
-                    }
-                    
-                    // Also fetch description if empty
-                    const descriptionField = document.getElementById('channel-description');
-                    if (descriptionField && !descriptionField.value.trim()) {
-                        fetchContentDescription(channelUrl, 'channel', 'channel-description');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error checking channel:', error);
-                    infoText.innerHTML = '<i class="fas fa-times-circle me-2"></i>Error checking channel.';
-                    infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
-                    
-                    if (submitButton) {
-                        submitButton.disabled = true;
-                    }
-                });
-            }
-            
             // Channel modal input handler
             const channelUrlInput = document.getElementById('channel-url');
             if (channelUrlInput) {
@@ -517,7 +544,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (infoDiv && !url) {
                         infoDiv.style.display = 'none';
                         // Re-enable button for empty input
-                        const submitButton = document.querySelector('#channelModal button[type="submit"]');
+                        const submitButton = document.getElementById('channel-submit-btn');
                         if (submitButton) {
                             submitButton.disabled = false;
                         }
@@ -538,7 +565,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 infoDiv.style.display = 'block';
                                 
                                 // Disable submit button for invalid URL
-                                const submitButton = document.querySelector('#channelModal button[type="submit"]');
+                                const submitButton = document.getElementById('channel-submit-btn');
                                 if (submitButton) {
                                     submitButton.disabled = true;
                                 }
@@ -567,24 +594,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     clearChannelModal();
                 }
             });
-            
-            channelModal.addEventListener('hidden.bs.modal', function() {
-                if (window.pendingVideoUrl && window.pendingVideoModal && window.channelModalReturnToVideo) {
-                    
-                    // Re-open video modal
-                    window.pendingVideoModal.show();
-                    
-                    // Re-check channel existence for the video
-                    setTimeout(() => {
-                        checkVideoChannelExistence(window.pendingVideoUrl);
-                    }, 500);
-                    
-                    // Clear pending state
-                    window.pendingVideoUrl = null;
-                    window.pendingVideoModal = null;
-                    window.channelModalReturnToVideo = false;
-                }
-            });
+
+            // Add loading state to submit button when form is submitted
+            const channelForm = channelModal.querySelector('form');
+            if (channelForm) {
+                channelForm.addEventListener('submit', function() {
+                    const submitBtn = document.getElementById('channel-submit-btn');
+                    const submitText = document.getElementById('channel-submit-text');
+                    if (submitBtn && submitText) {
+                        submitBtn.disabled = true;
+                        submitText.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Adding channel & fetching videos...';
+                    }
+                });
+            }
         }
             
             
@@ -687,29 +709,27 @@ document.addEventListener('DOMContentLoaded', function() {
         
         
         
-        // Function to delete channel with confirmation
+        // Function to delete channel (confirmation already handled by caller)
         function deleteChannel(channelId, channelName) {
-            if (confirm(`Are you sure you want to delete the channel "${channelName}" and all its videos? This action cannot be undone.`)) {
-                // Create and submit a form for deletion
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.style.display = 'none';
-                
-                const actionInput = document.createElement('input');
-                actionInput.type = 'hidden';
-                actionInput.name = 'action';
-                actionInput.value = 'delete_channel';
-                
-                const channelIdInput = document.createElement('input');
-                channelIdInput.type = 'hidden';
-                channelIdInput.name = 'channel_id';
-                channelIdInput.value = channelId;
-                
-                form.appendChild(actionInput);
-                form.appendChild(channelIdInput);
-                document.body.appendChild(form);
-                form.submit();
-            }
+            // Create and submit a form for deletion
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.style.display = 'none';
+
+            const actionInput = document.createElement('input');
+            actionInput.type = 'hidden';
+            actionInput.name = 'action';
+            actionInput.value = 'delete_channel';
+
+            const channelIdInput = document.createElement('input');
+            channelIdInput.type = 'hidden';
+            channelIdInput.name = 'channel_id';
+            channelIdInput.value = channelId;
+
+            form.appendChild(actionInput);
+            form.appendChild(channelIdInput);
+            document.body.appendChild(form);
+            form.submit();
         }
         
         // Function to edit category inline
@@ -867,7 +887,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (contentType === 'video') {
                 // Open video modal and populate it
-                const videoModal = new bootstrap.Modal(document.getElementById('addVideoModal'));
+                const videoModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('addVideoModal'));
                 const videoInput = document.getElementById('video-url');
                 const videoDescription = document.getElementById('video-description');
 
@@ -910,7 +930,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Unified function to open channel modal for add/edit
         function openChannelModal(mode, options = {}) {
-            const modal = new bootstrap.Modal(document.getElementById('channelModal'));
+            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('channelModal'));
             const modalTitle = document.getElementById('channelModalLabel');
             const submitBtn = document.getElementById('channel-submit-btn');
             const submitText = document.getElementById('channel-submit-text');
@@ -958,13 +978,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 submitBtn.className = 'btn btn-warning';
                 submitText.textContent = 'Update Channel';
                 actionInput.value = 'edit_channel';
-                
+
+                // Enable submit button in edit mode (channel already exists)
+                submitBtn.disabled = false;
+
                 // Hide URL input section, show other sections
                 document.getElementById('channel-url-section').style.display = 'none';
                 document.getElementById('channel-name-display').style.display = 'block';
                 document.getElementById('current-categories-section').style.display = 'block';
                 document.getElementById('channel-url').required = false;
-                
+
                 // Show refetch button in edit mode
                 document.getElementById('refetch-description-btn').style.display = 'inline-block';
                 
@@ -1037,15 +1060,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentCategoriesDisplay.innerHTML = '';
             }
             
-            // Clear info display and re-enable submit button
+            // Clear info display and keep button disabled until validation passes
             const infoDiv = document.getElementById('channel-info');
             if (infoDiv) {
                 infoDiv.style.display = 'none';
             }
-            
-            const submitButton = document.querySelector('#channelModal button[type="submit"]');
+
+            const submitButton = document.getElementById('channel-submit-btn');
             if (submitButton) {
-                submitButton.disabled = false;
+                submitButton.disabled = true;
             }
         }
         
@@ -1089,7 +1112,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 toastContainer = document.createElement('div');
                 toastContainer.id = 'toastContainer';
                 toastContainer.className = 'position-fixed start-50 translate-middle-x p-3';
-                toastContainer.style.zIndex = '1050';
+                toastContainer.style.zIndex = '1090'; // Above Bootstrap modals (1055)
                 toastContainer.style.top = '70px';
                 document.body.appendChild(toastContainer);
             }
@@ -1541,18 +1564,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 infoDiv.style.display = 'block';
                 
                 // Disable the submit button for invalid URLs
-                const submitButton = document.querySelector('#addVideoModal button[type="submit"]');
+                const submitButton = document.getElementById('video-submit-btn');
                 if (submitButton) {
                     submitButton.disabled = true;
                 }
                 return;
             }
             
-            // Show checking state
+            // Show checking state and disable submit button during check
             infoText.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Checking video and channel...';
             infoDiv.className = 'mb-3 p-3 text-info bg-info bg-opacity-10 border border-info rounded';
             infoDiv.style.display = 'block';
-            
+
+            const submitButton = document.getElementById('video-submit-btn');
+            if (submitButton) {
+                submitButton.disabled = true;
+            }
+
             // First check if the video already exists
             fetch('/admin_ajax.php', {
                 method: 'POST',
@@ -1573,7 +1601,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
                     
                     // Disable the submit button
-                    const submitButton = document.querySelector('#addVideoModal button[type="submit"]');
+                    const submitButton = document.getElementById('video-submit-btn');
                     if (submitButton) {
                         submitButton.disabled = true;
                     }
@@ -1586,7 +1614,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
                     
                     // Disable the submit button for invalid URLs
-                    const submitButton = document.querySelector('#addVideoModal button[type="submit"]');
+                    const submitButton = document.getElementById('video-submit-btn');
                     if (submitButton) {
                         submitButton.disabled = true;
                     }
@@ -1598,7 +1626,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
                     
                     // Disable the submit button for errors
-                    const submitButton = document.querySelector('#addVideoModal button[type="submit"]');
+                    const submitButton = document.getElementById('video-submit-btn');
                     if (submitButton) {
                         submitButton.disabled = true;
                     }
@@ -1619,7 +1647,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(response => response.json())
                 .then(channelData => {
                     
-                    const submitButton = document.querySelector('#addVideoModal button[type="submit"]');
+                    const submitButton = document.getElementById('video-submit-btn');
                     
                     if (channelData.success) {
                         if (channelData.channel_exists) {
@@ -1632,13 +1660,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 submitButton.disabled = false;
                             }
                         } else {
-                            // Channel doesn't exist - show warning and enable submit button (video will auto-create channel)
-                            infoText.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>Channel "<strong>${channelData.channel_name}</strong>" not found. <button type="button" class="btn btn-sm btn-warning ms-2" onclick="createChannelFromVideo('${videoUrl.replace(/'/g, "\\'")}', '${channelData.channel_name.replace(/'/g, "\\'")}')">Create Channel First</button>`;
+                            // Channel doesn't exist - show warning and disable submit button (must create channel first)
+                            const channelUrl = channelData.channel_url || '';
+                            infoText.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>Channel "<strong>${channelData.channel_name}</strong>" not found. <button type="button" class="btn btn-sm btn-warning ms-2" onclick="createChannelFromVideo('${videoUrl.replace(/'/g, "\\'")}', '${channelData.channel_name.replace(/'/g, "\\'")}', '${channelUrl.replace(/'/g, "\\'")}')">Create Channel First</button>`;
                             infoDiv.className = 'mb-3 p-3 text-warning bg-warning bg-opacity-10 border border-warning rounded';
-                            
-                            // Enable submit button since video can still be added (will auto-create channel)
+
+                            // Disable submit button - must create channel first
                             if (submitButton) {
-                                submitButton.disabled = false;
+                                submitButton.disabled = true;
                             }
                         }
                     } else {
@@ -1659,53 +1688,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 infoDiv.className = 'mb-3 p-3 text-danger bg-danger bg-opacity-10 border border-danger rounded';
                 
                 // Disable submit button on error
-                const submitButton = document.querySelector('#addVideoModal button[type="submit"]');
+                const submitButton = document.getElementById('video-submit-btn');
                 if (submitButton) {
                     submitButton.disabled = true;
                 }
             });
         }
-        
-        function createChannelFromVideo(videoUrl, channelName) {
-            
-            // Get video metadata to extract channel URL
-            fetch('/admin_ajax.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'fetch_metadata',
-                    url: videoUrl,
-                    type: 'video'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.metadata && data.metadata.channel_url) {
-                    // Store the video URL so we can return to it later
-                    window.pendingVideoUrl = videoUrl;
-                    window.pendingVideoModal = bootstrap.Modal.getInstance(document.getElementById('addVideoModal'));
-                    
-                    // Open channel modal with channel data pre-filled
-                    openChannelModal('add', {
-                        url: data.metadata.channel_url,
-                        name: channelName,
-                        autoFetch: true,
-                        returnToVideo: true
-                    });
-                } else {
-                    showToast('Could not fetch channel information for this video', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching video metadata:', error);
-                showToast('Error fetching channel information', 'danger');
-            });
-        }
-        
-        // Set up video URL input validation 
-        
+
+        // Expose for pending video flow
+        window.checkVideoUrlAndChannel = checkVideoUrlAndChannel;
+
+        // Set up video URL input validation
+
         // Clear any stale info messages on page load
         const infoDiv = document.getElementById('video-info');
         if (infoDiv) {
@@ -1738,7 +1732,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             infoDiv.style.display = 'block';
                             
                             // Disable submit button for invalid URL
-                            const submitButton = document.querySelector('#addVideoModal button[type="submit"]');
+                            const submitButton = document.getElementById('video-submit-btn');
                             if (submitButton) {
                                 submitButton.disabled = true;
                             }
@@ -1753,27 +1747,24 @@ document.addEventListener('DOMContentLoaded', function() {
             function clearVideoModal() {
                 const urlInput = document.getElementById('video-url');
                 const infoDiv = document.getElementById('video-info');
-                const submitButton = document.querySelector('#addVideoModal button[type="submit"]');
-                
+                const submitButton = document.getElementById('video-submit-btn');
+
                 if (urlInput) {
                     urlInput.value = '';
                 }
                 if (infoDiv) {
                     infoDiv.style.display = 'none';
                 }
+                // Keep button disabled - it will be enabled when validation passes
                 if (submitButton) {
-                    submitButton.disabled = false;
+                    submitButton.disabled = true;
                 }
             }
             
             videoModal.addEventListener('show.bs.modal', clearVideoModal);
             videoModal.addEventListener('hidden.bs.modal', clearVideoModal);
-        } else {
         }
-        
-        // Make functions globally accessible
-        window.createChannelFromVideo = createChannelFromVideo;
-        
+
         // Handle refetch description button
         const refetchBtn = document.getElementById('refetch-description-btn');
         if (refetchBtn) {

@@ -366,6 +366,11 @@ function add_channel_with_categories($db, $name, $description, $youtube_url, $ca
     ");
     if ($stmt->execute([$name, $description, $youtube_url, $thumbnail_url, $slug])) {
         $channel_id = $db->lastInsertId();
+
+        // Manually update FTS index (triggers don't work safely with FTS5)
+        $fts_stmt = $db->prepare("INSERT INTO channels_fts(rowid, slug) VALUES (?, ?)");
+        $fts_stmt->execute([$channel_id, $slug]);
+
         add_channel_categories($db, $channel_id, $category_ids);
         return $channel_id;
     }
@@ -392,14 +397,23 @@ function add_video($db, $channel_id, $title, $video_url, $thumbnail_url, $is_fea
             INSERT INTO videos (channel_id, title, video_url, thumbnail_url, is_featured, published_at, slug)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
-        return $stmt->execute([$channel_id, $title, $video_url, $thumbnail_url, $is_featured, $created_at, $slug]);
+        $result = $stmt->execute([$channel_id, $title, $video_url, $thumbnail_url, $is_featured, $created_at, $slug]);
     } else {
         $stmt = $db->prepare("
             INSERT INTO videos (channel_id, title, video_url, thumbnail_url, is_featured, slug)
             VALUES (?, ?, ?, ?, ?, ?)
         ");
-        return $stmt->execute([$channel_id, $title, $video_url, $thumbnail_url, $is_featured, $slug]);
+        $result = $stmt->execute([$channel_id, $title, $video_url, $thumbnail_url, $is_featured, $slug]);
     }
+
+    // Manually update FTS index (triggers don't work safely with FTS5)
+    if ($result) {
+        $video_id = $db->lastInsertId();
+        $fts_stmt = $db->prepare("INSERT INTO videos_fts(rowid, slug) VALUES (?, ?)");
+        $fts_stmt->execute([$video_id, $slug]);
+    }
+
+    return $result;
 }
 
 /**
@@ -1352,69 +1366,80 @@ function auto_remove_matching_suggestions($content_url) {
         // Connect to suggestions database
         $suggestions_db = new PDO('sqlite:suggestions.db');
         $suggestions_db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        
-        // Clean up and normalize the input URL
-        $normalized_url = cleanup_youtube_url($content_url);
-        
-        // Remove suggestions that match the cleaned URL exactly
-        $delete_stmt = $suggestions_db->prepare("DELETE FROM suggestions WHERE TRIM(link) = ?");
+
         $deleted_count = 0;
-        
-        if ($delete_stmt->execute([$normalized_url])) {
-            $deleted_count = $delete_stmt->rowCount();
+
+        // Check if this is a video URL (has video ID)
+        $video_id = null;
+        if (preg_match('/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/', $content_url, $matches)) {
+            $video_id = $matches[1];
         }
-        
-        // Also check existing suggestions and clean them for comparison
-        $all_suggestions_stmt = $suggestions_db->prepare("SELECT id, link FROM suggestions");
-        $all_suggestions_stmt->execute();
-        $all_suggestions = $all_suggestions_stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        foreach ($all_suggestions as $suggestion) {
-            $cleaned_suggestion = cleanup_youtube_url($suggestion['link']);
-            if ($cleaned_suggestion === $normalized_url) {
-                $delete_specific = $suggestions_db->prepare("DELETE FROM suggestions WHERE id = ?");
-                if ($delete_specific->execute([$suggestion['id']])) {
-                    $deleted_count += $delete_specific->rowCount();
+
+        if ($video_id) {
+            // For video URLs, match by video ID to avoid cleanup_youtube_url stripping the ID
+            // Delete suggestions containing this video ID
+            $delete_stmt = $suggestions_db->prepare("DELETE FROM suggestions WHERE link LIKE ? OR link LIKE ? OR link LIKE ?");
+            $pattern1 = "%watch?v=" . $video_id . "%";
+            $pattern2 = "%youtu.be/" . $video_id . "%";
+            $pattern3 = "%embed/" . $video_id . "%";
+
+            if ($delete_stmt->execute([$pattern1, $pattern2, $pattern3])) {
+                $deleted_count = $delete_stmt->rowCount();
+            }
+        } else {
+            // For channel URLs, use cleanup_youtube_url for normalization
+            $normalized_url = cleanup_youtube_url($content_url);
+
+            // Remove suggestions that match the cleaned URL exactly
+            $delete_stmt = $suggestions_db->prepare("DELETE FROM suggestions WHERE TRIM(link) = ?");
+
+            if ($delete_stmt->execute([$normalized_url])) {
+                $deleted_count = $delete_stmt->rowCount();
+            }
+
+            // Also check existing suggestions and clean them for comparison
+            $all_suggestions_stmt = $suggestions_db->prepare("SELECT id, link FROM suggestions");
+            $all_suggestions_stmt->execute();
+            $all_suggestions = $all_suggestions_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($all_suggestions as $suggestion) {
+                $cleaned_suggestion = cleanup_youtube_url($suggestion['link']);
+                if ($cleaned_suggestion === $normalized_url) {
+                    $delete_specific = $suggestions_db->prepare("DELETE FROM suggestions WHERE id = ?");
+                    if ($delete_specific->execute([$suggestion['id']])) {
+                        $deleted_count += $delete_specific->rowCount();
+                    }
                 }
             }
         }
-        
-        // Also try to match different URL formats for the same content
-        $url_patterns = [];
-        
-        // For video URLs, check all variations
-        if (preg_match('/youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/', $normalized_url, $matches) ||
-            preg_match('/youtu\.be\/([a-zA-Z0-9_-]{11})/', $normalized_url, $matches)) {
-            $video_id = $matches[1];
-            $url_patterns[] = "youtube.com/watch?v={$video_id}";
-            $url_patterns[] = "youtu.be/{$video_id}";
-            $url_patterns[] = "m.youtube.com/watch?v={$video_id}";
-            $url_patterns[] = "www.youtube.com/watch?v={$video_id}";
-        }
-        
-        // For channel URLs, check all variations
-        if (preg_match('/youtube\.com\/(channel|c|user|@)\/([a-zA-Z0-9_.-]+)/', $normalized_url, $matches)) {
-            $channel_type = $matches[1];
-            $channel_id = $matches[2];
-            if ($channel_type === '@') {
-                $url_patterns[] = "youtube.com/@{$channel_id}";
-                $url_patterns[] = "www.youtube.com/@{$channel_id}";
-            } else {
+
+        // For channel URLs (non-video case), also check additional URL format variations
+        if (!$video_id && isset($normalized_url)) {
+            $url_patterns = [];
+
+            // For channel URLs, check all variations
+            if (preg_match('/youtube\.com\/(channel|c|user)\/([a-zA-Z0-9_.-]+)/', $normalized_url, $matches)) {
+                $channel_type = $matches[1];
+                $channel_id = $matches[2];
                 $url_patterns[] = "youtube.com/{$channel_type}/{$channel_id}";
                 $url_patterns[] = "www.youtube.com/{$channel_type}/{$channel_id}";
+            } elseif (preg_match('/youtube\.com\/@([a-zA-Z0-9_.-]+)/', $normalized_url, $matches)) {
+                $channel_handle = $matches[1];
+                $url_patterns[] = "youtube.com/@{$channel_handle}";
+                $url_patterns[] = "www.youtube.com/@{$channel_handle}";
+            }
+
+            // Delete any matching patterns
+            foreach ($url_patterns as $pattern) {
+                $delete_stmt = $suggestions_db->prepare("DELETE FROM suggestions WHERE link LIKE ?");
+                if ($delete_stmt->execute(["%{$pattern}%"])) {
+                    $deleted_count += $delete_stmt->rowCount();
+                }
             }
         }
-        
-        // Delete any matching patterns
-        foreach ($url_patterns as $pattern) {
-            $delete_stmt = $suggestions_db->prepare("DELETE FROM suggestions WHERE link LIKE ?");
-            if ($delete_stmt->execute(["%{$pattern}%"])) {
-                $deleted_count += $delete_stmt->rowCount();
-            }
-        }
-        
+
         if ($deleted_count > 0) {
-            error_log("Auto-removed {$deleted_count} matching suggestion(s) for: {$normalized_url}");
+            error_log("Auto-removed {$deleted_count} matching suggestion(s) for: {$content_url}");
         }
         
     } catch (Exception $e) {

@@ -68,12 +68,6 @@ if (isset($_SESSION['admin_message'])) {
     unset($_SESSION['admin_message']);
 }
 
-// Check if we need to trigger background video fetch
-$fetch_channel_id = null;
-if (isset($_SESSION['fetch_channel_id'])) {
-    $fetch_channel_id = $_SESSION['fetch_channel_id'];
-    unset($_SESSION['fetch_channel_id']);
-}
 if (isset($_SESSION['admin_error'])) {
     $error = $_SESSION['admin_error'];
     unset($_SESSION['admin_error']);
@@ -242,14 +236,18 @@ if ($_POST) {
                 $channel = $channel_stmt->fetch();
                 
                 if ($channel) {
+                    // Delete from FTS tables first (triggers can't handle this safely)
+                    $db->exec("DELETE FROM videos_fts WHERE rowid IN (SELECT id FROM videos WHERE channel_id = $channel_id)");
+                    $db->exec("DELETE FROM channels_fts WHERE rowid = $channel_id");
+
                     // Delete all videos for this channel (hard delete)
                     $delete_videos_stmt = $db->prepare("DELETE FROM videos WHERE channel_id = ?");
                     $delete_videos_stmt->execute([$channel_id]);
-                    
+
                     // Delete channel categories relationships
                     $delete_categories_stmt = $db->prepare("DELETE FROM channel_categories WHERE channel_id = ?");
                     $delete_categories_stmt->execute([$channel_id]);
-                    
+
                     // Delete the channel (hard delete)
                     $delete_channel_stmt = $db->prepare("DELETE FROM channels WHERE id = ?");
                     $delete_channel_stmt->execute([$channel_id]);
@@ -259,14 +257,20 @@ if ($_POST) {
                     header('Location: admin.php');
                     exit;
                 } else {
-                    $error = "Channel not found or already deleted.";
+                    $_SESSION['admin_error'] = "Channel not found or already deleted.";
+                    header('Location: admin.php');
+                    exit;
                 }
             } catch (Exception $e) {
                 $db->rollback();
-                $error = "Failed to delete channel: " . $e->getMessage();
+                $_SESSION['admin_error'] = "Failed to delete channel: " . $e->getMessage();
+                header('Location: admin.php');
+                exit;
             }
         } else {
-            $error = "Invalid channel ID.";
+            $_SESSION['admin_error'] = "Invalid channel ID.";
+            header('Location: admin.php');
+            exit;
         }
     }
     // Handle adding new content
@@ -357,11 +361,29 @@ if ($_POST) {
                                     if ($channel_id) {
                                         // Auto-remove matching suggestions
                                         auto_remove_matching_suggestions($channel_metadata['youtube_url']);
-                                        
+
+                                        // Fetch channel videos synchronously before redirecting
+                                        require_once __DIR__ . '/../fetch.php';
+                                        $fetch_result = fetch_channel_videos_rss($channel_metadata['youtube_url'], 15);
+                                        $videos = $fetch_result['videos'] ?? [];
+                                        $videos_added = add_videos($db, $channel_id, $videos);
+
+                                        if ($videos_added > 0) {
+                                            // Update last_fetched timestamp
+                                            $update_stmt = $db->prepare("UPDATE channels SET last_fetched = CURRENT_TIMESTAMP WHERE id = ?");
+                                            $update_stmt->execute([$channel_id]);
+                                        }
+
                                         // Redirect to prevent form resubmission
-                                        $_SESSION['admin_message'] = "Channel '{$channel_metadata['name']}' added successfully with " . count($category_ids) . " categories!";
-                                        $_SESSION['fetch_channel_id'] = $channel_id; // Store for background fetch
-                                        header('Location: admin.php');
+                                        $_SESSION['admin_message'] = "Channel '{$channel_metadata['name']}' added successfully with " . count($category_ids) . " categories and {$videos_added} videos!";
+
+                                        // Check if there's a pending video to return to
+                                        $redirect_url = 'admin.php';
+                                        if (!empty($_POST['pending_video_url'])) {
+                                            // Coming from "Add Video" flow - videos already fetched, just return to video modal
+                                            $redirect_url .= '?pending_video=' . urlencode($_POST['pending_video_url']);
+                                        }
+                                        header('Location: ' . $redirect_url);
                                         exit;
                                     } else {
                                         $error = "Failed to add channel to database.";
@@ -556,8 +578,8 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
 <body>
     <?php include 'templates/partials/navbar.php'; ?>
 
-    <!-- Toast Container -->
-    <div class="position-fixed start-50 translate-middle-x p-3" style="z-index: 1050; top: 70px;">
+    <!-- Toast Container (z-index 1090 to appear above Bootstrap modals which use 1055) -->
+    <div class="position-fixed start-50 translate-middle-x p-3" style="z-index: 1090; top: 70px;">
         <div id="toastContainer"></div>
     </div>
 
@@ -809,38 +831,5 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
     </script>
     <?php endif; ?>
     
-    <?php if ($fetch_channel_id): ?>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Fetch channel ID found:', <?php echo json_encode($fetch_channel_id); ?>);
-            
-            // Wait 2 seconds to let user see the "channel added" toast first
-            setTimeout(function() {
-                // Show fetching message
-                showToast('Fetching videos in the background...', 'info');
-                
-                // Submit a form to trigger video fetching
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.style.display = 'none';
-                
-                const actionInput = document.createElement('input');
-                actionInput.type = 'hidden';
-                actionInput.name = 'action';
-                actionInput.value = 'fetch_channel_videos';
-                
-                const channelIdInput = document.createElement('input');
-                channelIdInput.type = 'hidden';
-                channelIdInput.name = 'channel_id';
-                channelIdInput.value = <?php echo json_encode($fetch_channel_id); ?>;
-                
-                form.appendChild(actionInput);
-                form.appendChild(channelIdInput);
-                document.body.appendChild(form);
-                form.submit();
-            }, 2000); // 2 second delay
-        });
-    </script>
-    <?php endif; ?>
 </body>
 </html>

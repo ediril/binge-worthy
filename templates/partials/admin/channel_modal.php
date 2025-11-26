@@ -11,6 +11,7 @@
                     <input type="hidden" name="action" value="add_channel" id="channel-action">
                     <input type="hidden" name="content_type" value="channel">
                     <input type="hidden" name="channel_id" id="channel-id">
+                    <input type="hidden" name="pending_video_url" id="pending-video-url">
                     
                     <!-- Channel Name Display (Edit Mode) -->
                     <div id="channel-name-display" class="mb-3" style="display: none;">
@@ -158,7 +159,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success" id="channel-submit-btn">
+                    <button type="submit" class="btn btn-success" id="channel-submit-btn" disabled>
                         <i class="fas fa-tv me-1"></i><span id="channel-submit-text">Add Channel</span>
                     </button>
                 </div>

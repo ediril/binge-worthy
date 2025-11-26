@@ -124,45 +124,10 @@ function create_fts_tables($db) {
         )
     ");
 
-    // Create triggers for videos_fts sync
-    $db->exec("
-        CREATE TRIGGER IF NOT EXISTS videos_fts_ai AFTER INSERT ON videos BEGIN
-            INSERT INTO videos_fts(rowid, slug) VALUES (new.id, new.slug);
-        END
-    ");
-
-    $db->exec("
-        CREATE TRIGGER IF NOT EXISTS videos_fts_au AFTER UPDATE ON videos BEGIN
-            INSERT INTO videos_fts(videos_fts, rowid, slug) VALUES('delete', old.id, old.slug);
-            INSERT INTO videos_fts(rowid, slug) VALUES (new.id, new.slug);
-        END
-    ");
-
-    $db->exec("
-        CREATE TRIGGER IF NOT EXISTS videos_fts_ad AFTER DELETE ON videos BEGIN
-            INSERT INTO videos_fts(videos_fts, rowid, slug) VALUES('delete', old.id, old.slug);
-        END
-    ");
-
-    // Create triggers for channels_fts sync
-    $db->exec("
-        CREATE TRIGGER IF NOT EXISTS channels_fts_ai AFTER INSERT ON channels BEGIN
-            INSERT INTO channels_fts(rowid, slug) VALUES (new.id, new.slug);
-        END
-    ");
-
-    $db->exec("
-        CREATE TRIGGER IF NOT EXISTS channels_fts_au AFTER UPDATE ON channels BEGIN
-            INSERT INTO channels_fts(channels_fts, rowid, slug) VALUES('delete', old.id, old.slug);
-            INSERT INTO channels_fts(rowid, slug) VALUES (new.id, new.slug);
-        END
-    ");
-
-    $db->exec("
-        CREATE TRIGGER IF NOT EXISTS channels_fts_ad AFTER DELETE ON channels BEGIN
-            INSERT INTO channels_fts(channels_fts, rowid, slug) VALUES('delete', old.id, old.slug);
-        END
-    ");
+    // NOTE: FTS triggers are NOT created because SQLite FTS5 operations inside
+    // triggers cause "unsafe use of virtual table" errors in many configurations.
+    // FTS index updates are handled manually in add_video(), add_channel_with_categories(),
+    // and delete operations.
 }
 
 /**

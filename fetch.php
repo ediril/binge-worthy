@@ -226,6 +226,14 @@ try {
             $removed_count = 0;
             foreach ($shorts_found as $short_url) {
                 if (!$options['dry-run']) {
+                    // Get video ID first to clean up FTS
+                    $get_id_stmt = $db->prepare("SELECT id FROM videos WHERE video_url = ?");
+                    $get_id_stmt->execute([$short_url]);
+                    $video = $get_id_stmt->fetch(PDO::FETCH_ASSOC);
+                    if ($video) {
+                        // Clean up FTS before delete
+                        $db->exec("DELETE FROM videos_fts WHERE rowid = " . $video['id']);
+                    }
                     $delete_stmt = $db->prepare("DELETE FROM videos WHERE video_url = ?");
                     if ($delete_stmt->execute([$short_url])) {
                         $removed_count += $delete_stmt->rowCount();
