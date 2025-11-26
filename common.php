@@ -11,6 +11,19 @@ define('ADMIN_VIDEOS_PER_PAGE', 10);
 define('ADMIN_SUGGESTIONS_PER_PAGE', 10);
 
 // ================================
+// Search Configuration
+// ================================
+define('SEARCH_RATE_LIMIT', 30); // Max requests per minute per /24 subnet
+
+/**
+ * Extract /24 subnet (first 3 octets) from IP address for rate limiting
+ */
+function get_ip_subnet($ip) {
+    $parts = explode('.', $ip);
+    return count($parts) >= 3 ? $parts[0] . '.' . $parts[1] . '.' . $parts[2] : $ip;
+}
+
+// ================================
 // Fetch Configuration
 // ================================
 define('CHANNEL_UPDATE_INTERVAL_HOURS', 23); // Hours to wait before fetching channel again

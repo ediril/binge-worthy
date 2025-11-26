@@ -1810,4 +1810,221 @@ function setupEscapeKeyHandler() {
     });
 }
 
- 
+// ================================
+// Search Autocomplete
+// ================================
+
+/**
+ * Initialize search autocomplete functionality
+ */
+function initializeSearchAutocomplete() {
+    const searchInput = document.getElementById('search-input');
+    const searchDropdown = document.getElementById('search-dropdown');
+
+    if (!searchInput || !searchDropdown) return;
+
+    let debounceTimer = null;
+    let selectedIndex = -1;
+
+    // Input event with debounce
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+
+        // Clear previous timer
+        if (debounceTimer) {
+            clearTimeout(debounceTimer);
+        }
+
+        // Hide dropdown if query is too short
+        if (query.length < 2) {
+            hideSearchDropdown();
+            return;
+        }
+
+        // Debounce: wait 300ms before searching
+        debounceTimer = setTimeout(() => {
+            performSearch(query);
+        }, 300);
+    });
+
+    // Keyboard navigation
+    searchInput.addEventListener('keydown', function(e) {
+        const items = searchDropdown.querySelectorAll('.search-result-item');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+            updateSelectedItem(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedIndex = Math.max(selectedIndex - 1, -1);
+            updateSelectedItem(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (selectedIndex >= 0 && items[selectedIndex]) {
+                items[selectedIndex].click();
+            }
+        } else if (e.key === 'Escape') {
+            hideSearchDropdown();
+            searchInput.blur();
+        }
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+            hideSearchDropdown();
+        }
+    });
+
+    // Focus shows dropdown if there's content
+    searchInput.addEventListener('focus', function() {
+        if (searchDropdown.innerHTML.trim() && this.value.length >= 2) {
+            searchDropdown.classList.add('show');
+        }
+    });
+}
+
+/**
+ * Perform search API call
+ */
+function performSearch(query) {
+    const searchDropdown = document.getElementById('search-dropdown');
+
+    fetch(`/api/search.php?q=${encodeURIComponent(query)}`, {
+        cache: 'no-store'
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderSearchResults(data.videos, data.channels);
+            } else {
+                if (data.error === 'Rate limit exceeded. Please wait a moment.') {
+                    searchDropdown.innerHTML = '<div class="search-no-results">Too many requests. Please wait...</div>';
+                    searchDropdown.classList.add('show');
+                } else {
+                    hideSearchDropdown();
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Search error:', error);
+            hideSearchDropdown();
+        });
+}
+
+/**
+ * Render search results in dropdown
+ */
+function renderSearchResults(videos, channels) {
+    const searchDropdown = document.getElementById('search-dropdown');
+    selectedIndex = -1;
+
+    if (videos.length === 0 && channels.length === 0) {
+        searchDropdown.innerHTML = '<div class="search-no-results">No results found</div>';
+        searchDropdown.classList.add('show');
+        return;
+    }
+
+    let html = '';
+
+    // Render videos first
+    videos.forEach(video => {
+        const thumbnailUrl = video.thumbnail_url || '/static/placeholder.png';
+        html += `
+            <div class="search-result-item" data-type="video" data-slug="${escapeHtml(video.slug)}">
+                <img src="${escapeHtml(thumbnailUrl)}" alt="" class="search-result-thumbnail">
+                <div class="search-result-info">
+                    <div class="search-result-title">${escapeHtml(video.title)}</div>
+                    <div class="search-result-meta">
+                        <span class="search-result-type">Video</span>
+                        ${video.channel_name ? `<span class="search-result-channel">${escapeHtml(video.channel_name)}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    // Render channels
+    channels.forEach(channel => {
+        const thumbnailUrl = channel.thumbnail_url || '/static/placeholder.png';
+        html += `
+            <div class="search-result-item" data-type="channel" data-slug="${escapeHtml(channel.slug)}">
+                <img src="${escapeHtml(thumbnailUrl)}" alt="" class="search-result-thumbnail channel">
+                <div class="search-result-info">
+                    <div class="search-result-title">${escapeHtml(channel.title)}</div>
+                    <div class="search-result-meta">
+                        <span class="search-result-type channel-type">Channel</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    searchDropdown.innerHTML = html;
+    searchDropdown.classList.add('show');
+
+    // Add click handlers to results
+    searchDropdown.querySelectorAll('.search-result-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const type = this.dataset.type;
+            const slug = this.dataset.slug;
+            const searchInput = document.getElementById('search-input');
+            const query = searchInput ? searchInput.value.trim() : '';
+
+            // Log the selection (fire and forget)
+            if (query.length >= 2) {
+                fetch('/api/search_log.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, type, slug })
+                }).catch(() => {}); // Ignore errors
+            }
+
+            if (type === 'video') {
+                window.location.href = `/play/${encodeURIComponent(slug)}`;
+            } else if (type === 'channel') {
+                window.location.href = `/channel/${encodeURIComponent(slug)}`;
+            }
+        });
+    });
+}
+
+/**
+ * Update selected item highlighting
+ */
+function updateSelectedItem(items) {
+    items.forEach((item, index) => {
+        if (index === selectedIndex) {
+            item.classList.add('selected');
+        } else {
+            item.classList.remove('selected');
+        }
+    });
+}
+
+/**
+ * Hide search dropdown
+ */
+function hideSearchDropdown() {
+    const searchDropdown = document.getElementById('search-dropdown');
+    if (searchDropdown) {
+        searchDropdown.classList.remove('show');
+        selectedIndex = -1;
+    }
+}
+
+/**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Initialize search on DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+    initializeSearchAutocomplete();
+});

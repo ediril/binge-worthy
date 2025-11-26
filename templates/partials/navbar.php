@@ -17,6 +17,17 @@ $current_page = isset($current_page) ? $current_page : 'home';
                     <a class="nav-link <?php echo ($current_page == 'categories') ? 'active' : ''; ?>" href="/categories">Categories</a>
                 </li>
             </ul>
+
+            <!-- Search Bar -->
+            <div class="search-container position-relative me-3">
+                <input type="text"
+                       id="search-input"
+                       class="form-control form-control-sm"
+                       placeholder="Search videos & channels..."
+                       autocomplete="off">
+                <div id="search-dropdown" class="search-dropdown"></div>
+            </div>
+
             <ul class="navbar-nav">
                 <li class="nav-item">
                     <a class="nav-link <?php echo ($current_page == 'blog') ? 'active' : ''; ?>" href="/blog">Blog</a>

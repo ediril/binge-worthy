@@ -87,6 +87,103 @@ function create_tables($db) {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_channel_categories_channel_id ON channel_categories(channel_id)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_channel_categories_category_id ON channel_categories(category_id)");
+
+    // Create search_logs table for analytics
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS search_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            keywords TEXT NOT NULL,
+            sel_type INTEGER NOT NULL,
+            sel_slug TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_search_logs_created_at ON search_logs(created_at)");
+
+    // Create FTS5 tables and triggers for search
+    create_fts_tables($db);
+}
+
+/**
+ * Create FTS5 virtual tables and triggers for search functionality
+ */
+function create_fts_tables($db) {
+    // Create FTS5 virtual table for videos
+    $db->exec("
+        CREATE VIRTUAL TABLE IF NOT EXISTS videos_fts USING FTS5(
+            slug,
+            tokenize = 'porter unicode61'
+        )
+    ");
+
+    // Create FTS5 virtual table for channels
+    $db->exec("
+        CREATE VIRTUAL TABLE IF NOT EXISTS channels_fts USING FTS5(
+            slug,
+            tokenize = 'porter unicode61'
+        )
+    ");
+
+    // Create triggers for videos_fts sync
+    $db->exec("
+        CREATE TRIGGER IF NOT EXISTS videos_fts_ai AFTER INSERT ON videos BEGIN
+            INSERT INTO videos_fts(rowid, slug) VALUES (new.id, new.slug);
+        END
+    ");
+
+    $db->exec("
+        CREATE TRIGGER IF NOT EXISTS videos_fts_au AFTER UPDATE ON videos BEGIN
+            INSERT INTO videos_fts(videos_fts, rowid, slug) VALUES('delete', old.id, old.slug);
+            INSERT INTO videos_fts(rowid, slug) VALUES (new.id, new.slug);
+        END
+    ");
+
+    $db->exec("
+        CREATE TRIGGER IF NOT EXISTS videos_fts_ad AFTER DELETE ON videos BEGIN
+            INSERT INTO videos_fts(videos_fts, rowid, slug) VALUES('delete', old.id, old.slug);
+        END
+    ");
+
+    // Create triggers for channels_fts sync
+    $db->exec("
+        CREATE TRIGGER IF NOT EXISTS channels_fts_ai AFTER INSERT ON channels BEGIN
+            INSERT INTO channels_fts(rowid, slug) VALUES (new.id, new.slug);
+        END
+    ");
+
+    $db->exec("
+        CREATE TRIGGER IF NOT EXISTS channels_fts_au AFTER UPDATE ON channels BEGIN
+            INSERT INTO channels_fts(channels_fts, rowid, slug) VALUES('delete', old.id, old.slug);
+            INSERT INTO channels_fts(rowid, slug) VALUES (new.id, new.slug);
+        END
+    ");
+
+    $db->exec("
+        CREATE TRIGGER IF NOT EXISTS channels_fts_ad AFTER DELETE ON channels BEGIN
+            INSERT INTO channels_fts(channels_fts, rowid, slug) VALUES('delete', old.id, old.slug);
+        END
+    ");
+}
+
+/**
+ * Populate FTS tables with existing data (run once for migration)
+ */
+function populate_fts_tables($db) {
+    // Clear existing FTS data
+    $db->exec("DELETE FROM videos_fts");
+    $db->exec("DELETE FROM channels_fts");
+
+    // Populate videos_fts from existing videos with slugs
+    $db->exec("
+        INSERT INTO videos_fts(rowid, slug)
+        SELECT id, slug FROM videos WHERE slug IS NOT NULL
+    ");
+
+    // Populate channels_fts from existing channels with slugs
+    $db->exec("
+        INSERT INTO channels_fts(rowid, slug)
+        SELECT id, slug FROM channels WHERE slug IS NOT NULL
+    ");
 }
 
 // Check if this file is being run directly from command line
