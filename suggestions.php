@@ -92,13 +92,8 @@ if (!isValidYouTubeURL($link)) {
     exit;
 }
 
-// Clean up the URL before saving (only for channel URLs, not video URLs)
-if (preg_match('/watch\?v=|youtu\.be\//', $link)) {
-    // This is a video URL - don't clean it, keep the video ID
-    // Just ensure it's properly formatted
-    $link = $link;
-} else {
-    // This is a channel URL - clean it
+// Clean up channel URLs (video URLs are kept as-is)
+if (!preg_match('/watch\?v=|youtu\.be\//', $link)) {
     $link = cleanup_youtube_url($link);
 }
 
@@ -108,11 +103,14 @@ $lock_handle = null;
 
 // Try semaphore locking first (better), fall back to file locking
 $use_semaphore = function_exists('sem_get') && function_exists('sem_acquire');
+$semaphore = null;
 
 if ($use_semaphore) {
     $semaphore_key = ftok(__FILE__, 's');
     $semaphore = sem_get($semaphore_key, 1, 0666, 1);
-    if (!sem_acquire($semaphore)) {
+    if ($semaphore === false || !sem_acquire($semaphore)) {
+        $semaphore = null;
+        $use_semaphore = false;
         if ($is_json_request) {
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Unable to acquire lock. Please try again.']);
