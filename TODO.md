@@ -1,6 +1,10 @@
 
 - Admin: Add "refetch" button to the channels table 
 
+- Include channel description in the search results too
+
+- Fetch video description and include it in search results too
+
 - "No category selected" error shouldn't dismiss the add channel or add video modal.
 
 - Show video title in suggestions and videos table (instead of link, which we should put with a link icon next to the name)
