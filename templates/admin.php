@@ -678,8 +678,14 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
         <div class="row mt-4" id="channels-section">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header">
-                        <h3>All Channels</h3>
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">All Channels</h3>
+                        <div class="input-group" style="max-width: 300px;">
+                            <input type="text" class="form-control" id="channels-search" placeholder="Search channels..." aria-label="Search channels">
+                            <button class="btn btn-outline-secondary" type="button" id="channels-search-clear" title="Clear search">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <?php

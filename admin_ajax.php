@@ -505,23 +505,40 @@ try {
         case 'channels':
             $per_page = ADMIN_CHANNELS_PER_PAGE;
             $offset = ($page - 1) * $per_page;
-            
+            $search = isset($input['search']) ? trim($input['search']) : '';
+
+            // Build search condition
+            $search_condition = '';
+            $search_params = [];
+            if (!empty($search)) {
+                $search_condition = "WHERE c.name LIKE :search OR c.description LIKE :search";
+                $search_params[':search'] = '%' . $search . '%';
+            }
+
             // Get total count
-            $count_stmt = $db->prepare("SELECT COUNT(*) as total FROM channels");
+            $count_sql = "SELECT COUNT(*) as total FROM channels c $search_condition";
+            $count_stmt = $db->prepare($count_sql);
+            foreach ($search_params as $key => $value) {
+                $count_stmt->bindValue($key, $value);
+            }
             $count_stmt->execute();
             $total = $count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
             $total_pages = max(1, ceil($total / $per_page));
-            
+
             // Get channels data
             $stmt = $db->prepare("
                 SELECT c.*, GROUP_CONCAT(cat.name, ', ') as category_names
-                FROM channels c 
-                LEFT JOIN channel_categories cc ON c.id = cc.channel_id 
+                FROM channels c
+                LEFT JOIN channel_categories cc ON c.id = cc.channel_id
                 LEFT JOIN categories cat ON cc.category_id = cat.id
+                $search_condition
                 GROUP BY c.id
                 ORDER BY c.created_at DESC
                 LIMIT :limit OFFSET :offset
             ");
+            foreach ($search_params as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
             $stmt->bindValue(':limit', $per_page, PDO::PARAM_INT);
             $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
             $stmt->execute();

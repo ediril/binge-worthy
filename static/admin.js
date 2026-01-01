@@ -1238,18 +1238,24 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
-        function loadTableDataNoScroll(table, page) {
+        // Store current search term per table
+        const tableSearchTerms = {};
+
+        function loadTableDataNoScroll(table, page, search = null) {
             // Prevent any scrolling during the entire operation
             const currentScrollY = window.scrollY;
             const currentScrollX = window.scrollX;
-            
+
             // Lock scroll position
             document.body.style.overflow = 'hidden';
             document.documentElement.style.overflow = 'hidden';
-            
+
             // Show loading state
             showLoadingState(table);
-            
+
+            // Use provided search or get from stored state
+            const searchTerm = search !== null ? search : (tableSearchTerms[table] || '');
+
             fetch('/admin_ajax.php', {
                 method: 'POST',
                 headers: {
@@ -1257,7 +1263,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     table: table,
-                    page: page
+                    page: page,
+                    search: searchTerm
                 })
             })
             .then(response => response.json())
@@ -1302,7 +1309,43 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Make loadTableDataNoScroll globally accessible for onclick handlers
         window.loadTableDataNoScroll = loadTableDataNoScroll;
-        
+
+        // Channels search functionality
+        const channelsSearchInput = document.getElementById('channels-search');
+        const channelsSearchClear = document.getElementById('channels-search-clear');
+        let channelsSearchDebounce = null;
+
+        if (channelsSearchInput) {
+            channelsSearchInput.addEventListener('input', function() {
+                clearTimeout(channelsSearchDebounce);
+                channelsSearchDebounce = setTimeout(() => {
+                    const searchTerm = this.value.trim();
+                    tableSearchTerms['channels'] = searchTerm;
+                    loadTableDataNoScroll('channels', 1, searchTerm);
+                }, 300);
+            });
+
+            // Allow Enter key to trigger immediate search
+            channelsSearchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    clearTimeout(channelsSearchDebounce);
+                    const searchTerm = this.value.trim();
+                    tableSearchTerms['channels'] = searchTerm;
+                    loadTableDataNoScroll('channels', 1, searchTerm);
+                }
+            });
+        }
+
+        if (channelsSearchClear) {
+            channelsSearchClear.addEventListener('click', function() {
+                if (channelsSearchInput) {
+                    channelsSearchInput.value = '';
+                    tableSearchTerms['channels'] = '';
+                    loadTableDataNoScroll('channels', 1, '');
+                }
+            });
+        }
+
         function showLoadingState(table) {
             const tbody = document.querySelector(`#${table}-section tbody`);
             if (tbody) {
