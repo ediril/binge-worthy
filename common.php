@@ -1438,13 +1438,8 @@ function auto_remove_matching_suggestions($content_url) {
             }
         }
 
-        if ($deleted_count > 0) {
-            error_log("Auto-removed {$deleted_count} matching suggestion(s) for: {$content_url}");
-        }
-        
     } catch (Exception $e) {
         // Don't break the main flow if suggestion removal fails
-        error_log("Failed to auto-remove suggestions: " . $e->getMessage());
     }
 }
 
