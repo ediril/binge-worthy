@@ -3,7 +3,7 @@
  * Universal routing - works with both PHP built-in server and Apache
  */
 
-require_once __DIR__ . '/banalytiq/banalytiq.php';
+require_once __DIR__ . '/../_banalytiq/banalytiq.php';
 require_once __DIR__ . '/common.php';
 
 // 404 function is now in common.php

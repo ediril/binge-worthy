@@ -19,7 +19,7 @@ from collections import defaultdict
 
 # Paths relative to this script
 SCRIPT_DIR = Path(__file__).parent
-ANALYTICS_DB = SCRIPT_DIR / "banalytiq" / "banalytiq.db"
+ANALYTICS_DB = SCRIPT_DIR.parent / "_banalytiq" / "banalytiq.db"
 MAIN_DB = SCRIPT_DIR / "binge_worthy.db"
 
 # Minimum weeks of data before considering a channel for removal
