@@ -26,7 +26,7 @@ if (!$is_localhost && !$is_basic_auth) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>404 - Page Not Found</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="static/styles.css?v=' . filemtime('static/styles.css') . '">
+    <link rel="stylesheet" href="' . app_url('static/styles.css') . '?v=' . filemtime(__DIR__ . '/../static/styles.css') . '">
 </head>
 <body>
     <div class="container mt-5">
@@ -35,7 +35,7 @@ if (!$is_localhost && !$is_basic_auth) {
                 <h1 style="font-size: 4rem; color: #e50914;">404</h1>
                 <h2>Page Not Found</h2>
                 <p>The page you are looking for does not exist.</p>
-                <a href="/" class="btn btn-primary">Go Home</a>
+                <a href="' . app_url() . '" class="btn btn-primary">Go Home</a>
             </div>
         </div>
     </div>
@@ -700,7 +700,9 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
                                 [
                                     'title' => 'Name',
                                     'render' => function($row) {
-                                        $url = !empty($row['slug']) ? '/channel/' . urlencode($row['slug']) : '/channel?id=' . $row['id'];
+                                        $url = !empty($row['slug'])
+                                            ? app_url('channel/' . urlencode($row['slug']))
+                                            : app_url('channel?id=' . $row['id']);
                                         return sprintf(
                                             '<a href="%s" class="text-info text-decoration-underline">%s</a>',
                                             htmlspecialchars($url),
@@ -808,7 +810,7 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
     <?php include 'templates/partials/admin/channel_modal.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="static/script.js?v=<?php echo filemtime('static/script.js'); ?>"></script>
+    <script src="<?php echo app_url('static/script.js'); ?>?v=<?php echo filemtime('static/script.js'); ?>"></script>
     <script>
         // Pass PHP variables to JavaScript
         window.adminConfig = {
@@ -819,7 +821,7 @@ $additional_css = ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/cs
             }
         };
     </script>
-    <script src="static/admin.js?v=<?php echo filemtime('static/admin.js'); ?>"></script>
+    <script src="<?php echo app_url('static/admin.js'); ?>?v=<?php echo filemtime('static/admin.js'); ?>"></script>
     
     <?php if ($message): ?>
     <script>

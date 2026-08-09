@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return Promise.resolve(false);
             }
             
-            return fetch('/admin_ajax.php', {
+            return fetch(window.appUrl('admin_ajax.php'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -224,7 +224,7 @@ document.addEventListener('DOMContentLoaded', function() {
             infoDiv.className = 'mb-3 p-3 text-info bg-info bg-opacity-10 border border-info rounded';
             infoDiv.style.display = 'block';
             
-            fetch('/admin_ajax.php', {
+            fetch(window.appUrl('admin_ajax.php'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show checking state
             contentInfoText.textContent = 'Checking if channel exists...';
             
-            fetch('/admin_ajax.php', {
+            fetch(window.appUrl('admin_ajax.php'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -367,7 +367,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Fetch YouTube metadata using the admin_ajax.php endpoint
-            fetch('/admin_ajax.php', {
+            fetch(window.appUrl('admin_ajax.php'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -437,7 +437,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Check if channel already exists
-            fetch('/admin_ajax.php', {
+            fetch(window.appUrl('admin_ajax.php'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -782,7 +782,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Send AJAX request
-            fetch('/admin.php', {
+            fetch(window.appUrl('admin.php'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -1209,7 +1209,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show loading state
             showLoadingState(table);
             
-            fetch('/admin_ajax.php', {
+            fetch(window.appUrl('admin_ajax.php'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1256,7 +1256,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Use provided search or get from stored state
             const searchTerm = search !== null ? search : (tableSearchTerms[table] || '');
 
-            fetch('/admin_ajax.php', {
+            fetch(window.appUrl('admin_ajax.php'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1625,7 +1625,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // First check if the video already exists
-            fetch('/admin_ajax.php', {
+            fetch(window.appUrl('admin_ajax.php'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1677,7 +1677,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Video doesn't exist, now check channel existence
-                return fetch('/admin_ajax.php', {
+                return fetch(window.appUrl('admin_ajax.php'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1842,7 +1842,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Fetch channel description
-                fetch('/admin_ajax.php', {
+                fetch(window.appUrl('admin_ajax.php'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

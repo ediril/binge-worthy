@@ -48,7 +48,7 @@
                     <div class="suggestion-card p-4 rounded">
                         <h3 class="section-title mb-3 text-center">Know a great channel or video?</h3>
                         <p class="text-center text-muted mb-4">Share it with us!</p>
-                        <form id="suggestionForm" class="suggestion-form" action="/suggestions" method="post">
+                        <form id="suggestionForm" class="suggestion-form" action="<?php echo app_url('suggestions'); ?>" method="post">
                             <div class="input-group mb-3">
                                 <input type="url" 
                                        id="suggestionLink" 

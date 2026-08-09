@@ -26,7 +26,7 @@ if ($is_json_request) {
 } else {
     // Regular form submission
     if (!isset($_POST['link'])) {
-        header('Location: /?error=' . urlencode('Invalid input'));
+        header('Location: ' . app_url('?error=' . urlencode('Invalid input')));
         exit;
     }
     $link = trim($_POST['link']);
@@ -38,7 +38,7 @@ if (empty($link)) {
         header('Content-Type: application/json');
         echo json_encode(['success' => false, 'error' => 'Please enter a link']);
     } else {
-        header('Location: /?error=' . urlencode('Please enter a link'));
+        header('Location: ' . app_url('?error=' . urlencode('Please enter a link')));
     }
     exit;
 }
@@ -87,7 +87,7 @@ if (!isValidYouTubeURL($link)) {
         header('Content-Type: application/json');
         echo json_encode(['success' => false, 'error' => 'Please enter a valid YouTube channel or video URL']);
     } else {
-        header('Location: /?error=' . urlencode('Please enter a valid YouTube channel or video URL'));
+        header('Location: ' . app_url('?error=' . urlencode('Please enter a valid YouTube channel or video URL')));
     }
     exit;
 }
@@ -115,7 +115,7 @@ if ($use_semaphore) {
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Unable to acquire lock. Please try again.']);
         } else {
-            header('Location: /?error=' . urlencode('Unable to acquire lock. Please try again.'));
+            header('Location: ' . app_url('?error=' . urlencode('Unable to acquire lock. Please try again.')));
         }
         exit;
     }
@@ -127,7 +127,7 @@ if ($use_semaphore) {
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Unable to acquire lock. Please try again.']);
         } else {
-            header('Location: /?error=' . urlencode('Unable to acquire lock. Please try again.'));
+            header('Location: ' . app_url('?error=' . urlencode('Unable to acquire lock. Please try again.')));
         }
         exit;
     }
@@ -161,14 +161,14 @@ try {
             header('Content-Type: application/json');
             echo json_encode(['success' => true, 'message' => 'Thank you! Your suggestion has been submitted.']);
         } else {
-            header('Location: /?success=' . urlencode('Thank you! Your suggestion has been submitted.'));
+            header('Location: ' . app_url('?success=' . urlencode('Thank you! Your suggestion has been submitted.')));
         }
     } else {
         if ($is_json_request) {
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'error' => 'Failed to save suggestion. Please try again.']);
         } else {
-            header('Location: /?error=' . urlencode('Failed to save suggestion. Please try again.'));
+            header('Location: ' . app_url('?error=' . urlencode('Failed to save suggestion. Please try again.')));
         }
     }
     
@@ -177,7 +177,7 @@ try {
         header('Content-Type: application/json');
         echo json_encode(['success' => false, 'error' => 'Database error. Please try again.']);
     } else {
-        header('Location: /?error=' . urlencode('Database error. Please try again.'));
+        header('Location: ' . app_url('?error=' . urlencode('Database error. Please try again.')));
     }
 } finally {
     // Release the appropriate lock

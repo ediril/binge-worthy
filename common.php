@@ -1,6 +1,16 @@
 <?php
 
 define('FETCHER_VERSION', '0.0812.001');
+define('APP_BASE_PATH', '/bingeworthy');
+define('APP_SITE_URL', 'https://emrahdiril.com' . APP_BASE_PATH);
+
+function app_url($path = '') {
+    if ($path === '' || $path === '/') {
+        return APP_BASE_PATH . '/';
+    }
+
+    return APP_BASE_PATH . '/' . ltrim($path, '/');
+}
 
 
 // ================================
@@ -83,7 +93,7 @@ function show_404_page() {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>404 - Page Not Found</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        <link rel="stylesheet" href="static/styles.css?v=' . filemtime('static/styles.css') . '">
+        <link rel="stylesheet" href="' . app_url('static/styles.css') . '?v=' . filemtime(__DIR__ . '/static/styles.css') . '">
     </head>
     <body>
         <div class="container mt-5">
@@ -92,7 +102,7 @@ function show_404_page() {
                     <h1 style="font-size: 4rem; color: #e50914;">404</h1>
                     <h2>Page Not Found</h2>
                     <p>The page you are looking for does not exist.</p>
-                    <a href="/" class="btn btn-primary">Go Home</a>
+                    <a href="' . app_url() . '" class="btn btn-primary">Go Home</a>
                 </div>
             </div>
         </div>
@@ -1104,9 +1114,9 @@ function get_category_by_id($db, $category_id) {
  */
 function get_category_url($category) {
     if (!empty($category['slug'])) {
-        return '/categories/' . urlencode($category['slug']);
+        return app_url('categories/' . urlencode($category['slug']));
     }
-    return '/categories?category=' . $category['id'];
+    return app_url('categories?category=' . $category['id']);
 }
 
 /**
@@ -1173,9 +1183,9 @@ function get_channel_by_slug($db, $slug) {
  */
 function get_channel_url($channel) {
     if (!empty($channel['slug'])) {
-        return '/channel/' . urlencode($channel['slug']);
+        return app_url('channel/' . urlencode($channel['slug']));
     }
-    return '/channel?id=' . $channel['id'];
+    return app_url('channel?id=' . $channel['id']);
 }
 
 /**
@@ -1245,9 +1255,9 @@ function get_video_by_slug($db, $slug) {
  */
 function get_video_url($video) {
     if (!empty($video['slug'])) {
-        return '/play/' . urlencode($video['slug']);
+        return app_url('play/' . urlencode($video['slug']));
     }
-    return '/play?id=' . $video['id'];
+    return app_url('play?id=' . $video['id']);
 }
 
 /**
@@ -1837,7 +1847,9 @@ function render_channel_card($channel) {
  */
 function render_video_card($video) {
     $video_url = get_video_url($video);
-    $channel_url = !empty($video['channel_slug']) ? '/channel/' . urlencode($video['channel_slug']) : '/channel?id=' . $video['channel_id'];
+    $channel_url = !empty($video['channel_slug'])
+        ? app_url('channel/' . urlencode($video['channel_slug']))
+        : app_url('channel?id=' . $video['channel_id']);
     ?>
     <div class="video-card d-flex flex-column">
         <div class="video-thumbnail">
@@ -1872,4 +1884,4 @@ function render_video_card($video) {
     <?php
 }
 
-?> 
+?>

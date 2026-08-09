@@ -10,13 +10,12 @@ if (!isset($page_keywords)) {
     $page_keywords = 'educational videos, tech videos, coding tutorials, science documentaries, AI learning, business insights, edutainment';
 }
 if (!isset($og_image)) {
-    $og_image = 'https://bingeworthyshows.tv/og_screenshot.jpg';
+    $og_image = APP_SITE_URL . '/og_screenshot.jpg';
 }
 if (!isset($og_type)) {
     $og_type = 'website';
 }
-$site_url = 'https://bingeworthyshows.tv';
-$current_url = $site_url . $_SERVER['REQUEST_URI'];
+$current_url = 'https://emrahdiril.com' . $_SERVER['REQUEST_URI'];
 ?>
 <head>
     <meta charset="UTF-8">
@@ -54,10 +53,10 @@ $current_url = $site_url . $_SERVER['REQUEST_URI'];
     <link rel="canonical" href="<?php echo htmlspecialchars($current_url); ?>">
 
     <!-- Favicons -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/x-icon" href="<?php echo app_url('favicon.ico'); ?>">
+    <link rel="icon" type="image/png" sizes="16x16" href="<?php echo app_url('favicon-16x16.png'); ?>">
+    <link rel="icon" type="image/png" sizes="32x32" href="<?php echo app_url('favicon-32x32.png'); ?>">
+    <link rel="apple-touch-icon" sizes="180x180" href="<?php echo app_url('apple-touch-icon.png'); ?>">
     
     <!-- Stylesheets -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -73,5 +72,11 @@ $current_url = $site_url . $_SERVER['REQUEST_URI'];
     // Add current minute to force refresh every minute
     $css_version = file_exists($css_file) ? filemtime($css_file) . '-' . date('YmdHi') : time();
     ?>
-    <link rel="stylesheet" href="/static/styles.css?v=<?php echo $css_version; ?>">
-</head> 
+    <link rel="stylesheet" href="<?php echo app_url('static/styles.css'); ?>?v=<?php echo $css_version; ?>">
+    <script>
+        window.appBasePath = <?php echo json_encode(APP_BASE_PATH); ?>;
+        window.appUrl = function(path = '') {
+            return window.appBasePath + '/' + path.replace(/^\/+/, '');
+        };
+    </script>
+</head>

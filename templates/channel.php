@@ -19,24 +19,24 @@ if (isset($_GET['slug']) && !empty($_GET['slug'])) {
 elseif (isset($_GET['id'])) {
     $channel_id = intval($_GET['id']);
     if ($channel_id <= 0) {
-        header('Location: /');
+        header('Location: ' . app_url());
         exit;
     }
 
     $channel = get_channel_by_id($db, $channel_id);
     if (!$channel) {
-        header('Location: /');
+        header('Location: ' . app_url());
         exit;
     }
 
     // 301 permanent redirect to slug-based URL if slug exists
     if (!empty($channel['slug'])) {
         header('HTTP/1.1 301 Moved Permanently');
-        header('Location: /channel/' . urlencode($channel['slug']));
+        header('Location: ' . app_url('channel/' . urlencode($channel['slug'])));
         exit;
     }
 } else {
-    header('Location: /');
+    header('Location: ' . app_url());
     exit;
 }
 

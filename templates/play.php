@@ -23,7 +23,7 @@ if (isset($_GET['video_slug']) && !empty($_GET['video_slug'])) {
 elseif (isset($_GET['id']) && !empty($_GET['id'])) {
     $video_id = intval($_GET['id']);
     if ($video_id <= 0) {
-        header('Location: /');
+        header('Location: ' . app_url());
         exit;
     }
 
@@ -35,24 +35,24 @@ elseif (isset($_GET['id']) && !empty($_GET['id'])) {
     $video = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$video) {
-        header('Location: /');
+        header('Location: ' . app_url());
         exit;
     }
 
     // 301 permanent redirect to slug-based URL if slug exists
     if (!empty($video['slug'])) {
         header('HTTP/1.1 301 Moved Permanently');
-        header('Location: /play/' . urlencode($video['slug']));
+        header('Location: ' . app_url('play/' . urlencode($video['slug'])));
         exit;
     }
 } else {
-    header('Location: /');
+    header('Location: ' . app_url());
     exit;
 }
 
 $youtube_id = extractYouTubeId($video['video_url']);
 if (!$youtube_id) {
-    header('Location: /');
+    header('Location: ' . app_url());
     exit;
 }
 
@@ -71,7 +71,7 @@ $page_description = 'Watch ' . $video['title'] . ' on BingeWorthy';
                 <h1 class="video-player-title"><?php echo htmlspecialchars($video['title']); ?></h1>
                 
                 <div class="video-player-meta">
-                    <a href="<?php echo !empty($video['channel_slug']) ? '/channel/' . urlencode($video['channel_slug']) : '/channel?id=' . htmlspecialchars($video['channel_id']); ?>"
+                    <a href="<?php echo !empty($video['channel_slug']) ? app_url('channel/' . urlencode($video['channel_slug'])) : app_url('channel?id=' . htmlspecialchars($video['channel_id'])); ?>"
                        class="video-player-channel">
                         <?php echo htmlspecialchars($video['channel_title']); ?>
                     </a>

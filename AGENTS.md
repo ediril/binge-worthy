@@ -75,6 +75,7 @@ This section tracks high-level decisions, changes, and fixes made to the project
 - Include rationale for major changes
 - Track performance optimizations and their impact
 - Document any breaking changes or migration steps 
+- 2026-08-09: The application is hosted at `https://emrahdiril.com/bingeworthy/`. All application URLs must use `APP_BASE_PATH`/`app_url()` in PHP or `window.appUrl()` in JavaScript so links, assets, API calls, and redirects remain inside the subdirectory.
 
 ## Change Management Guidelines
 

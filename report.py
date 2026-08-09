@@ -30,14 +30,14 @@ def get_click_data_with_time(analytics_conn):
     """Get click counts per channel with first/last click timestamps."""
     query = """
     SELECT
-        CAST(REPLACE(url, '/channel?id=', '') AS INTEGER) as channel_id,
+        CAST(REPLACE(url, '/bingeworthy/channel?id=', '') AS INTEGER) as channel_id,
         COUNT(*) as clicks,
         MIN(dt) as first_click,
         MAX(dt) as last_click
     FROM analytics
-    WHERE url LIKE '/channel?id=%'
-        AND REPLACE(url, '/channel?id=', '') GLOB '[0-9]*'
-        AND LENGTH(REPLACE(url, '/channel?id=', '')) <= 4
+    WHERE url LIKE '/bingeworthy/channel?id=%'
+        AND REPLACE(url, '/bingeworthy/channel?id=', '') GLOB '[0-9]*'
+        AND LENGTH(REPLACE(url, '/bingeworthy/channel?id=', '')) <= 4
     GROUP BY channel_id
     """
     now = datetime.now().timestamp()

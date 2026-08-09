@@ -11,7 +11,8 @@ require_once __DIR__ . '/common.php';
 // Get the current path
 $request_uri = $_SERVER['REQUEST_URI'];
 $path = parse_url($request_uri, PHP_URL_PATH);
-$path = ltrim($path, '/');
+$path = preg_replace('#^' . preg_quote(APP_BASE_PATH, '#') . '(?:/|$)#', '', $path);
+$path = trim($path, '/');
 
 // Handle static files for PHP built-in server
 if (php_sapi_name() === 'cli-server' && preg_match('/\.(css|js|jpg|jpeg|png|gif|ico)$/', $path)) {
@@ -158,4 +159,4 @@ switch ($page_to_load) {
 
     default:
         show_404_page();
-} 
+}

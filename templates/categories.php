@@ -27,7 +27,7 @@ elseif (isset($_GET['category']) && !empty($_GET['category'])) {
     $category_id = intval($_GET['category']);
     if ($category_id <= 0) {
         // Invalid ID, redirect to categories page
-        header('Location: /categories');
+        header('Location: ' . app_url('categories'));
         exit;
     }
 
@@ -35,14 +35,14 @@ elseif (isset($_GET['category']) && !empty($_GET['category'])) {
 
     if (!$selected_category) {
         // Category not found, redirect to categories page
-        header('Location: /categories');
+        header('Location: ' . app_url('categories'));
         exit;
     }
 
     // 301 permanent redirect to slug-based URL if slug exists
     if (!empty($selected_category['slug'])) {
         header('HTTP/1.1 301 Moved Permanently');
-        header('Location: /categories/' . urlencode($selected_category['slug']));
+        header('Location: ' . app_url('categories/' . urlencode($selected_category['slug'])));
         exit;
     }
 

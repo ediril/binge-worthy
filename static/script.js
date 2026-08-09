@@ -13,7 +13,7 @@ function openVideo(videoUrl, videoId = null) {
     
     // If we have a video ID, use the play page
     if (videoId) {
-        window.location.href = `/play?id=${videoId}`;
+        window.location.href = window.appUrl(`play?id=${videoId}`);
         return;
     }
     
@@ -21,11 +21,11 @@ function openVideo(videoUrl, videoId = null) {
     const youtubeId = extractYouTubeVideoId(videoUrl);
     if (youtubeId) {
         // Try to find the video in our database first
-        fetch(`/api/find-video.php?youtube_id=${youtubeId}`)
+        fetch(window.appUrl(`api/find-video.php?youtube_id=${youtubeId}`))
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.video_id) {
-                    window.location.href = `/play?id=${data.video_id}`;
+                    window.location.href = window.appUrl(`play?id=${data.video_id}`);
                 } else {
                     // Fallback to opening YouTube directly
                     window.open(videoUrl, '_blank');
@@ -348,7 +348,7 @@ function handleSuggestionSubmit(e) {
     submitSpinner.classList.remove('d-none');
     
     // Submit to backend
-    fetch('/suggestions.php', {
+    fetch(window.appUrl('suggestions.php'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1536,7 +1536,7 @@ function swapToNewVideo(videoId, youtubeId = null) {
         
         // Still need to fetch video info to update overlay content
         console.log('Fetching video info for overlay update...');
-        fetch(`/api/video-info.php?id=${videoId}`)
+        fetch(window.appUrl(`api/video-info.php?id=${videoId}`))
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.video) {
@@ -1568,7 +1568,7 @@ function swapToNewVideo(videoId, youtubeId = null) {
     console.log('=== FETCHING VIDEO INFO ===');
     console.log('Fetching video information for:', videoId);
     
-    const apiUrl = `/api/video-info.php?id=${videoId}`;
+    const apiUrl = window.appUrl(`api/video-info.php?id=${videoId}`);
     console.log('API URL:', apiUrl);
     
     // Fetch video details from server
@@ -1590,7 +1590,9 @@ function swapToNewVideo(videoId, youtubeId = null) {
                 console.log('Video data received:', video);
 
                 // Update URL with slug
-                const newUrl = video.slug ? `/play/${encodeURIComponent(video.slug)}` : `/play?id=${videoId}`;
+                const newUrl = video.slug
+                    ? window.appUrl(`play/${encodeURIComponent(video.slug)}`)
+                    : window.appUrl(`play?id=${videoId}`);
                 try {
                     window.history.pushState({ videoId: videoId, slug: video.slug }, '', newUrl);
                     console.log('Updated URL to:', newUrl);
@@ -1630,10 +1632,10 @@ function swapToNewVideo(videoId, youtubeId = null) {
                 //     console.log('API failed, but we still need YouTube ID for database ID:', videoId);
                 //     console.log('Unfortunately cannot load video without YouTube ID');
                 //     console.log('Must fall back to page navigation to get proper video data');
-                //     window.location.href = `/play?id=${videoId}`;
+                //     window.location.href = window.appUrl(`play?id=${videoId}`);
                 // } else {
                 //     console.log('Player not available, falling back to page navigation');
-                //     window.location.href = `/play?id=${videoId}`;
+                //     window.location.href = window.appUrl(`play?id=${videoId}`);
                 // }
             }
         })
@@ -1649,7 +1651,7 @@ function swapToNewVideo(videoId, youtubeId = null) {
             
             // Cannot load video without YouTube ID from API
             console.log('Cannot load video without YouTube ID, falling back to page navigation');
-            window.location.href = `/play?id=${videoId}`;
+            window.location.href = window.appUrl(`play?id=${videoId}`);
         });
 }
 
@@ -1667,8 +1669,8 @@ function updateVideoDisplay(video) {
     const channelLink = document.querySelector('.video-player-channel');
     if (channelLink) {
         channelLink.href = video.channel_slug
-            ? `/channel/${encodeURIComponent(video.channel_slug)}`
-            : `/channel?id=${video.channel_id}`;
+            ? window.appUrl(`channel/${encodeURIComponent(video.channel_slug)}`)
+            : window.appUrl(`channel?id=${video.channel_id}`);
         channelLink.textContent = video.channel_title;
     }
     
@@ -1701,7 +1703,7 @@ function updateNextVideoSection(video) {
     console.log('>>>> Updating next video section for video:', video.id, video.published_at, video.channel_id);
 
     // Fetch the complete HTML for the next video section
-    fetch(`/api/next-video-section.php?video_ts=${video.published_at}&channel_id=${video.channel_id}`)
+    fetch(window.appUrl(`api/next-video-section.php?video_ts=${video.published_at}&channel_id=${video.channel_id}`))
         .then(response => response.json())
         .then(data => {
             console.log('>>> Fetched next video section data:', data);
@@ -1734,7 +1736,7 @@ function updateSuggestedVideosSection(video) {
     console.log('Updating suggested videos section');
     
     // Fetch new suggested videos
-    fetch('/api/suggested-videos.php?limit=3')
+    fetch(window.appUrl('api/suggested-videos.php?limit=3'))
         .then(response => response.json())
         .then(data => {
             if (data.success && data.videos.length > 0) {
@@ -1891,7 +1893,7 @@ function initializeSearchAutocomplete() {
 function performSearch(query) {
     const searchDropdown = document.getElementById('search-dropdown');
 
-    fetch(`/api/search.php?q=${encodeURIComponent(query)}`, {
+    fetch(window.appUrl(`api/search.php?q=${encodeURIComponent(query)}`), {
         cache: 'no-store'
     })
         .then(response => response.json())
@@ -1930,7 +1932,7 @@ function renderSearchResults(videos, channels) {
 
     // Render videos first
     videos.forEach(video => {
-        const thumbnailUrl = video.thumbnail_url || '/static/placeholder.png';
+        const thumbnailUrl = video.thumbnail_url || window.appUrl('static/placeholder.png');
         html += `
             <div class="search-result-item" data-type="video" data-slug="${escapeHtml(video.slug)}">
                 <img src="${escapeHtml(thumbnailUrl)}" alt="" class="search-result-thumbnail">
@@ -1947,7 +1949,7 @@ function renderSearchResults(videos, channels) {
 
     // Render channels
     channels.forEach(channel => {
-        const thumbnailUrl = channel.thumbnail_url || '/static/placeholder.png';
+        const thumbnailUrl = channel.thumbnail_url || window.appUrl('static/placeholder.png');
         html += `
             <div class="search-result-item" data-type="channel" data-slug="${escapeHtml(channel.slug)}">
                 <img src="${escapeHtml(thumbnailUrl)}" alt="" class="search-result-thumbnail channel">
@@ -1974,7 +1976,7 @@ function renderSearchResults(videos, channels) {
 
             // Log the selection (fire and forget)
             if (query.length >= 2) {
-                fetch('/api/search_log.php', {
+                fetch(window.appUrl('api/search_log.php'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query, type, slug })
@@ -1982,9 +1984,9 @@ function renderSearchResults(videos, channels) {
             }
 
             if (type === 'video') {
-                window.location.href = `/play/${encodeURIComponent(slug)}`;
+                window.location.href = window.appUrl(`play/${encodeURIComponent(slug)}`);
             } else if (type === 'channel') {
-                window.location.href = `/channel/${encodeURIComponent(slug)}`;
+                window.location.href = window.appUrl(`channel/${encodeURIComponent(slug)}`);
             }
         });
     });

@@ -3,8 +3,8 @@
         <div class="row">
             <div class="col-12 text-center">
                 <p class="pt-1">
-                    <a href="/legal">Legal</a> • 
-                    <a href="/privacy">Privacy</a>
+                    <a href="<?php echo app_url('legal'); ?>">Legal</a> •
+                    <a href="<?php echo app_url('privacy'); ?>">Privacy</a>
                 </p>
             </div>
         </div>
@@ -22,7 +22,7 @@
     $js_file = __DIR__ . '/../../static/script.js';
     $js_version = file_exists($js_file) ? filemtime($js_file) : time();
     ?>
-    <script src="/static/script.js?v=<?php echo $js_version; ?>"></script>
+    <script src="<?php echo app_url('static/script.js'); ?>?v=<?php echo $js_version; ?>"></script>
     <script async src="https://scripts.simpleanalyticscdn.com/latest.js"></script>
 </body>
-</html> 
+</html>

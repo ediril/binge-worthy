@@ -4,14 +4,14 @@
 
 ## Key Pages
 
-- [Home](https://bingeworthyshows.tv/): The main page with new and suggested videos.
-- [Categories](https://bingeworthyshows.tv/categories): Browse videos by category.
-- [Channels](https://bingeworthyshows.tv/channels): Browse all channels.
+- [Home](https://emrahdiril.com/bingeworthy/): The main page with new and suggested videos.
+- [Categories](https://emrahdiril.com/bingeworthy/categories): Browse videos by category.
+- [Channels](https://emrahdiril.com/bingeworthy/channels): Browse all channels.
 
 ## API and Search
 
-- [Search API](/api/search.php): Endpoint for searching videos. Expects a 'q' parameter.
-- [Suggestions API](/api/suggested-videos.php): Endpoint for video suggestions.
+- [Search API](/bingeworthy/api/search.php): Endpoint for searching videos. Expects a 'q' parameter.
+- [Suggestions API](/bingeworthy/api/suggested-videos.php): Endpoint for video suggestions.
 
 ## Usage Policy
 

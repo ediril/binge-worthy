@@ -1,6 +1,6 @@
 User-agent: *
 Allow: /
-Disallow: /api/search.php
-Disallow: /api/search_log.php
-Disallow: /api/suggested-videos.php
-Disallow: /suggestions.php
+Disallow: /bingeworthy/api/search.php
+Disallow: /bingeworthy/api/search_log.php
+Disallow: /bingeworthy/api/suggested-videos.php
+Disallow: /bingeworthy/suggestions.php

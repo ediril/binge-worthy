@@ -7,22 +7,12 @@ Options -Indexes
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# Redirect www to non-www
-RewriteCond %{HTTP_HOST} ^www\.bingeworthyshows\.tv$ [NC]
-RewriteRule ^(.*)$ https://bingeworthyshows.tv/$1 [L,R=301]
-
-# Only allow bingeworthyshows.tv for PHP pages (not static assets or API)
-RewriteCond %{HTTP_HOST} !^bingeworthyshows\.tv$ [NC]
-RewriteCond %{REQUEST_URI} !^/static/
-RewriteCond %{REQUEST_URI} !^/api/
-RewriteRule ^ - [R=404,L]
-
 # Redirect old .php URLs to clean URLs (except API endpoints)
 RewriteCond %{THE_REQUEST} \s/+([^?\s]*?)\.php[\s?] [NC]
-RewriteCond %{REQUEST_URI} !^/suggestions\.php$
-RewriteCond %{REQUEST_URI} !^/admin\.php$
-RewriteCond %{REQUEST_URI} !^/admin_ajax\.php$
-RewriteCond %{REQUEST_URI} !^/api/
+RewriteCond %{REQUEST_URI} !^/bingeworthy/suggestions\.php$
+RewriteCond %{REQUEST_URI} !^/bingeworthy/admin\.php$
+RewriteCond %{REQUEST_URI} !^/bingeworthy/admin_ajax\.php$
+RewriteCond %{REQUEST_URI} !^/bingeworthy/api/
 RewriteRule ^ /%1 [R=301,L,QSA]
 
 # Channel slug URLs - route /channel/slug-name to index.php
@@ -46,7 +36,7 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(index|about|admin|categories|channel|suggestions)/?$ $1.php [L,QSA,E=REDIRECT:1]
 
 # Allow direct access to API endpoints
-RewriteCond %{REQUEST_URI} ^/api/
+RewriteCond %{REQUEST_URI} ^/bingeworthy/api/
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 

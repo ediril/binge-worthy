@@ -47,7 +47,7 @@ $current_page = 'about';
 
                         <h3 class="mt-5 mb-3">Get Started</h3>
                         <p>
-                            Browse our <a href="/categories" class="text-decoration-none">categories</a> to discover videos in your areas of interest, or check out our <a href="/" class="text-decoration-none">homepage</a> for the latest additions and suggested videos.
+                            Browse our <a href="<?php echo app_url('categories'); ?>" class="text-decoration-none">categories</a> to discover videos in your areas of interest, or check out our <a href="<?php echo app_url(); ?>" class="text-decoration-none">homepage</a> for the latest additions and suggested videos.
                         </p>
                         <div class="row text-center mb-4">
                             <div class="col-md-6">
@@ -71,19 +71,19 @@ $current_page = 'about';
                                 <div class="d-flex justify-content-center align-items-start">
                                     <div class="team-member text-center">
                                         <h5 class="mb-2">CEO</h5>
-                                        <img src="static/IMG_7312.png" alt="Team member 3" class="team-member__image">
+                                        <img src="<?php echo app_url('static/IMG_7312.png'); ?>" alt="Team member 3" class="team-member__image">
                                     </div>
                                     <div class="team-member text-center">
                                         <h5 class="mb-2">COO</h5>
-                                        <img src="static/IMG_7106.png" alt="Team member 2" class="team-member__image">
+                                        <img src="<?php echo app_url('static/IMG_7106.png'); ?>" alt="Team member 2" class="team-member__image">
                                     </div>
                                     <div class="team-member text-center">
                                         <h5 class="mb-2">CFO</h5>
-                                        <img src="static/IMG_7561.png" alt="Team member 4" class="team-member__image">
+                                        <img src="<?php echo app_url('static/IMG_7561.png'); ?>" alt="Team member 4" class="team-member__image">
                                     </div>
                                         <div class="team-member text-center">
                                         <h5 class="mb-2">Developer</h5>
-                                        <img src="static/IMG_3598.png" alt="Team member 1" class="team-member__image">
+                                        <img src="<?php echo app_url('static/IMG_3598.png'); ?>" alt="Team member 1" class="team-member__image">
                                     </div>
                                 </div>
                             </div>

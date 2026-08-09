@@ -4,17 +4,17 @@ $current_page = isset($current_page) ? $current_page : 'home';
 ?>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid mx-1 px-4">
-        <a class="navbar-brand" href="/">Binge Worthy Shows</a>
+        <a class="navbar-brand" href="<?php echo app_url(); ?>">Binge Worthy Shows</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
-                    <a class="nav-link <?php echo ($current_page == 'channels') ? 'active' : ''; ?>" href="/channels">Channels</a>
+                    <a class="nav-link <?php echo ($current_page == 'channels') ? 'active' : ''; ?>" href="<?php echo app_url('channels'); ?>">Channels</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link <?php echo ($current_page == 'categories') ? 'active' : ''; ?>" href="/categories">Categories</a>
+                    <a class="nav-link <?php echo ($current_page == 'categories') ? 'active' : ''; ?>" href="<?php echo app_url('categories'); ?>">Categories</a>
                 </li>
             </ul>
 
@@ -30,10 +30,10 @@ $current_page = isset($current_page) ? $current_page : 'home';
 
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link <?php echo ($current_page == 'blog') ? 'active' : ''; ?>" href="/blog">Blog</a>
+                    <a class="nav-link <?php echo ($current_page == 'blog') ? 'active' : ''; ?>" href="<?php echo app_url('blog'); ?>">Blog</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link <?php echo ($current_page == 'about') ? 'active' : ''; ?>" href="/about">About</a>
+                    <a class="nav-link <?php echo ($current_page == 'about') ? 'active' : ''; ?>" href="<?php echo app_url('about'); ?>">About</a>
                 </li>
                 <?php 
                 // Only show admin button on localhost
@@ -42,10 +42,10 @@ $current_page = isset($current_page) ? $current_page : 'home';
                 if ($is_localhost): 
                 ?>
                     <li class="nav-item ms-2 d-flex align-items-center">
-                        <a href="/admin" class="btn btn-outline-light btn-sm">Admin</a>
+                        <a href="<?php echo app_url('admin'); ?>" class="btn btn-outline-light btn-sm">Admin</a>
                     </li>
                 <?php endif; ?>
             </ul>
         </div>
     </div>
-</nav> 
+</nav>
