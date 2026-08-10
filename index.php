@@ -27,8 +27,6 @@ $valid_pages = [
     'about.php' => 'about',
     'admin' => 'admin',
     'admin.php' => 'admin',
-    'blog' => 'blog',
-    'blog.php' => 'blog',
     'categories' => 'categories',
     'categories.php' => 'categories',
     'channels' => 'channels',
@@ -114,12 +112,6 @@ switch ($page_to_load) {
         $page_title = 'About - BingeWorthy';
         $current_page = 'about';
         include 'templates/about.php';
-        break;
-        
-    case 'blog':
-        $page_title = 'Blog - BingeWorthy';
-        $current_page = 'blog';
-        include 'templates/blog.php';
         break;
         
     case 'admin':

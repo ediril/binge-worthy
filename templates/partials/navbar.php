@@ -30,9 +30,6 @@ $current_page = isset($current_page) ? $current_page : 'home';
 
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link <?php echo ($current_page == 'blog') ? 'active' : ''; ?>" href="<?php echo app_url('blog'); ?>">Blog</a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link <?php echo ($current_page == 'about') ? 'active' : ''; ?>" href="<?php echo app_url('about'); ?>">About</a>
                 </li>
                 <?php 

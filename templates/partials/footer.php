@@ -10,7 +10,7 @@
         </div>
         <div class="row">
             <div class="col-12 text-center">
-                <p>🌘 <a href="https://emrahdiril.com">Emrah Diril</a> &copy; 2025. All Rights Reserved.</p>
+                <p>🌘 <a href="https://emrahdiril.com">Emrah Diril</a> &copy; 2026. All Rights Reserved.</p>
             </div>
         </div>
     </div>
