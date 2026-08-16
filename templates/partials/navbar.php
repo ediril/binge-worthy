@@ -16,6 +16,9 @@ $current_page = isset($current_page) ? $current_page : 'home';
                 <li class="nav-item">
                     <a class="nav-link <?php echo ($current_page == 'categories') ? 'active' : ''; ?>" href="<?php echo app_url('categories'); ?>">Categories</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo ($current_page == 'videos') ? 'active' : ''; ?>" href="<?php echo app_url('videos'); ?>">Videos</a>
+                </li>
             </ul>
 
             <!-- Search Bar -->

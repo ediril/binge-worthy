@@ -31,6 +31,8 @@ $valid_pages = [
     'categories.php' => 'categories',
     'channels' => 'channels',
     'channels.php' => 'channels',
+    'videos' => 'videos',
+    'videos.php' => 'videos',
     'channel' => 'channel',
     'channel.php' => 'channel',
     'play' => 'play',
@@ -127,6 +129,10 @@ switch ($page_to_load) {
         
     case 'channels':
         include 'templates/channels.php';
+        break;
+
+    case 'videos':
+        include 'templates/videos.php';
         break;
         
     case 'channel':
