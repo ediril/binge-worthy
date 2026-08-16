@@ -1363,6 +1363,22 @@ body.ios-fullscreen {
     object-fit: contain;
 }
 
+@media (min-width: 769px) {
+    .video-container:is(:fullscreen, :-webkit-full-screen, :-moz-full-screen) .video-player-wrapper {
+        width: 100vw;
+        height: 100vh;
+        max-width: none;
+        aspect-ratio: auto;
+        border-radius: 0;
+    }
+
+    .video-container:is(:fullscreen, :-webkit-full-screen, :-moz-full-screen) .video-player-iframe {
+        width: 100% !important;
+        height: 100% !important;
+        max-height: none !important;
+    }
+}
+
 /* Mobile Controls from Scrubbler */
 .mobile-controls {
     display: none; /* Hidden by default, shown on mobile/tablet */
