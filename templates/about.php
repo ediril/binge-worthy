@@ -14,6 +14,8 @@ $video_count_stmt = $db->prepare("SELECT COUNT(*) as count FROM videos");
 $video_count_stmt->execute();
 $video_count = $video_count_stmt->fetch()['count'];
 
+$last_updated = $db->query("SELECT MAX(last_fetched) FROM channels")->fetchColumn();
+
 $page_title = 'About - Binge-Worthy';
 $current_page = 'about';
 ?>
@@ -49,7 +51,7 @@ $current_page = 'about';
                         <p>
                             Browse our <a href="<?php echo app_url('categories'); ?>" class="text-decoration-none">categories</a> to discover videos in your areas of interest, or check out our <a href="<?php echo app_url(); ?>" class="text-decoration-none">homepage</a> for the latest additions and suggested videos.
                         </p>
-                        <div class="row text-center mb-4">
+                        <div class="row text-center mb-2">
                             <div class="col-md-6">
                                 <div class="stat-card p-4 mb-3 h-100">
                                     <h2 class="text-primary mb-2"><?php echo number_format($channel_count); ?></h2>
@@ -63,7 +65,11 @@ $current_page = 'about';
                                 </div>
                             </div>
                         </div>
-
+                        <?php if ($last_updated): ?>
+                            <p class="text-center text-muted small mb-4">
+                                Last updated: <time datetime="<?php echo htmlspecialchars($last_updated); ?>"><?php echo date('F j, Y', strtotime($last_updated)); ?></time>
+                            </p>
+                        <?php endif; ?>
 
                         <h3 class="mt-5 mb-3">The Team</h3>
                         <div class="row justify-content-center">
